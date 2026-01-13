@@ -8,16 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { EMAIL_DOMAIN } from '@/lib/constants';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const loginSchema = z.object({
-  email: z.string()
-    .email('Invalid email address')
-    .refine((email) => email.endsWith(EMAIL_DOMAIN), {
-      message: `Email must end with ${EMAIL_DOMAIN}`,
-    }),
+  email: z.string().email('Invalid email address'),
   password: z.string().min(1, 'Password is required'),
 });
 
@@ -53,13 +48,7 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
           toast({
             variant: 'destructive',
             title: 'Login Failed',
-            description: 'Invalid email or password. Please check your credentials.',
-          });
-        } else if (error.message.includes('Email not confirmed')) {
-          toast({
-            variant: 'destructive',
-            title: 'Account Not Activated',
-            description: 'Your account is pending approval. Please wait for admin confirmation.',
+            description: 'Invalid email or password.',
           });
         } else {
           throw error;
@@ -94,11 +83,11 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">College Email ID</Label>
+            <Label htmlFor="email">Email</Label>
             <Input
               id="email"
               type="email"
-              placeholder={`yourname${EMAIL_DOMAIN}`}
+              placeholder="your@email.com"
               {...register('email')}
               className={errors.email ? 'border-destructive' : ''}
             />
@@ -133,7 +122,7 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
               onClick={onSwitchToRegister}
               className="text-primary hover:underline font-medium"
             >
-              Request Access
+              Create Account
             </button>
           </p>
         </form>

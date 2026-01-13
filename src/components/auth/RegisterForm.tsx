@@ -2,26 +2,23 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ROLES, ROLE_LABELS, EMAIL_DOMAIN, KryptonRole } from '@/lib/constants';
-import { Loader2, CheckCircle, Mail } from 'lucide-react';
+import { ROLES, ROLE_LABELS, KryptonRole } from '@/lib/constants';
+import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const registerSchema = z.object({
   fullName: z.string().min(2, 'Full name must be at least 2 characters').max(100),
-  email: z.string()
-    .email('Invalid email address')
-    .refine((email) => email.endsWith(EMAIL_DOMAIN), {
-      message: `Email must end with ${EMAIL_DOMAIN}`,
-    }),
+  email: z.string().email('Invalid email address'),
   department: z.string().min(2, 'Department is required').max(100),
   role: z.enum(['team_captain', 'vice_captain', 'strategist', 'team_manager', 'team_member']),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
@@ -36,8 +33,7 @@ interface RegisterFormProps {
 
 export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [submittedEmail, setSubmittedEmail] = useState('');
+  const navigate = useNavigate();
   const { toast } = useToast();
 
   const {
@@ -52,33 +48,24 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
 
   const selectedRole = watch('role');
 
-  const sendPendingEmail = async (email: string, fullName: string) => {
-    try {
-      await supabase.functions.invoke('send-notification', {
-        body: { to: email, type: 'pending', fullName }
-      });
-    } catch (error) {
-      console.error('Failed to send pending notification email:', error);
-    }
-  };
-
   const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true);
     try {
-      // Store registration request in database (pending approval)
-      const { error } = await supabase
-        .from('registration_requests')
-        .insert({
-          full_name: data.fullName,
-          email: data.email,
-          department: data.department,
-          requested_role: data.role,
-          password_hash: data.password,
-          status: 'pending',
-        });
+      const { error } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
+        options: {
+          data: {
+            full_name: data.fullName,
+            department: data.department,
+            role: data.role,
+          },
+          emailRedirectTo: `${window.location.origin}/`
+        }
+      });
 
       if (error) {
-        if (error.code === '23505') {
+        if (error.message.includes('already registered')) {
           toast({
             variant: 'destructive',
             title: 'Registration Failed',
@@ -90,15 +77,11 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
         return;
       }
 
-      // Send pending notification email
-      await sendPendingEmail(data.email, data.fullName);
-
-      setSubmittedEmail(data.email);
-      setIsSuccess(true);
       toast({
-        title: 'Request Submitted',
-        description: 'Check your email for confirmation.',
+        title: 'Account Created!',
+        description: 'You can now log in with your credentials.',
       });
+      onSwitchToLogin();
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -110,47 +93,10 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
     }
   };
 
-  if (isSuccess) {
-    return (
-      <Card className="w-full max-w-md mx-auto animate-fade-in">
-        <CardContent className="pt-8 pb-6 text-center">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[hsl(var(--status-completed))]/10 flex items-center justify-center">
-            <Mail className="w-8 h-8 text-[hsl(var(--status-completed))]" />
-          </div>
-          <h2 className="text-xl font-display font-semibold mb-2">Check Your Email!</h2>
-          <p className="text-muted-foreground mb-2">
-            We've sent a confirmation to:
-          </p>
-          <p className="font-medium text-primary mb-4">{submittedEmail}</p>
-          <div className="p-4 rounded-lg bg-muted/50 text-left mb-6">
-            <h3 className="font-semibold text-sm mb-2">What happens next?</h3>
-            <ol className="text-sm text-muted-foreground space-y-2">
-              <li className="flex items-start gap-2">
-                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-medium">1</span>
-                <span>Your request is being reviewed by the Team Captain</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-medium">2</span>
-                <span>You'll receive an approval email when ready</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-medium">3</span>
-                <span>Login with your credentials to access Krypton Space</span>
-              </li>
-            </ol>
-          </div>
-          <Button onClick={onSwitchToLogin} variant="outline" className="w-full">
-            Back to Login
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <Card className="w-full max-w-md mx-auto animate-fade-in">
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-display">Request Access</CardTitle>
+        <CardTitle className="text-2xl font-display">Create Account</CardTitle>
         <CardDescription>
           Join Krypton Space - Your team accountability platform
         </CardDescription>
@@ -171,11 +117,11 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email">College Email ID</Label>
+            <Label htmlFor="email">Email</Label>
             <Input
               id="email"
               type="email"
-              placeholder={`yourname${EMAIL_DOMAIN}`}
+              placeholder="your@email.com"
               {...register('email')}
               className={errors.email ? 'border-destructive' : ''}
             />
@@ -224,7 +170,7 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
             <Input
               id="password"
               type="password"
-              placeholder="Create a strong password"
+              placeholder="Create a password"
               {...register('password')}
               className={errors.password ? 'border-destructive' : ''}
             />
@@ -249,7 +195,7 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
 
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Request Access
+            Create Account
           </Button>
 
           <p className="text-center text-sm text-muted-foreground">
