@@ -5,10 +5,30 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { ROLE_LABELS, KryptonRole } from '@/lib/constants';
-import { Users, Trash2, Loader2, Mail, Check, X, AlertCircle } from 'lucide-react';
+import {
+  Users,
+  Trash2,
+  Loader2,
+  Mail,
+  Check,
+  X,
+  AlertCircle
+} from 'lucide-react';
 import { format } from 'date-fns';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
+} from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogDescription
+} from '@/components/ui/dialog';
 
 interface RegisteredUser {
   id: string;
@@ -35,6 +55,7 @@ interface RegistrationRequest {
 export function UserManagementPanel() {
   const { user, profile } = useAuth();
   const { toast } = useToast();
+
   const [users, setUsers] = useState<RegisteredUser[]>([]);
   const [pendingRequests, setPendingRequests] = useState<RegistrationRequest[]>([]);
   const [rejectedRequests, setRejectedRequests] = useState<RegistrationRequest[]>([]);
@@ -42,120 +63,142 @@ export function UserManagementPanel() {
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [deleteConfirmUser, setDeleteConfirmUser] = useState<RegisteredUser | null>(null);
 
+  const isBusy = Boolean(processingId);
+
   const fetchData = async () => {
-    // Fetch all approved users (profiles with roles) - exclude test users
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('is_test', false);
-    const { data: roles } = await supabase.from('user_roles').select('user_id, role');
-    
-    if (profiles && roles) {
-      const roleMap = new Map(roles.map(r => [r.user_id, r.role as KryptonRole]));
-      const usersWithRoles: RegisteredUser[] = profiles.map(p => ({
-        id: p.id,
-        user_id: p.user_id,
-        full_name: p.full_name,
-        email: p.email,
-        department: p.department,
-        role: roleMap.get(p.user_id) || null,
-        created_at: p.created_at,
-        status: 'approved' as const
-      }));
-      setUsers(usersWithRoles);
-    }
+    setIsLoading(true);
+    try {
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('is_test', false);
 
-    // Fetch pending registration requests
-    const { data: pending } = await supabase
-      .from('registration_requests')
-      .select('*')
-      .eq('status', 'pending')
-      .order('created_at', { ascending: true });
-    
-    if (pending) {
-      setPendingRequests(pending as RegistrationRequest[]);
-    }
+      if (profilesError) throw profilesError;
 
-    // Fetch rejected registration requests
-    const { data: rejected } = await supabase
-      .from('registration_requests')
-      .select('*')
-      .eq('status', 'rejected')
-      .order('created_at', { ascending: false });
-    
-    if (rejected) {
-      setRejectedRequests(rejected as RegistrationRequest[]);
-    }
+      const { data: roles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id, role');
 
-    setIsLoading(false);
+      if (rolesError) throw rolesError;
+
+      if (profiles && roles) {
+        const roleMap = new Map(
+          roles.map(r => [r.user_id, r.role as KryptonRole])
+        );
+
+        setUsers(
+          profiles.map(p => ({
+            id: p.id,
+            user_id: p.user_id,
+            full_name: p.full_name,
+            email: p.email,
+            department: p.department,
+            role: roleMap.get(p.user_id) || null,
+            created_at: p.created_at,
+            status: 'approved'
+          }))
+        );
+      }
+
+      const { data: pending } = await supabase
+        .from('registration_requests')
+        .select('*')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: true });
+
+      setPendingRequests((pending || []) as RegistrationRequest[]);
+
+      const { data: rejected } = await supabase
+        .from('registration_requests')
+        .select('*')
+        .eq('status', 'rejected')
+        .order('created_at', { ascending: false });
+
+      setRejectedRequests((rejected || []) as RegistrationRequest[]);
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Load Failed',
+        description: 'Unable to fetch user data'
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
-    fetchData();
+    let mounted = true;
+    mounted && fetchData();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const sendNotificationEmail = async (
-    email: string, 
-    fullName: string, 
-    type: 'approved' | 'rejected' | 'deletion_request', 
+    email: string,
+    fullName: string,
+    type: 'approved' | 'rejected' | 'deletion_request',
     role?: string
   ) => {
     try {
       await supabase.functions.invoke('send-notification', {
         body: { to: email, type, fullName, role }
       });
-    } catch (error) {
-      console.error('Failed to send notification email:', error);
+    } catch (err) {
+      console.error('Email failed:', err);
     }
   };
 
   const handleApprove = async (request: RegistrationRequest) => {
     setProcessingId(request.id);
     try {
-      // Create user in Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      if (request.password_hash.length > 72) {
+        throw new Error('Invalid password format');
+      }
+
+      const { error } = await supabase.auth.signUp({
         email: request.email,
         password: request.password_hash,
         options: {
           data: {
             full_name: request.full_name,
             department: request.department,
-            role: request.requested_role,
+            role: request.requested_role
           },
           emailRedirectTo: `${window.location.origin}/`
         }
       });
 
-      if (authError) throw authError;
+      if (error) throw error;
 
-      // Update request status
       await supabase
         .from('registration_requests')
-        .update({ 
-          status: 'approved', 
+        .update({
+          status: 'approved',
           reviewed_at: new Date().toISOString(),
           reviewed_by: user?.id
         })
         .eq('id', request.id);
 
-      // Send approval email
-      await sendNotificationEmail(
-        request.email, 
-        request.full_name, 
+      sendNotificationEmail(
+        request.email,
+        request.full_name,
         'approved',
         ROLE_LABELS[request.requested_role]
       );
 
       toast({
         title: 'User Approved',
-        description: `${request.full_name} has been granted access.`,
+        description: `${request.full_name} has been granted access`
       });
+
+      await new Promise(r => setTimeout(r, 800));
       fetchData();
     } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Approval Failed',
-        description: error.message || 'Failed to approve user.',
+        description: error.message || 'Unable to approve user'
       });
     } finally {
       setProcessingId(null);
@@ -167,26 +210,25 @@ export function UserManagementPanel() {
     try {
       await supabase
         .from('registration_requests')
-        .update({ 
-          status: 'rejected', 
+        .update({
+          status: 'rejected',
           reviewed_at: new Date().toISOString(),
           reviewed_by: user?.id
         })
         .eq('id', request.id);
 
-      // Send rejection email
-      await sendNotificationEmail(request.email, request.full_name, 'rejected');
+      sendNotificationEmail(request.email, request.full_name, 'rejected');
 
       toast({
-        title: 'Request Rejected',
-        description: 'The registration request has been rejected.',
+        title: 'Request Rejected'
       });
+
       fetchData();
     } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: error.message || 'Failed to reject request.',
+        description: error.message
       });
     } finally {
       setProcessingId(null);
@@ -201,72 +243,71 @@ export function UserManagementPanel() {
         .delete()
         .eq('id', request.id);
 
-      toast({
-        title: 'Request Deleted',
-        description: 'The registration request has been removed.',
-      });
+      toast({ title: 'Request Deleted' });
       fetchData();
     } catch (error: any) {
       toast({
         variant: 'destructive',
-        title: 'Error',
-        description: error.message || 'Failed to delete request.',
+        title: 'Delete Failed',
+        description: error.message
       });
     } finally {
       setProcessingId(null);
     }
   };
 
-  // HARD DELETE - Immediate and irreversible user deletion
   const handleImmediateDelete = async (targetUser: RegisteredUser) => {
-    if (targetUser.user_id === user?.id) {
+    if (
+      targetUser.user_id === user?.id ||
+      targetUser.id === profile?.id
+    ) {
       toast({
         variant: 'destructive',
         title: 'Cannot Delete',
-        description: 'You cannot delete your own profile.',
+        description: 'You cannot delete your own account'
       });
       return;
     }
 
     setProcessingId(targetUser.id);
     try {
-      // Call edge function for complete hard deletion
       const { data, error } = await supabase.functions.invoke('delete-user', {
         body: { targetUserId: targetUser.user_id }
       });
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (error || data?.error) throw error || new Error(data.error);
 
       toast({
-        title: 'User Permanently Deleted',
-        description: `${targetUser.full_name} has been completely removed from the system. All data including logs have been deleted.`,
+        title: 'User Deleted',
+        description: `${targetUser.full_name} permanently removed`
       });
-      
+
       setDeleteConfirmUser(null);
       fetchData();
     } catch (error: any) {
       toast({
         variant: 'destructive',
-        title: 'Error',
-        description: error.message || 'Failed to delete user.',
+        title: 'Deletion Failed',
+        description: error.message
       });
     } finally {
       setProcessingId(null);
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'approved':
-        return <span className="px-2 py-0.5 text-xs rounded-full bg-green-500/20 text-green-600">Approved</span>;
-      case 'pending':
-        return <span className="px-2 py-0.5 text-xs rounded-full bg-amber-500/20 text-amber-600">Pending</span>;
-      case 'rejected':
-        return <span className="px-2 py-0.5 text-xs rounded-full bg-red-500/20 text-red-600">Rejected</span>;
-      default:
-        return null;
-    }
+  const getStatusBadge = (
+    status: 'approved' | 'pending' | 'rejected'
+  ) => {
+    const map = {
+      approved: 'bg-green-500/20 text-green-600',
+      pending: 'bg-amber-500/20 text-amber-600',
+      rejected: 'bg-red-500/20 text-red-600'
+    };
+    return (
+      <span className={`px-2 py-0.5 text-xs rounded-full ${map[status]}`}>
+        {status}
+      </span>
+    );
   };
 
   if (isLoading) {
