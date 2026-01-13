@@ -12,17 +12,18 @@ import Auth from "./pages/Auth";
 import Team from "./pages/Team";
 import MySpace from "./pages/MySpace";
 import MemberProfile from "./pages/MemberProfile";
+import MemberPublicProfile from "./pages/MemberPublicProfile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TestSessionProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <AuthProvider>
+        <TestSessionProvider>
           <TestSessionBanner />
           <PWAInstallPrompt />
           <BrowserRouter>
@@ -32,12 +33,13 @@ const App = () => (
               <Route path="/team" element={<Team />} />
               <Route path="/my-space" element={<MySpace />} />
               <Route path="/member/:userId" element={<MemberProfile />} />
+              <Route path="/profile/:userId" element={<MemberPublicProfile />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
-        </TooltipProvider>
-      </TestSessionProvider>
-    </AuthProvider>
+        </TestSessionProvider>
+      </AuthProvider>
+    </TooltipProvider>
   </QueryClientProvider>
 );
 
