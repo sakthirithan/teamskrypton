@@ -558,18 +558,25 @@ export function UserManagementPanel() {
                         <span className="truncate">{request.email}</span>
                       </p>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="px-2 py-0.5 text-xs rounded bg-muted text-muted-foreground">
+                        <span className="px-2 py-0.5 text-xs rounded bg-primary/10 text-primary font-medium">
                           {ROLE_LABELS[request.requested_role]}
                         </span>
+                        <span className="text-xs text-muted-foreground">
+                          {request.department}
+                        </span>
                       </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Rejected: {format(new Date(request.created_at), 'MMM dd, HH:mm')}
+                      </p>
                     </div>
+
                     <Button
                       size="sm"
                       variant="ghost"
                       onClick={() => handleDeleteRequest(request)}
                       disabled={processingId === request.id}
                       className="text-muted-foreground hover:text-destructive"
-                      title="Delete"
+                      title="Delete Request"
                     >
                       {processingId === request.id ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
