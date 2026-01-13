@@ -4,7 +4,7 @@ import { LoginForm } from '@/components/auth/LoginForm';
 import { RegisterForm } from '@/components/auth/RegisterForm';
 import { useAuth } from '@/hooks/useAuth';
 
-export default function Auth() {
+const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const { user, isLoading } = useAuth();
   const navigate = useNavigate();
@@ -54,4 +54,6 @@ export default function Auth() {
       </footer>
     </div>
   );
-}
+};
+
+export default Auth;
