@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { ROLE_LABELS, KryptonRole } from '@/lib/constants';
-import { Check, X, UserPlus, Loader2 } from 'lucide-react';
+import { Check, X, UserPlus, Loader2, Mail } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface RegistrationRequest {
@@ -41,6 +41,21 @@ export function ApprovalPanel() {
     fetchRequests();
   }, []);
 
+  const sendNotificationEmail = async (
+    email: string, 
+    fullName: string, 
+    type: 'approved' | 'rejected', 
+    role?: string
+  ) => {
+    try {
+      await supabase.functions.invoke('send-notification', {
+        body: { to: email, type, fullName, role }
+      });
+    } catch (error) {
+      console.error('Failed to send notification email:', error);
+    }
+  };
+
   const handleApprove = async (request: RegistrationRequest) => {
     setProcessingId(request.id);
     try {
@@ -53,7 +68,8 @@ export function ApprovalPanel() {
             full_name: request.full_name,
             department: request.department,
             role: request.requested_role,
-          }
+          },
+          emailRedirectTo: `${window.location.origin}/`
         }
       });
 
@@ -68,9 +84,17 @@ export function ApprovalPanel() {
         })
         .eq('id', request.id);
 
+      // Send approval email
+      await sendNotificationEmail(
+        request.email, 
+        request.full_name, 
+        'approved',
+        ROLE_LABELS[request.requested_role]
+      );
+
       toast({
         title: 'User Approved',
-        description: `${request.full_name} has been granted access.`,
+        description: `${request.full_name} has been granted access. Notification email sent.`,
       });
       fetchRequests();
     } catch (error: any) {
@@ -84,8 +108,8 @@ export function ApprovalPanel() {
     }
   };
 
-  const handleReject = async (requestId: string) => {
-    setProcessingId(requestId);
+  const handleReject = async (request: RegistrationRequest) => {
+    setProcessingId(request.id);
     try {
       await supabase
         .from('registration_requests')
@@ -93,11 +117,18 @@ export function ApprovalPanel() {
           status: 'rejected', 
           reviewed_at: new Date().toISOString() 
         })
-        .eq('id', requestId);
+        .eq('id', request.id);
+
+      // Send rejection email
+      await sendNotificationEmail(
+        request.email, 
+        request.full_name, 
+        'rejected'
+      );
 
       toast({
         title: 'Request Rejected',
-        description: 'The registration request has been rejected.',
+        description: 'The registration request has been rejected. Notification email sent.',
       });
       fetchRequests();
     } catch (error: any) {
@@ -149,7 +180,10 @@ export function ApprovalPanel() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 space-y-1">
                     <h4 className="font-semibold">{request.full_name}</h4>
-                    <p className="text-sm text-muted-foreground">{request.email}</p>
+                    <p className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Mail className="w-3 h-3" />
+                      {request.email}
+                    </p>
                     <div className="flex items-center gap-2 text-xs">
                       <span className="px-2 py-0.5 rounded bg-secondary text-secondary-foreground">
                         {request.department}
@@ -166,7 +200,7 @@ export function ApprovalPanel() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => handleReject(request.id)}
+                      onClick={() => handleReject(request)}
                       disabled={processingId === request.id}
                       className="text-destructive hover:text-destructive hover:bg-destructive/10"
                     >
