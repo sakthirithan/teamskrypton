@@ -8,69 +8,89 @@
 
 @layer base {
   :root {
-    /* Deep Navy Primary */
-    --background: 220 25% 97%;
-    --foreground: 220 50% 10%;
+    /* Background & Text (calm, focus-first) */
+    --background: 220 30% 98%;
+    --foreground: 220 25% 18%;
 
+    /* Cards (soft elevation, clean) */
     --card: 0 0% 100%;
-    --card-foreground: 220 50% 10%;
+    --card-foreground: 220 25% 18%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 50% 10%;
+    --popover-foreground: 220 25% 18%;
 
-    /* Deep Navy Primary - Team Captain theme base */
-    --primary: 220 60% 20%;
-    --primary-foreground: 210 40% 98%;
+    /* Primary (collaboration blue-violet) */
+    --primary: 245 80% 60%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 20% 92%;
-    --secondary-foreground: 220 50% 15%;
+    /* Secondary (workspace sections) */
+    --secondary: 220 25% 95%;
+    --secondary-foreground: 220 20% 28%;
 
-    --muted: 220 15% 94%;
-    --muted-foreground: 220 15% 45%;
+    /* Muted (labels, hints, metadata) */
+    --muted: 220 20% 94%;
+    --muted-foreground: 220 15% 55%;
 
-    --accent: 200 70% 45%;
+    /* Accent (interaction highlights) */
+    --accent: 245 80% 60%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 72% 51%;
+    /* Destructive (clear but not alarming) */
+    --destructive: 0 65% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 20% 88%;
-    --input: 220 20% 88%;
-    --ring: 220 60% 20%;
+    /* Borders & Inputs (soft, modern) */
+    --border: 220 20% 90%;
+    --input: 220 20% 90%;
+    --ring: 245 80% 60%;
 
-    --radius: 0.5rem;
+    --radius: 0.6rem;
 
-    /* Role-based theme colors */
-    --role-captain: 220 60% 25%;
-    --role-vice-captain: 260 45% 35%;
-    --role-strategist: 180 50% 35%;
-    --role-manager: 35 70% 45%;
-    --role-member: 220 30% 50%;
+    /* Role-based colors (balanced hierarchy) */
+    --role-captain: 245 80% 60%;
+    --role-vice-captain: 230 55% 55%;
+    --role-strategist: 200 55% 45%;
+    --role-manager: 35 65% 50%;
+    --role-member: 220 20% 55%;
 
-    /* Status colors */
+    /* Status (clear but calm) */
     --status-idle: 220 15% 60%;
-    --status-working: 200 80% 50%;
-    --status-completed: 145 60% 42%;
-    --status-pending: 35 90% 55%;
+    --status-working: 210 85% 55%;
+    --status-completed: 145 55% 45%;
+    --status-pending: 35 85% 55%;
 
-    /* Sidebar */
-    --sidebar-background: 220 50% 12%;
-    --sidebar-foreground: 210 30% 90%;
-    --sidebar-primary: 200 70% 50%;
+    /* Sidebar (stable, non-distracting) */
+    --sidebar-background: 220 30% 96%;
+    --sidebar-foreground: 220 25% 25%;
+    --sidebar-primary: 245 80% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 45% 18%;
-    --sidebar-accent-foreground: 210 30% 90%;
-    --sidebar-border: 220 40% 20%;
-    --sidebar-ring: 200 70% 50%;
+    --sidebar-accent: 220 25% 92%;
+    --sidebar-accent-foreground: 220 25% 25%;
+    --sidebar-border: 220 20% 90%;
+    --sidebar-ring: 245 80% 60%;
 
-    /* Custom gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(220 60% 20%), hsl(200 70% 35%));
-    --gradient-accent: linear-gradient(135deg, hsl(200 70% 45%), hsl(180 60% 45%));
-    --shadow-elegant: 0 4px 20px -4px hsla(220, 50%, 20%, 0.15);
-    --shadow-card: 0 2px 8px -2px hsla(220, 50%, 20%, 0.08);
-  }
+    /* Gradients (very subtle – premium feel) */
+    --gradient-primary: linear-gradient(
+      135deg,
+      hsl(245 80% 60%),
+      hsl(235 75% 58%)
+    );
 
-  .dark {
+    --gradient-accent: linear-gradient(
+      135deg,
+      hsl(245 80% 60%),
+      hsl(220 70% 60%)
+    );
+
+    /* Shadows (modern, calm depth) */
+    --shadow-elegant: 0 6px 24px rgba(0, 0, 0, 0.08);
+    --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+
+
+
+  /* .dark {
     --background: 220 50% 8%;
     --foreground: 210 30% 95%;
 
@@ -107,7 +127,48 @@
     --sidebar-accent-foreground: 210 30% 90%;
     --sidebar-border: 220 40% 15%;
     --sidebar-ring: 200 70% 50%;
-  }
+  } */
+   .dark {
+    --background: 220 30% 10%;
+    --foreground: 210 30% 94%;
+
+    --card: 220 30% 14%;
+    --card-foreground: 210 30% 94%;
+
+    --popover: 220 30% 14%;
+    --popover-foreground: 210 30% 94%;
+
+    --primary: 245 80% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 25% 18%;
+    --secondary-foreground: 210 30% 90%;
+
+    --muted: 220 25% 16%;
+    --muted-foreground: 220 15% 60%;
+
+    --accent: 245 80% 60%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 65% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 25% 22%;
+    --input: 220 25% 22%;
+    --ring: 245 80% 60%;
+
+    --sidebar-background: 220 30% 12%;
+    --sidebar-foreground: 210 30% 90%;
+    --sidebar-primary: 245 80% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 25% 18%;
+    --sidebar-accent-foreground: 210 30% 90%;
+    --sidebar-border: 220 25% 20%;
+    --sidebar-ring: 245 80% 60%;
+}
+
+
+
 }
 
 @layer base {
@@ -192,4 +253,8 @@
   .text-balance {
     text-wrap: balance;
   }
+}
+
+#lovable-badge { 
+  display: none !important; 
 }
