@@ -20,20 +20,28 @@ interface RegistrationRequest {
 
 export function ApprovalPanel() {
   const { toast } = useToast();
+
   const [requests, setRequests] = useState<RegistrationRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   const fetchRequests = async () => {
+    setIsLoading(true);
     const { data, error } = await supabase
       .from('registration_requests')
       .select('*')
       .eq('status', 'pending')
       .order('created_at', { ascending: true });
 
-    if (!error && data) {
-      setRequests(data as RegistrationRequest[]);
+    if (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Load Failed',
+        description: error.message,
+      });
     }
+
+    setRequests((data || []) as RegistrationRequest[]);
     setIsLoading(false);
   };
 
@@ -42,9 +50,9 @@ export function ApprovalPanel() {
   }, []);
 
   const sendNotificationEmail = async (
-    email: string, 
-    fullName: string, 
-    type: 'approved' | 'rejected', 
+    email: string,
+    fullName: string,
+    type: 'approved' | 'rejected',
     role?: string
   ) => {
     try {
@@ -52,15 +60,16 @@ export function ApprovalPanel() {
         body: { to: email, type, fullName, role }
       });
     } catch (error) {
-      console.error('Failed to send notification email:', error);
+      console.error('Notification email failed:', error);
     }
   };
 
   const handleApprove = async (request: RegistrationRequest) => {
+    if (processingId) return;
     setProcessingId(request.id);
+
     try {
-      // Create user in Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email: request.email,
         password: request.password_hash,
         options: {
@@ -73,35 +82,35 @@ export function ApprovalPanel() {
         }
       });
 
-      if (authError) throw authError;
+      if (error) throw error;
 
-      // Update request status
       await supabase
         .from('registration_requests')
-        .update({ 
-          status: 'approved', 
-          reviewed_at: new Date().toISOString() 
+        .update({
+          status: 'approved',
+          reviewed_at: new Date().toISOString()
         })
         .eq('id', request.id);
 
-      // Send approval email
-      await sendNotificationEmail(
-        request.email, 
-        request.full_name, 
+      // non-blocking email
+      sendNotificationEmail(
+        request.email,
+        request.full_name,
         'approved',
         ROLE_LABELS[request.requested_role]
       );
 
       toast({
         title: 'User Approved',
-        description: `${request.full_name} has been granted access. Notification email sent.`,
+        description: `${request.full_name} has been granted access.`,
       });
+
       fetchRequests();
     } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Approval Failed',
-        description: error.message || 'Failed to approve user.',
+        description: error.message || 'Failed to approve user',
       });
     } finally {
       setProcessingId(null);
@@ -109,33 +118,31 @@ export function ApprovalPanel() {
   };
 
   const handleReject = async (request: RegistrationRequest) => {
+    if (processingId) return;
     setProcessingId(request.id);
+
     try {
       await supabase
         .from('registration_requests')
-        .update({ 
-          status: 'rejected', 
-          reviewed_at: new Date().toISOString() 
+        .update({
+          status: 'rejected',
+          reviewed_at: new Date().toISOString()
         })
         .eq('id', request.id);
 
-      // Send rejection email
-      await sendNotificationEmail(
-        request.email, 
-        request.full_name, 
-        'rejected'
-      );
+      sendNotificationEmail(request.email, request.full_name, 'rejected');
 
       toast({
         title: 'Request Rejected',
-        description: 'The registration request has been rejected. Notification email sent.',
+        description: 'The registration request has been rejected.',
       });
+
       fetchRequests();
     } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: error.message || 'Failed to reject request.',
+        description: error.message || 'Failed to reject request',
       });
     } finally {
       setProcessingId(null);
@@ -143,7 +150,9 @@ export function ApprovalPanel() {
   };
 
   const handleDelete = async (request: RegistrationRequest) => {
+    if (processingId) return;
     setProcessingId(request.id);
+
     try {
       await supabase
         .from('registration_requests')
@@ -154,12 +163,13 @@ export function ApprovalPanel() {
         title: 'Request Deleted',
         description: 'The pending registration has been removed.',
       });
+
       fetchRequests();
     } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: error.message || 'Failed to delete request.',
+        description: error.message || 'Failed to delete request',
       });
     } finally {
       setProcessingId(null);
@@ -197,10 +207,7 @@ export function ApprovalPanel() {
         ) : (
           <div className="space-y-4">
             {requests.map((request) => (
-              <div
-                key={request.id}
-                className="p-4 rounded-lg border bg-card/50"
-              >
+              <div key={request.id} className="p-4 rounded-lg border bg-card/50">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 space-y-1">
                     <h4 className="font-semibold">{request.full_name}</h4>
@@ -220,14 +227,13 @@ export function ApprovalPanel() {
                       Requested: {format(new Date(request.created_at), 'MMM dd, yyyy HH:mm')}
                     </p>
                   </div>
+
                   <div className="flex gap-2">
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => handleDelete(request)}
                       disabled={processingId === request.id}
-                      className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                      title="Delete request"
                     >
                       {processingId === request.id ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -235,12 +241,13 @@ export function ApprovalPanel() {
                         <Trash2 className="w-4 h-4" />
                       )}
                     </Button>
+
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => handleReject(request)}
                       disabled={processingId === request.id}
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      className="text-destructive"
                     >
                       {processingId === request.id ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -248,6 +255,7 @@ export function ApprovalPanel() {
                         <X className="w-4 h-4" />
                       )}
                     </Button>
+
                     <Button
                       size="sm"
                       onClick={() => handleApprove(request)}
