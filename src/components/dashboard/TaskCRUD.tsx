@@ -7,16 +7,17 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { ROLE_LABELS, KryptonRole } from '@/lib/constants';
+import { ROLE_LABELS, KryptonRole, LEADERSHIP_ROLES } from '@/lib/constants';
 
 interface Member {
   user_id: string;
   full_name: string;
   role: KryptonRole | null;
 }
+
+type AssignmentType = 'all' | 'team_members' | 'leads' | string; // string for individual user_id
 
 export function TaskCRUD() {
   const { user, profile, role, isCaptainOrVice } = useAuth();
@@ -26,17 +27,13 @@ export function TaskCRUD() {
   const [form, setForm] = useState({ 
     title: '', 
     description: '', 
-    assignTo: [] as string[], 
-    assignToAll: false,
+    assignTo: '' as AssignmentType,
     deadline: '' 
   });
 
   useEffect(() => {
     const fetchMembers = async () => {
-      // Fetch profiles
       const { data: profiles } = await supabase.from('profiles').select('user_id, full_name');
-      
-      // Fetch roles
       const { data: roles } = await supabase.from('user_roles').select('user_id, role');
       
       if (profiles && roles) {
@@ -52,10 +49,9 @@ export function TaskCRUD() {
     fetchMembers();
   }, []);
 
-  // Filter members based on current user's role
+  // Get assignable members based on current user's role
   const getAssignableMembers = () => {
     if (isCaptainOrVice) {
-      // TL and VC can assign to everyone
       return members;
     } else {
       // Strategist and Team Manager can only assign to team members
@@ -63,79 +59,72 @@ export function TaskCRUD() {
     }
   };
 
-  const assignableMembers = getAssignableMembers();
-
-  const handleMemberToggle = (userId: string) => {
-    setForm(prev => ({
-      ...prev,
-      assignTo: prev.assignTo.includes(userId)
-        ? prev.assignTo.filter(id => id !== userId)
-        : [...prev.assignTo, userId]
-    }));
+  // Get target users based on assignment type
+  const getTargetUsers = (): string[] => {
+    const assignableMembers = getAssignableMembers();
+    
+    switch (form.assignTo) {
+      case 'all':
+        return assignableMembers.map(m => m.user_id);
+      case 'team_members':
+        return assignableMembers.filter(m => m.role === 'team_member').map(m => m.user_id);
+      case 'leads':
+        return assignableMembers.filter(m => m.role && LEADERSHIP_ROLES.includes(m.role)).map(m => m.user_id);
+      default:
+        // Individual assignment
+        if (form.assignTo && assignableMembers.some(m => m.user_id === form.assignTo)) {
+          return [form.assignTo];
+        }
+        return [];
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !profile || !role || !form.title || !form.deadline) {
+    if (!user || !profile || !role || !form.title || !form.deadline || !form.assignTo) {
       toast({ variant: 'destructive', title: 'Error', description: 'Please fill all required fields' });
       return;
     }
 
-    const targetUsers = form.assignToAll 
-      ? assignableMembers.map(m => m.user_id)
-      : form.assignTo;
+    const targetUsers = getTargetUsers();
 
     if (targetUsers.length === 0) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Please select at least one member' });
+      toast({ variant: 'destructive', title: 'Error', description: 'No valid members to assign' });
       return;
     }
 
     setIsLoading(true);
     
     try {
-      // Create a single task record (shared task)
-      const { error } = await supabase.from('tasks').insert({
+      const tasksToInsert = targetUsers.map(userId => ({
         title: form.title,
         description: form.description || null,
-        assigned_to: targetUsers[0], // For single assignment, or we handle "All" differently
+        assigned_to: userId,
         assigned_by: user.id,
         assigner_name: profile.full_name,
         assigner_role: ROLE_LABELS[role],
         deadline: new Date(form.deadline).toISOString(),
-        status: 'idle',
-      });
+        status: 'idle' as const,
+      }));
 
-      // If multiple users selected, create individual task records
-      if (targetUsers.length > 1) {
-        const tasksToInsert = targetUsers.slice(1).map(userId => ({
-          title: form.title,
-          description: form.description || null,
-          assigned_to: userId,
-          assigned_by: user.id,
-          assigner_name: profile.full_name,
-          assigner_role: ROLE_LABELS[role],
-          deadline: new Date(form.deadline).toISOString(),
-          status: 'idle' as const,
-        }));
-        if (tasksToInsert.length > 0) {
-          const { error: bulkError } = await supabase.from('tasks').insert(tasksToInsert);
-          if (bulkError) throw bulkError;
-        }
-      }
-
+      const { error } = await supabase.from('tasks').insert(tasksToInsert);
       if (error) throw error;
 
       toast({ 
         title: 'Task Created', 
         description: `Task assigned to ${targetUsers.length} member(s)` 
       });
-      setForm({ title: '', description: '', assignTo: [], assignToAll: false, deadline: '' });
+      setForm({ title: '', description: '', assignTo: '', deadline: '' });
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error', description: error.message || 'Failed to create task' });
     }
     
     setIsLoading(false);
   };
+
+  const assignableMembers = getAssignableMembers();
+  const teamMembers = assignableMembers.filter(m => m.role === 'team_member');
+  const leads = assignableMembers.filter(m => m.role && LEADERSHIP_ROLES.includes(m.role));
 
   return (
     <Card>
@@ -167,46 +156,56 @@ export function TaskCRUD() {
           
           <div>
             <Label>Assign To *</Label>
-            <div className="mt-2 space-y-2">
-              {isCaptainOrVice && (
-                <div className="flex items-center space-x-2 p-2 rounded bg-primary/5 border">
-                  <Checkbox 
-                    id="assignAll"
-                    checked={form.assignToAll}
-                    onCheckedChange={(checked) => setForm({ 
-                      ...form, 
-                      assignToAll: checked as boolean,
-                      assignTo: [] 
-                    })}
-                  />
-                  <label htmlFor="assignAll" className="text-sm font-medium cursor-pointer">
-                    Assign to All Members
-                  </label>
-                </div>
-              )}
-              
-              {!form.assignToAll && (
-                <div className="max-h-40 overflow-y-auto border rounded p-2 space-y-1">
-                  {assignableMembers.map((m) => (
-                    <div key={m.user_id} className="flex items-center space-x-2">
-                      <Checkbox 
-                        id={m.user_id}
-                        checked={form.assignTo.includes(m.user_id)}
-                        onCheckedChange={() => handleMemberToggle(m.user_id)}
-                      />
-                      <label htmlFor={m.user_id} className="text-sm cursor-pointer flex-1">
-                        {m.full_name}
-                        {m.role && (
-                          <span className="text-xs text-muted-foreground ml-2">
-                            ({ROLE_LABELS[m.role]})
-                          </span>
-                        )}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <Select 
+              value={form.assignTo} 
+              onValueChange={(value) => setForm({ ...form, assignTo: value })}
+            >
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="Select assignment" />
+              </SelectTrigger>
+              <SelectContent>
+                {/* Group Options */}
+                {isCaptainOrVice && (
+                  <SelectItem value="all">
+                    <span className="font-medium">All</span>
+                    <span className="text-xs text-muted-foreground ml-2">({assignableMembers.length} members)</span>
+                  </SelectItem>
+                )}
+                
+                {teamMembers.length > 0 && (
+                  <SelectItem value="team_members">
+                    <span className="font-medium">Team Members</span>
+                    <span className="text-xs text-muted-foreground ml-2">({teamMembers.length})</span>
+                  </SelectItem>
+                )}
+                
+                {isCaptainOrVice && leads.length > 0 && (
+                  <SelectItem value="leads">
+                    <span className="font-medium">Leads</span>
+                    <span className="text-xs text-muted-foreground ml-2">(TL, VC, Strategist, TM)</span>
+                  </SelectItem>
+                )}
+
+                {/* Divider */}
+                {assignableMembers.length > 0 && (
+                  <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t mt-1 pt-2">
+                    Individual Assignment
+                  </div>
+                )}
+                
+                {/* Individual Members */}
+                {assignableMembers.map((m) => (
+                  <SelectItem key={m.user_id} value={m.user_id}>
+                    {m.full_name}
+                    {m.role && (
+                      <span className="text-xs text-muted-foreground ml-2">
+                        ({ROLE_LABELS[m.role]})
+                      </span>
+                    )}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {!isCaptainOrVice && (
               <p className="text-xs text-muted-foreground mt-1">
                 You can only assign tasks to Team Members
