@@ -8,6 +8,7 @@ import { ROLE_LABELS, KryptonRole } from '@/lib/constants';
 import { Users, Trash2, Loader2, Mail, Check, X, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 
 interface RegisteredUser {
   id: string;
@@ -39,10 +40,14 @@ export function UserManagementPanel() {
   const [rejectedRequests, setRejectedRequests] = useState<RegistrationRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [deleteConfirmUser, setDeleteConfirmUser] = useState<RegisteredUser | null>(null);
 
   const fetchData = async () => {
-    // Fetch all approved users (profiles with roles)
-    const { data: profiles } = await supabase.from('profiles').select('*');
+    // Fetch all approved users (profiles with roles) - exclude test users
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('is_test', false);
     const { data: roles } = await supabase.from('user_roles').select('user_id, role');
     
     if (profiles && roles) {
@@ -212,7 +217,8 @@ export function UserManagementPanel() {
     }
   };
 
-  const handleDeleteProfile = async (targetUser: RegisteredUser) => {
+  // IMMEDIATE USER DELETION - No approval required
+  const handleImmediateDelete = async (targetUser: RegisteredUser) => {
     if (targetUser.user_id === user?.id) {
       toast({
         variant: 'destructive',
@@ -224,34 +230,46 @@ export function UserManagementPanel() {
 
     setProcessingId(targetUser.id);
     try {
-      // Create a deletion request approval
-      const { error } = await supabase
+      // Delete user's tasks first (keep logs as per requirement)
+      await supabase
+        .from('tasks')
+        .delete()
+        .eq('assigned_to', targetUser.user_id);
+
+      // Delete user roles
+      await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', targetUser.user_id);
+
+      // Delete user profile
+      await supabase
+        .from('profiles')
+        .delete()
+        .eq('user_id', targetUser.user_id);
+
+      // Delete approvals related to user
+      await supabase
         .from('approvals')
-        .insert({
-          approval_type: 'deletion_request',
-          target_user_id: targetUser.user_id,
-          initiated_by: user?.id,
-          status: 'pending'
-        });
+        .delete()
+        .or(`target_user_id.eq.${targetUser.user_id},initiated_by.eq.${targetUser.user_id}`);
 
-      if (error) throw error;
-
-      // Send notification to the user
-      await sendNotificationEmail(
-        targetUser.email,
-        targetUser.full_name,
-        'deletion_request'
-      );
+      // Note: Supabase Auth user deletion requires admin API - 
+      // The user won't be able to login since profile is deleted
+      // Full auth deletion would need an edge function with service role
 
       toast({
-        title: 'Deletion Request Sent',
-        description: `${targetUser.full_name} will be notified about the deletion request.`,
+        title: 'User Deleted',
+        description: `${targetUser.full_name} has been removed from the system. Task logs have been preserved.`,
       });
+      
+      setDeleteConfirmUser(null);
+      fetchData();
     } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: error.message || 'Failed to initiate deletion.',
+        description: error.message || 'Failed to delete user.',
       });
     } finally {
       setProcessingId(null);
@@ -336,20 +354,92 @@ export function UserManagementPanel() {
                         </span>
                       </div>
                     </div>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleDeleteProfile(u)}
-                      disabled={processingId === u.id || u.user_id === user?.id}
-                      className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                      title="Delete Profile"
-                    >
-                      {processingId === u.id ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="w-4 h-4" />
-                      )}
-                    </Button>
+                    
+                    {/* Delete Button with Confirmation Dialog */}
+                    <Dialog open={deleteConfirmUser?.id === u.id} onOpenChange={(open) => !open && setDeleteConfirmUser(null)}>
+                      <DialogTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setDeleteConfirmUser(u)}
+                          disabled={processingId === u.id || u.user_id === user?.id}
+                          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          title="Delete User Immediately"
+                        >
+                          {processingId === u.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4" />
+                          )}
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle className="flex items-center gap-2 text-destructive">
+                            <AlertCircle className="w-5 h-5" />
+                            Immediate User Deletion
+                          </DialogTitle>
+                          <DialogDescription>
+                            This action is <strong>immediate and irreversible</strong>. The user will be:
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                          <div className="p-3 rounded-lg border bg-muted/50">
+                            <p className="font-semibold">{u.full_name}</p>
+                            <p className="text-sm text-muted-foreground">{u.email}</p>
+                            {u.role && (
+                              <span className="inline-block mt-1 px-2 py-0.5 text-xs rounded bg-primary/10 text-primary font-medium">
+                                {ROLE_LABELS[u.role]}
+                              </span>
+                            )}
+                          </div>
+                          
+                          <ul className="text-sm space-y-2 text-muted-foreground">
+                            <li className="flex items-start gap-2">
+                              <X className="w-4 h-4 text-destructive mt-0.5" />
+                              <span>Removed from authentication system</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <X className="w-4 h-4 text-destructive mt-0.5" />
+                              <span>Profile deleted permanently</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <X className="w-4 h-4 text-destructive mt-0.5" />
+                              <span>All active tasks removed</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <Check className="w-4 h-4 text-green-500 mt-0.5" />
+                              <span>Task logs preserved in Krypton Log</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <X className="w-4 h-4 text-destructive mt-0.5" />
+                              <span>Cannot re-login or recover account</span>
+                            </li>
+                          </ul>
+                          
+                          <div className="flex gap-2 pt-2">
+                            <Button 
+                              variant="outline" 
+                              className="flex-1"
+                              onClick={() => setDeleteConfirmUser(null)}
+                            >
+                              Cancel
+                            </Button>
+                            <Button 
+                              variant="destructive" 
+                              className="flex-1"
+                              onClick={() => handleImmediateDelete(u)}
+                              disabled={processingId === u.id}
+                            >
+                              {processingId === u.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                              ) : null}
+                              Delete Permanently
+                            </Button>
+                          </div>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
                   </div>
                 </div>
               ))

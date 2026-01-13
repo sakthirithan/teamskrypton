@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           approval_id: string
           id: string
+          is_test: boolean | null
           vote_type: string
           voted_at: string
           voter_id: string
@@ -25,6 +26,7 @@ export type Database = {
         Insert: {
           approval_id: string
           id?: string
+          is_test?: boolean | null
           vote_type: string
           voted_at?: string
           voter_id: string
@@ -32,6 +34,7 @@ export type Database = {
         Update: {
           approval_id?: string
           id?: string
+          is_test?: boolean | null
           vote_type?: string
           voted_at?: string
           voter_id?: string
@@ -52,6 +55,7 @@ export type Database = {
           created_at: string
           id: string
           initiated_by: string | null
+          is_test: boolean | null
           reason: string | null
           status: Database["public"]["Enums"]["approval_status"]
           target_task_id: string | null
@@ -63,6 +67,7 @@ export type Database = {
           created_at?: string
           id?: string
           initiated_by?: string | null
+          is_test?: boolean | null
           reason?: string | null
           status?: Database["public"]["Enums"]["approval_status"]
           target_task_id?: string | null
@@ -74,6 +79,7 @@ export type Database = {
           created_at?: string
           id?: string
           initiated_by?: string | null
+          is_test?: boolean | null
           reason?: string | null
           status?: Database["public"]["Enums"]["approval_status"]
           target_task_id?: string | null
@@ -100,6 +106,7 @@ export type Database = {
           full_name: string
           id: string
           is_direct_access: boolean | null
+          is_test: boolean | null
           updated_at: string
           user_id: string
         }
@@ -112,6 +119,7 @@ export type Database = {
           full_name: string
           id?: string
           is_direct_access?: boolean | null
+          is_test?: boolean | null
           updated_at?: string
           user_id: string
         }
@@ -124,6 +132,7 @@ export type Database = {
           full_name?: string
           id?: string
           is_direct_access?: boolean | null
+          is_test?: boolean | null
           updated_at?: string
           user_id?: string
         }
@@ -194,6 +203,7 @@ export type Database = {
           description: string | null
           github_url: string
           id: string
+          is_test: boolean | null
           task_id: string
           uploaded_at: string
           user_id: string
@@ -202,6 +212,7 @@ export type Database = {
           description?: string | null
           github_url: string
           id?: string
+          is_test?: boolean | null
           task_id: string
           uploaded_at?: string
           user_id: string
@@ -210,6 +221,7 @@ export type Database = {
           description?: string | null
           github_url?: string
           id?: string
+          is_test?: boolean | null
           task_id?: string
           uploaded_at?: string
           user_id?: string
@@ -237,6 +249,7 @@ export type Database = {
           description: string | null
           duration_minutes: number | null
           id: string
+          is_test: boolean | null
           status: Database["public"]["Enums"]["task_status"] | null
           title: string
           updated_at: string
@@ -253,6 +266,7 @@ export type Database = {
           description?: string | null
           duration_minutes?: number | null
           id?: string
+          is_test?: boolean | null
           status?: Database["public"]["Enums"]["task_status"] | null
           title: string
           updated_at?: string
@@ -269,6 +283,7 @@ export type Database = {
           description?: string | null
           duration_minutes?: number | null
           id?: string
+          is_test?: boolean | null
           status?: Database["public"]["Enums"]["task_status"] | null
           title?: string
           updated_at?: string
@@ -299,6 +314,7 @@ export type Database = {
           created_at: string
           details: Json | null
           id: string
+          is_test: boolean | null
           task_id: string
           user_id: string
         }
@@ -307,6 +323,7 @@ export type Database = {
           created_at?: string
           details?: Json | null
           id?: string
+          is_test?: boolean | null
           task_id: string
           user_id: string
         }
@@ -315,6 +332,7 @@ export type Database = {
           created_at?: string
           details?: Json | null
           id?: string
+          is_test?: boolean | null
           task_id?: string
           user_id?: string
         }
@@ -356,6 +374,7 @@ export type Database = {
         | "deletion_vote"
         | "task_reason"
         | "report_download"
+        | "task_deletion_reason"
       krypton_role:
         | "team_captain"
         | "vice_captain"
@@ -498,6 +517,7 @@ export const Constants = {
         "deletion_vote",
         "task_reason",
         "report_download",
+        "task_deletion_reason",
       ],
       krypton_role: [
         "team_captain",

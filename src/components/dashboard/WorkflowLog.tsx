@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { FileText, CalendarIcon, ExternalLink } from 'lucide-react';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { FileText, CalendarIcon, ExternalLink, Filter } from 'lucide-react';
 import { format, isSameDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -20,22 +22,32 @@ interface LogEntry {
   assigner_role: string | null;
   completed_by_name?: string;
   github_url?: string;
+  status: string;
 }
 
+type StatusFilter = 'all' | 'completed' | 'pending';
+
 export function WorkflowLog() {
+  const { isLeadership } = useAuth();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
   useEffect(() => {
     const fetchLogs = async () => {
-      // Fetch completed tasks
+      // Fetch completed AND pending tasks - exclude test data for non-leadership
       let query = supabase
         .from('tasks')
-        .select('id, title, accepted_at, completed_at, duration_minutes, assigned_to, assigner_name, assigner_role')
-        .eq('status', 'completed')
-        .order('completed_at', { ascending: false })
-        .limit(50);
+        .select('id, title, accepted_at, completed_at, duration_minutes, assigned_to, assigner_name, assigner_role, status')
+        .in('status', ['completed', 'pending'])
+        .order('completed_at', { ascending: false, nullsFirst: false })
+        .limit(100);
+
+      // Exclude test data for non-leadership users
+      if (!isLeadership) {
+        query = query.eq('is_test', false);
+      }
 
       const { data: tasksData } = await query;
 
@@ -69,12 +81,34 @@ export function WorkflowLog() {
       setIsLoading(false);
     };
     fetchLogs();
-  }, []);
+  }, [isLeadership]);
 
-  // Filter logs by selected date
-  const filteredLogs = selectedDate
-    ? logs.filter(log => log.completed_at && isSameDay(new Date(log.completed_at), selectedDate))
-    : logs;
+  // Filter logs by selected date and status
+  const filteredLogs = logs.filter(log => {
+    // Date filter
+    const dateMatch = selectedDate 
+      ? (log.completed_at && isSameDay(new Date(log.completed_at), selectedDate)) ||
+        (log.status === 'pending' && !log.completed_at) // Pending tasks show for any date when no completion
+      : true;
+
+    // Status filter
+    const statusMatch = statusFilter === 'all' 
+      ? true 
+      : log.status === statusFilter;
+
+    return dateMatch && statusMatch;
+  });
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return <span className="status-badge status-completed">Completed</span>;
+      case 'pending':
+        return <span className="status-badge status-pending">Pending</span>;
+      default:
+        return <span className="status-badge">{status}</span>;
+    }
+  };
 
   if (isLoading) {
     return <Card><CardContent className="p-6 text-center text-muted-foreground">Loading log...</CardContent></Card>;
@@ -86,45 +120,68 @@ export function WorkflowLog() {
         <CardTitle className="flex items-center justify-between font-display">
           <div className="flex items-center gap-2">
             <FileText className="w-5 h-5" />
-            Krypton Log (Completed Tasks)
+            Krypton Log
           </div>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className={cn(
-                "justify-start text-left font-normal",
-                !selectedDate && "text-muted-foreground"
-              )}>
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {selectedDate ? format(selectedDate, 'MMM dd, yyyy') : 'Filter by date'}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={setSelectedDate}
-                initialFocus
-              />
-              {selectedDate && (
-                <div className="p-2 border-t">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="w-full"
-                    onClick={() => setSelectedDate(undefined)}
-                  >
-                    Clear filter
-                  </Button>
-                </div>
-              )}
-            </PopoverContent>
-          </Popover>
+          <div className="flex items-center gap-2">
+            {/* Status Filter */}
+            <ToggleGroup 
+              type="single" 
+              value={statusFilter} 
+              onValueChange={(value) => value && setStatusFilter(value as StatusFilter)}
+              className="border rounded-md"
+            >
+              <ToggleGroupItem value="all" size="sm" className="text-xs px-3">
+                All
+              </ToggleGroupItem>
+              <ToggleGroupItem value="completed" size="sm" className="text-xs px-3">
+                Completed
+              </ToggleGroupItem>
+              <ToggleGroupItem value="pending" size="sm" className="text-xs px-3">
+                Pending
+              </ToggleGroupItem>
+            </ToggleGroup>
+
+            {/* Date Filter */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className={cn(
+                  "justify-start text-left font-normal",
+                  !selectedDate && "text-muted-foreground"
+                )}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {selectedDate ? format(selectedDate, 'MMM dd, yyyy') : 'Filter by date'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={setSelectedDate}
+                  initialFocus
+                />
+                {selectedDate && (
+                  <div className="p-2 border-t">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="w-full"
+                      onClick={() => setSelectedDate(undefined)}
+                    >
+                      Clear filter
+                    </Button>
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent>
         {filteredLogs.length === 0 ? (
           <p className="text-center text-muted-foreground py-8">
-            {selectedDate ? 'No completed tasks on this date' : 'No completed tasks yet'}
+            {selectedDate || statusFilter !== 'all' 
+              ? 'No tasks match the current filters' 
+              : 'No tasks in log yet'}
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -133,18 +190,23 @@ export function WorkflowLog() {
                 <TableRow>
                   <TableHead>Date</TableHead>
                   <TableHead>Task</TableHead>
-                  <TableHead>Completed By</TableHead>
+                  <TableHead>User</TableHead>
                   <TableHead>Assigned By</TableHead>
                   <TableHead>Start</TableHead>
                   <TableHead>End</TableHead>
                   <TableHead>Duration</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Docs</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredLogs.map((log) => (
                   <TableRow key={log.id}>
-                    <TableCell>{log.completed_at ? format(new Date(log.completed_at), 'MMM dd') : '-'}</TableCell>
+                    <TableCell>
+                      {log.completed_at 
+                        ? format(new Date(log.completed_at), 'MMM dd') 
+                        : log.status === 'pending' ? 'Pending' : '-'}
+                    </TableCell>
                     <TableCell className="font-medium max-w-[200px] truncate">{log.title}</TableCell>
                     <TableCell>{log.completed_by_name || '-'}</TableCell>
                     <TableCell>
@@ -162,6 +224,7 @@ export function WorkflowLog() {
                     <TableCell>{log.accepted_at ? format(new Date(log.accepted_at), 'HH:mm') : '-'}</TableCell>
                     <TableCell>{log.completed_at ? format(new Date(log.completed_at), 'HH:mm') : '-'}</TableCell>
                     <TableCell>{log.duration_minutes ? `${log.duration_minutes}m` : '-'}</TableCell>
+                    <TableCell>{getStatusBadge(log.status)}</TableCell>
                     <TableCell>
                       {log.github_url ? (
                         <a 

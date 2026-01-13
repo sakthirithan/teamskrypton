@@ -18,27 +18,49 @@ export function TestSessionProvider({ children }: { children: ReactNode }) {
     setIsTestMode(true);
     toast({
       title: "Test Session Started",
-      description: "All data created will be flagged as test data and won't affect production.",
+      description: "All data created will be flagged as test data (is_test = true) and won't affect production.",
     });
   }, [toast]);
 
   const endTestSession = useCallback(async () => {
     try {
-      // Delete all test tasks using type assertion to bypass strict typing
-      const tasksResult = await (supabase.from('tasks') as any).delete().eq('is_test', true);
-      console.log('Tasks cleanup:', tasksResult);
+      // Delete all test data in order (respecting foreign key constraints)
       
-      // Delete all test profiles
-      const profilesResult = await (supabase.from('profiles') as any).delete().eq('is_test', true);
-      console.log('Profiles cleanup:', profilesResult);
+      // 1. Delete test approval votes first (references approvals)
+      await supabase
+        .from('approval_votes')
+        .delete()
+        .eq('is_test', true);
       
-      // Delete all test workflow logs
-      const logsResult = await (supabase.from('workflow_log') as any).delete().eq('is_test', true);
-      console.log('Logs cleanup:', logsResult);
+      // 2. Delete test task documents (references tasks)
+      await supabase
+        .from('task_documents')
+        .delete()
+        .eq('is_test', true);
       
-      // Delete all test approvals
-      const approvalsResult = await (supabase.from('approvals') as any).delete().eq('is_test', true);
-      console.log('Approvals cleanup:', approvalsResult);
+      // 3. Delete test approvals
+      await supabase
+        .from('approvals')
+        .delete()
+        .eq('is_test', true);
+      
+      // 4. Delete test workflow logs
+      await supabase
+        .from('workflow_log')
+        .delete()
+        .eq('is_test', true);
+      
+      // 5. Delete test tasks
+      await supabase
+        .from('tasks')
+        .delete()
+        .eq('is_test', true);
+      
+      // 6. Delete test profiles last
+      await supabase
+        .from('profiles')
+        .delete()
+        .eq('is_test', true);
       
       setIsTestMode(false);
       

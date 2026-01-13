@@ -1,16 +1,17 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useTestSession } from '@/contexts/TestSessionContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Clock, CheckCircle, Play, AlertCircle, Wifi, Edit2, Trash2, Calendar, Users } from 'lucide-react';
+import { Clock, CheckCircle, Play, AlertCircle, Wifi, Edit2, Trash2, Calendar, Users, RotateCcw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format, formatDistanceToNow } from 'date-fns';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { ROLE_LABELS, KryptonRole } from '@/lib/constants';
 
 interface Task {
@@ -33,8 +34,11 @@ interface Member {
   role: KryptonRole | null;
 }
 
+type StatusFilter = 'all' | 'working' | 'pending';
+
 export function TaskPanel() {
   const { user, isCaptainOrVice, isLeadership } = useAuth();
+  const { isTestMode } = useTestSession();
   const { toast } = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -48,6 +52,7 @@ export function TaskPanel() {
   });
   const [members, setMembers] = useState<Member[]>([]);
   const [deleteConfirmTask, setDeleteConfirmTask] = useState<Task | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
   // Fetch members for reassignment
   useEffect(() => {
@@ -75,7 +80,7 @@ export function TaskPanel() {
       .from('tasks')
       .select('*')
       .eq('assigned_to', user.id)
-      .in('status', ['idle', 'working'])
+      .in('status', ['idle', 'working', 'pending'])
       .order('deadline', { ascending: true });
 
     if (!error && data) {
@@ -197,6 +202,44 @@ export function TaskPanel() {
     }
   };
 
+  // TL/VC can delete completed tasks - triggers reason flow
+  const handleDeleteCompletedTask = async (task: Task) => {
+    if (!user) return;
+    
+    try {
+      // Move task back to user's Today's Task as "working" status
+      await supabase
+        .from('tasks')
+        .update({ 
+          status: 'working',
+          completed_at: null,
+          duration_minutes: null
+        })
+        .eq('id', task.id);
+
+      // Create approval request for the user to provide reason
+      await supabase
+        .from('approvals')
+        .insert({
+          approval_type: 'task_deletion_reason',
+          target_task_id: task.id,
+          target_user_id: task.assigned_to,
+          initiated_by: user.id,
+          status: 'pending',
+          is_test: isTestMode
+        });
+
+      toast({ 
+        title: 'Completed Task Removed', 
+        description: 'Task restored to user\'s panel. They will be asked for a reason.' 
+      });
+      setDeleteConfirmTask(null);
+      fetchTasks();
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message });
+    }
+  };
+
   const getStatusClass = (status: string) => {
     switch (status) {
       case 'working': return 'status-badge status-working';
@@ -210,6 +253,14 @@ export function TaskPanel() {
     return members.find(m => m.user_id === userId)?.full_name || 'Unknown';
   };
 
+  // Filter tasks by status
+  const filteredTasks = tasks.filter(task => {
+    if (statusFilter === 'all') return true;
+    if (statusFilter === 'working') return task.status === 'working' || task.status === 'idle';
+    if (statusFilter === 'pending') return task.status === 'pending';
+    return true;
+  });
+
   if (isLoading) {
     return <Card><CardContent className="p-6 text-center text-muted-foreground">Loading tasks...</CardContent></Card>;
   }
@@ -217,22 +268,44 @@ export function TaskPanel() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 font-display">
-          <Clock className="w-5 h-5" />
-          Today's Tasks
-          {isConnected && (
-            <span title="Real-time connected" className="ml-auto">
-              <Wifi className="w-4 h-4 text-green-500" />
-            </span>
-          )}
+        <CardTitle className="flex items-center justify-between font-display">
+          <div className="flex items-center gap-2">
+            <Clock className="w-5 h-5" />
+            Today's Tasks
+            {isConnected && (
+              <span title="Real-time connected">
+                <Wifi className="w-4 h-4 text-green-500" />
+              </span>
+            )}
+          </div>
+          
+          {/* Status Filter */}
+          <ToggleGroup 
+            type="single" 
+            value={statusFilter} 
+            onValueChange={(value) => value && setStatusFilter(value as StatusFilter)}
+            className="border rounded-md"
+          >
+            <ToggleGroupItem value="all" size="sm" className="text-xs px-3">
+              All
+            </ToggleGroupItem>
+            <ToggleGroupItem value="working" size="sm" className="text-xs px-3">
+              Active
+            </ToggleGroupItem>
+            <ToggleGroupItem value="pending" size="sm" className="text-xs px-3">
+              Pending
+            </ToggleGroupItem>
+          </ToggleGroup>
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {tasks.length === 0 ? (
-          <p className="text-center text-muted-foreground py-8">No tasks assigned to you</p>
+        {filteredTasks.length === 0 ? (
+          <p className="text-center text-muted-foreground py-8">
+            {statusFilter !== 'all' ? 'No tasks match the current filter' : 'No tasks assigned to you'}
+          </p>
         ) : (
           <div className="space-y-4">
-            {tasks.map((task) => (
+            {filteredTasks.map((task) => (
               <div key={task.id} className="p-4 rounded-lg border bg-card hover:shadow-card transition-shadow">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
@@ -360,11 +433,13 @@ export function TaskPanel() {
                           <DialogContent>
                             <DialogHeader>
                               <DialogTitle>Delete Task</DialogTitle>
+                              <DialogDescription>
+                                {task.status === 'completed' 
+                                  ? 'This will restore the task to the user\'s panel and request a reason.' 
+                                  : 'This action cannot be undone.'}
+                              </DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4 pt-4">
-                              <p className="text-sm text-muted-foreground">
-                                Are you sure you want to delete this task? This action cannot be undone.
-                              </p>
                               <div className="p-3 rounded bg-muted">
                                 <p className="font-medium">{task.title}</p>
                                 <p className="text-xs text-muted-foreground mt-1">
@@ -382,9 +457,16 @@ export function TaskPanel() {
                                 <Button 
                                   variant="destructive" 
                                   className="flex-1"
-                                  onClick={() => handleDeleteTask(task.id)}
+                                  onClick={() => task.status === 'completed' 
+                                    ? handleDeleteCompletedTask(task) 
+                                    : handleDeleteTask(task.id)}
                                 >
-                                  Delete
+                                  {task.status === 'completed' ? (
+                                    <>
+                                      <RotateCcw className="w-4 h-4 mr-1" />
+                                      Remove & Restore
+                                    </>
+                                  ) : 'Delete'}
                                 </Button>
                               </div>
                             </div>

@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useTestSession } from '@/contexts/TestSessionContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -42,6 +43,7 @@ interface CompletedTask {
 
 export function AlertTab() {
   const { user, isLeadership, isCaptainOrVice } = useAuth();
+  const { isTestMode } = useTestSession();
   const { toast } = useToast();
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [pendingTasks, setPendingTasks] = useState<PendingTask[]>([]);
@@ -54,12 +56,19 @@ export function AlertTab() {
   const fetchData = useCallback(async () => {
     if (!user) return;
 
-    // Fetch approvals relevant to the user
-    const { data: approvalsData } = await supabase
+    // Fetch approvals relevant to the user (exclude test data for non-leadership)
+    let approvalsQuery = supabase
       .from('approvals')
       .select('*')
       .eq('status', 'pending')
       .order('created_at', { ascending: false });
+
+    // Filter out test approvals for non-leadership
+    if (!isLeadership && !isTestMode) {
+      approvalsQuery = approvalsQuery.eq('is_test', false);
+    }
+
+    const { data: approvalsData } = await approvalsQuery;
 
     if (approvalsData) {
       // Enrich with names
@@ -149,7 +158,7 @@ export function AlertTab() {
     }
 
     setIsLoading(false);
-  }, [user]);
+  }, [user, isLeadership, isTestMode]);
 
   useEffect(() => {
     fetchData();
@@ -186,7 +195,8 @@ export function AlertTab() {
         .insert({
           approval_id: approvalId,
           voter_id: user.id,
-          vote_type: voteType
+          vote_type: voteType,
+          is_test: isTestMode
         });
 
       if (error) throw error;
@@ -202,10 +212,18 @@ export function AlertTab() {
         let shouldApprove = false;
         let shouldReject = false;
 
-        if (approval.approval_type === 'task_reason') {
+        if (approval.approval_type === 'task_reason' || approval.approval_type === 'task_deletion_reason') {
           // 2 approvals needed for task reason
           shouldApprove = approveCount >= 2;
           shouldReject = rejectCount >= 2;
+          
+          // If approved, restore task to working status
+          if (shouldApprove && approval.target_task_id) {
+            await supabase
+              .from('tasks')
+              .update({ status: 'working' })
+              .eq('id', approval.target_task_id);
+          }
         } else if (approval.approval_type === 'deletion_vote') {
           // Any 1 of 4 leadership can approve
           shouldApprove = approveCount >= 1;
@@ -250,7 +268,8 @@ export function AlertTab() {
           target_user_id: user.id,
           initiated_by: user.id,
           reason: reasons[taskId],
-          status: 'pending'
+          status: 'pending',
+          is_test: isTestMode
         });
 
       if (error) throw error;
@@ -286,7 +305,8 @@ export function AlertTab() {
           task_id: docForm.taskId,
           user_id: user.id,
           github_url: docForm.githubUrl,
-          description: docForm.description || null
+          description: docForm.description || null,
+          is_test: isTestMode
         });
 
       if (error) throw error;
@@ -332,7 +352,8 @@ export function AlertTab() {
             approval_type: 'deletion_vote',
             target_user_id: approval.target_user_id,
             initiated_by: approval.initiated_by,
-            status: 'pending'
+            status: 'pending',
+            is_test: isTestMode
           });
 
         toast({ 
@@ -367,9 +388,13 @@ export function AlertTab() {
     // Deletion requests targeted at this user
     if (a.approval_type === 'deletion_request' && a.target_user_id === user?.id) return true;
     
-    // Leadership can see task reason requests, deletion votes, report downloads
+    // Task deletion reasons targeted at this user (they need to provide reason)
+    if (a.approval_type === 'task_deletion_reason' && a.target_user_id === user?.id && a.status === 'pending' && !a.reason) return true;
+    
+    // Leadership can see task reason requests, deletion votes, report downloads, task_deletion_reason
     if (isLeadership) {
       if (a.approval_type === 'task_reason') return true;
+      if (a.approval_type === 'task_deletion_reason' && a.reason) return true;
       if (a.approval_type === 'deletion_vote') return true;
       if (a.approval_type === 'report_download') return true;
     }
@@ -550,6 +575,50 @@ export function AlertTab() {
                           disabled={processingId === approval.id}
                         >
                           <X className="w-4 h-4 mr-1" /> Reject
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">You have already voted</p>
+                    )}
+                  </>
+                )}
+
+                {/* Task deletion reason - show to leadership for voting */}
+                {approval.approval_type === 'task_deletion_reason' && isLeadership && approval.reason && (
+                  <>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                      <span className="font-semibold">Completed Task Removed - Reason</span>
+                    </div>
+                    <p className="text-sm mb-1">
+                      <span className="text-muted-foreground">Task:</span> {approval.task_title}
+                    </p>
+                    <p className="text-sm mb-1">
+                      <span className="text-muted-foreground">From:</span> {approval.target_user_name}
+                    </p>
+                    <p className="text-sm mb-1">
+                      <span className="text-muted-foreground">Removed by:</span> {approval.initiator_name}
+                    </p>
+                    <p className="text-sm p-2 rounded bg-muted mb-3">{approval.reason}</p>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Approvals: {approval.votes?.filter(v => v.vote_type === 'approve').length || 0}/2 required
+                    </p>
+                    {!userHasVoted(approval) ? (
+                      <div className="flex gap-2">
+                        <Button 
+                          size="sm"
+                          onClick={() => handleVote(approval.id, 'approve')}
+                          disabled={processingId === approval.id}
+                        >
+                          <Check className="w-4 h-4 mr-1" /> Approve (Keep Task)
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleVote(approval.id, 'reject')}
+                          disabled={processingId === approval.id}
+                        >
+                          <X className="w-4 h-4 mr-1" /> Reject (Remove from Log)
                         </Button>
                       </div>
                     ) : (
