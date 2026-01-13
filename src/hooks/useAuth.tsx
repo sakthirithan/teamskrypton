@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { KryptonRole } from '@/lib/constants';
+import { KryptonRole, LEADERSHIP_ROLES, CAPTAIN_ROLES } from '@/lib/constants';
 
 interface AuthContextType {
   user: User | null;
@@ -10,6 +10,7 @@ interface AuthContextType {
   role: KryptonRole | null;
   isLoading: boolean;
   isLeadership: boolean;
+  isCaptainOrVice: boolean;
   signOut: () => Promise<void>;
 }
 
@@ -22,6 +23,7 @@ interface Profile {
   avatar_url: string | null;
   current_status: string;
   created_at: string;
+  is_direct_access: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -33,7 +35,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<KryptonRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const isLeadership = role ? ['team_captain', 'vice_captain', 'strategist', 'team_manager'].includes(role) : false;
+  const isLeadership = role ? LEADERSHIP_ROLES.includes(role) : false;
+  const isCaptainOrVice = role ? CAPTAIN_ROLES.includes(role) : false;
 
   const fetchUserData = async (userId: string) => {
     try {
@@ -42,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .from('profiles')
         .select('*')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
       if (profileData) {
         setProfile(profileData as Profile);
@@ -53,7 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
       if (roleData) {
         setRole(roleData.role as KryptonRole);
@@ -106,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, role, isLoading, isLeadership, signOut }}>
+    <AuthContext.Provider value={{ user, session, profile, role, isLoading, isLeadership, isCaptainOrVice, signOut }}>
       {children}
     </AuthContext.Provider>
   );

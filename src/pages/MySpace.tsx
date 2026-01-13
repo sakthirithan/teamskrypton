@@ -5,12 +5,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
 import { KryptonIdCard } from '@/components/team/KryptonIdCard';
-import { AlertTriangle, CheckCircle, Clock, BarChart3, Save } from 'lucide-react';
+import { AlertTab } from '@/components/alerts/AlertTab';
+import { CheckCircle, Clock, BarChart3, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
-import { useToast } from '@/hooks/use-toast';
 import { TaskStatus } from '@/lib/constants';
 
 interface Task {
@@ -22,22 +20,23 @@ interface Task {
   accepted_at: string | null;
   completed_at: string | null;
   duration_minutes: number | null;
+  assigner_name: string | null;
+  assigner_role: string | null;
 }
 
-interface AlertTask extends Task {
-  reason?: string;
+interface TaskDoc {
+  task_id: string;
+  github_url: string;
 }
 
 const MySpace = () => {
   const { user, profile, role, isLoading } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
   const [pendingTasks, setPendingTasks] = useState<Task[]>([]);
-  const [alertTasks, setAlertTasks] = useState<AlertTask[]>([]);
   const [completedTasks, setCompletedTasks] = useState<Task[]>([]);
+  const [taskDocs, setTaskDocs] = useState<Map<string, string>>(new Map());
   const [stats, setStats] = useState({ accepted: 0, completed: 0, missed: 0, avgTime: 0 });
   const [isFetching, setIsFetching] = useState(true);
-  const [reasons, setReasons] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -56,19 +55,22 @@ const MySpace = () => {
         .eq('assigned_to', user.id)
         .order('created_at', { ascending: false });
 
+      // Fetch task documents
+      const { data: docs } = await supabase
+        .from('task_documents')
+        .select('task_id, github_url')
+        .eq('user_id', user.id);
+
+      if (docs) {
+        setTaskDocs(new Map(docs.map(d => [d.task_id, d.github_url])));
+      }
+
       if (tasks) {
         const now = new Date();
         
-        // Pending (working status)
+        // In Progress (working status, deadline not passed)
         const pending = tasks.filter(t => t.status === 'working' && new Date(t.deadline) > now);
         setPendingTasks(pending);
-
-        // Alerts (missed deadline or pending status)
-        const alerts = tasks.filter(t => 
-          t.status === 'pending' || 
-          (t.status === 'working' && new Date(t.deadline) <= now)
-        );
-        setAlertTasks(alerts);
 
         // Completed
         const completed = tasks.filter(t => t.status === 'completed');
@@ -77,7 +79,10 @@ const MySpace = () => {
         // Stats
         const accepted = tasks.filter(t => t.accepted_at).length;
         const completedCount = completed.length;
-        const missed = alerts.length;
+        const missed = tasks.filter(t => 
+          t.status === 'pending' || 
+          (t.status !== 'completed' && new Date(t.deadline) <= now)
+        ).length;
         const totalDuration = completed.reduce((sum, t) => sum + (t.duration_minutes || 0), 0);
         const avgTime = completedCount > 0 ? Math.round(totalDuration / completedCount) : 0;
 
@@ -88,18 +93,6 @@ const MySpace = () => {
 
     fetchData();
   }, [user]);
-
-  const handleSaveReason = async (taskId: string) => {
-    const reason = reasons[taskId];
-    if (!reason) return;
-
-    // For now, we'll just show a toast since we don't have a reason column
-    // In production, you'd add a reason column to tasks table
-    toast({
-      title: 'Reason Saved',
-      description: 'Your explanation has been recorded.',
-    });
-  };
 
   if (isLoading || !user) {
     return (
@@ -163,53 +156,9 @@ const MySpace = () => {
           {/* Main Content */}
           <div className="lg:col-span-3 space-y-6">
             {/* Alerts Panel */}
-            <Card className={alertTasks.length > 0 ? 'border-[hsl(var(--status-pending))]/50' : ''}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 font-display text-[hsl(var(--status-pending))]">
-                  <AlertTriangle className="w-5 h-5" />
-                  Alerts
-                  {alertTasks.length > 0 && (
-                    <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-[hsl(var(--status-pending))]/20">
-                      {alertTasks.length}
-                    </span>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {alertTasks.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-4">No alerts - you're on track!</p>
-                ) : (
-                  <div className="space-y-4">
-                    {alertTasks.map((task) => (
-                      <div key={task.id} className="p-4 rounded-lg border border-[hsl(var(--status-pending))]/30 bg-[hsl(var(--status-pending))]/5">
-                        <div className="flex justify-between items-start mb-3">
-                          <div>
-                            <h4 className="font-semibold">{task.title}</h4>
-                            <p className="text-sm text-muted-foreground">
-                              Deadline: {format(new Date(task.deadline), 'MMM dd, HH:mm')}
-                            </p>
-                          </div>
-                          <span className="status-badge status-pending">Missed</span>
-                        </div>
-                        <Textarea
-                          placeholder="Explain the delay..."
-                          value={reasons[task.id] || ''}
-                          onChange={(e) => setReasons({ ...reasons, [task.id]: e.target.value })}
-                          rows={2}
-                          className="mb-2"
-                        />
-                        <Button size="sm" onClick={() => handleSaveReason(task.id)}>
-                          <Save className="w-4 h-4 mr-1" />
-                          Save Reason
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <AlertTab />
 
-            {/* Pending Tasks */}
+            {/* In Progress Tasks */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 font-display">
@@ -225,6 +174,7 @@ const MySpace = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Task</TableHead>
+                        <TableHead>Assigned By</TableHead>
                         <TableHead>Started</TableHead>
                         <TableHead>Deadline</TableHead>
                         <TableHead>Status</TableHead>
@@ -234,6 +184,18 @@ const MySpace = () => {
                       {pendingTasks.map((task) => (
                         <TableRow key={task.id}>
                           <TableCell className="font-medium">{task.title}</TableCell>
+                          <TableCell>
+                            {task.assigner_name ? (
+                              <span>
+                                {task.assigner_name}
+                                {task.assigner_role && (
+                                  <span className="text-xs text-muted-foreground ml-1">
+                                    ({task.assigner_role})
+                                  </span>
+                                )}
+                              </span>
+                            ) : '-'}
+                          </TableCell>
                           <TableCell>{task.accepted_at ? format(new Date(task.accepted_at), 'HH:mm') : '-'}</TableCell>
                           <TableCell>{format(new Date(task.deadline), 'MMM dd, HH:mm')}</TableCell>
                           <TableCell><span className="status-badge status-working">Working</span></TableCell>
@@ -262,9 +224,11 @@ const MySpace = () => {
                       <TableRow>
                         <TableHead>Date</TableHead>
                         <TableHead>Task</TableHead>
+                        <TableHead>Assigned By</TableHead>
                         <TableHead>Start</TableHead>
                         <TableHead>End</TableHead>
                         <TableHead>Duration</TableHead>
+                        <TableHead>Docs</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -272,9 +236,36 @@ const MySpace = () => {
                         <TableRow key={task.id}>
                           <TableCell>{task.completed_at ? format(new Date(task.completed_at), 'MMM dd') : '-'}</TableCell>
                           <TableCell className="font-medium">{task.title}</TableCell>
+                          <TableCell>
+                            {task.assigner_name ? (
+                              <span>
+                                {task.assigner_name}
+                                {task.assigner_role && (
+                                  <span className="text-xs text-muted-foreground ml-1">
+                                    ({task.assigner_role})
+                                  </span>
+                                )}
+                              </span>
+                            ) : '-'}
+                          </TableCell>
                           <TableCell>{task.accepted_at ? format(new Date(task.accepted_at), 'HH:mm') : '-'}</TableCell>
                           <TableCell>{task.completed_at ? format(new Date(task.completed_at), 'HH:mm') : '-'}</TableCell>
                           <TableCell>{task.duration_minutes ? `${task.duration_minutes}m` : '-'}</TableCell>
+                          <TableCell>
+                            {taskDocs.has(task.id) ? (
+                              <a 
+                                href={taskDocs.get(task.id)} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline flex items-center gap-1"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                                View
+                              </a>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

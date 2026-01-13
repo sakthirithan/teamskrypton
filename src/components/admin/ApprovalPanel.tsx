@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { ROLE_LABELS, KryptonRole } from '@/lib/constants';
-import { Check, X, UserPlus, Loader2, Mail } from 'lucide-react';
+import { Check, X, UserPlus, Loader2, Mail, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface RegistrationRequest {
@@ -142,6 +142,30 @@ export function ApprovalPanel() {
     }
   };
 
+  const handleDelete = async (request: RegistrationRequest) => {
+    setProcessingId(request.id);
+    try {
+      await supabase
+        .from('registration_requests')
+        .delete()
+        .eq('id', request.id);
+
+      toast({
+        title: 'Request Deleted',
+        description: 'The pending registration has been removed.',
+      });
+      fetchRequests();
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Failed to delete request.',
+      });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <Card>
@@ -197,6 +221,20 @@ export function ApprovalPanel() {
                     </p>
                   </div>
                   <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleDelete(request)}
+                      disabled={processingId === request.id}
+                      className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      title="Delete request"
+                    >
+                      {processingId === request.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
+                    </Button>
                     <Button
                       size="sm"
                       variant="outline"

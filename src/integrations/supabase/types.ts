@@ -14,6 +14,82 @@ export type Database = {
   }
   public: {
     Tables: {
+      approval_votes: {
+        Row: {
+          approval_id: string
+          id: string
+          vote_type: string
+          voted_at: string
+          voter_id: string
+        }
+        Insert: {
+          approval_id: string
+          id?: string
+          vote_type: string
+          voted_at?: string
+          voter_id: string
+        }
+        Update: {
+          approval_id?: string
+          id?: string
+          vote_type?: string
+          voted_at?: string
+          voter_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_votes_approval_id_fkey"
+            columns: ["approval_id"]
+            isOneToOne: false
+            referencedRelation: "approvals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      approvals: {
+        Row: {
+          approval_type: Database["public"]["Enums"]["approval_type"]
+          created_at: string
+          id: string
+          initiated_by: string | null
+          reason: string | null
+          status: Database["public"]["Enums"]["approval_status"]
+          target_task_id: string | null
+          target_user_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          approval_type: Database["public"]["Enums"]["approval_type"]
+          created_at?: string
+          id?: string
+          initiated_by?: string | null
+          reason?: string | null
+          status?: Database["public"]["Enums"]["approval_status"]
+          target_task_id?: string | null
+          target_user_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          approval_type?: Database["public"]["Enums"]["approval_type"]
+          created_at?: string
+          id?: string
+          initiated_by?: string | null
+          reason?: string | null
+          status?: Database["public"]["Enums"]["approval_status"]
+          target_task_id?: string | null
+          target_user_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approvals_target_task_id_fkey"
+            columns: ["target_task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -23,6 +99,7 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          is_direct_access: boolean | null
           updated_at: string
           user_id: string
         }
@@ -34,6 +111,7 @@ export type Database = {
           email: string
           full_name: string
           id?: string
+          is_direct_access?: boolean | null
           updated_at?: string
           user_id: string
         }
@@ -45,6 +123,7 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
+          is_direct_access?: boolean | null
           updated_at?: string
           user_id?: string
         }
@@ -89,11 +168,69 @@ export type Database = {
         }
         Relationships: []
       }
+      report_downloads: {
+        Row: {
+          downloaded_at: string
+          downloaded_by: string
+          id: string
+          report_date: string
+        }
+        Insert: {
+          downloaded_at?: string
+          downloaded_by: string
+          id?: string
+          report_date: string
+        }
+        Update: {
+          downloaded_at?: string
+          downloaded_by?: string
+          id?: string
+          report_date?: string
+        }
+        Relationships: []
+      }
+      task_documents: {
+        Row: {
+          description: string | null
+          github_url: string
+          id: string
+          task_id: string
+          uploaded_at: string
+          user_id: string
+        }
+        Insert: {
+          description?: string | null
+          github_url: string
+          id?: string
+          task_id: string
+          uploaded_at?: string
+          user_id: string
+        }
+        Update: {
+          description?: string | null
+          github_url?: string
+          id?: string
+          task_id?: string
+          uploaded_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_documents_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           accepted_at: string | null
           assigned_by: string
           assigned_to: string | null
+          assigner_name: string | null
+          assigner_role: string | null
           completed_at: string | null
           created_at: string
           deadline: string
@@ -108,6 +245,8 @@ export type Database = {
           accepted_at?: string | null
           assigned_by: string
           assigned_to?: string | null
+          assigner_name?: string | null
+          assigner_role?: string | null
           completed_at?: string | null
           created_at?: string
           deadline: string
@@ -122,6 +261,8 @@ export type Database = {
           accepted_at?: string | null
           assigned_by?: string
           assigned_to?: string | null
+          assigner_name?: string | null
+          assigner_role?: string | null
           completed_at?: string | null
           created_at?: string
           deadline?: string
@@ -203,9 +344,18 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_captain_or_vice: { Args: { _user_id: string }; Returns: boolean }
       is_leadership: { Args: { _user_id: string }; Returns: boolean }
+      is_team_member_only: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
+      approval_status: "pending" | "approved" | "rejected"
+      approval_type:
+        | "registration"
+        | "deletion_request"
+        | "deletion_vote"
+        | "task_reason"
+        | "report_download"
       krypton_role:
         | "team_captain"
         | "vice_captain"
@@ -341,6 +491,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      approval_status: ["pending", "approved", "rejected"],
+      approval_type: [
+        "registration",
+        "deletion_request",
+        "deletion_vote",
+        "task_reason",
+        "report_download",
+      ],
       krypton_role: [
         "team_captain",
         "vice_captain",

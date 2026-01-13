@@ -2,15 +2,14 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ROLES, ROLE_LABELS, KryptonRole } from '@/lib/constants';
-import { Loader2 } from 'lucide-react';
+import { ROLES, ROLE_LABELS, KryptonRole, DIRECT_ACCESS_EMAILS } from '@/lib/constants';
+import { Loader2, CheckCircle, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const registerSchema = z.object({
@@ -33,7 +32,8 @@ interface RegisterFormProps {
 
 export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const navigate = useNavigate();
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isDirectAccess, setIsDirectAccess] = useState(false);
   const { toast } = useToast();
 
   const {
@@ -50,38 +50,78 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
 
   const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true);
+    
+    // Check if email is in direct access list
+    const hasDirectAccess = DIRECT_ACCESS_EMAILS.includes(data.email.toLowerCase());
+    
     try {
-      const { error } = await supabase.auth.signUp({
-        email: data.email,
-        password: data.password,
-        options: {
-          data: {
+      if (hasDirectAccess) {
+        // Direct signup for special emails
+        const { error } = await supabase.auth.signUp({
+          email: data.email,
+          password: data.password,
+          options: {
+            data: {
+              full_name: data.fullName,
+              department: data.department,
+              role: data.role,
+            },
+            emailRedirectTo: `${window.location.origin}/`
+          }
+        });
+
+        if (error) {
+          if (error.message.includes('already registered')) {
+            toast({
+              variant: 'destructive',
+              title: 'Registration Failed',
+              description: 'An account with this email already exists.',
+            });
+          } else {
+            throw error;
+          }
+          return;
+        }
+
+        // Mark as direct access user
+        setIsDirectAccess(true);
+        setIsSubmitted(true);
+        toast({
+          title: 'Account Created!',
+          description: 'You can now log in with your credentials.',
+        });
+      } else {
+        // Submit to registration_requests for approval
+        const { error } = await supabase
+          .from('registration_requests')
+          .insert({
             full_name: data.fullName,
+            email: data.email,
             department: data.department,
-            role: data.role,
-          },
-          emailRedirectTo: `${window.location.origin}/`
-        }
-      });
-
-      if (error) {
-        if (error.message.includes('already registered')) {
-          toast({
-            variant: 'destructive',
-            title: 'Registration Failed',
-            description: 'An account with this email already exists.',
+            requested_role: data.role,
+            password_hash: data.password, // Note: In production, hash this
+            status: 'pending',
           });
-        } else {
-          throw error;
-        }
-        return;
-      }
 
-      toast({
-        title: 'Account Created!',
-        description: 'You can now log in with your credentials.',
-      });
-      onSwitchToLogin();
+        if (error) {
+          if (error.message.includes('duplicate')) {
+            toast({
+              variant: 'destructive',
+              title: 'Request Already Exists',
+              description: 'A registration request with this email already exists.',
+            });
+          } else {
+            throw error;
+          }
+          return;
+        }
+
+        setIsSubmitted(true);
+        toast({
+          title: 'Request Submitted!',
+          description: 'Your registration is pending approval from Team Captain or Vice Captain.',
+        });
+      }
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -92,6 +132,36 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
       setIsLoading(false);
     }
   };
+
+  if (isSubmitted) {
+    return (
+      <Card className="w-full max-w-md mx-auto animate-fade-in">
+        <CardContent className="pt-8 pb-8 text-center">
+          {isDirectAccess ? (
+            <>
+              <CheckCircle className="w-16 h-16 mx-auto text-green-500 mb-4" />
+              <h3 className="text-xl font-semibold mb-2">Account Created!</h3>
+              <p className="text-muted-foreground mb-6">
+                You can now log in with your credentials.
+              </p>
+            </>
+          ) : (
+            <>
+              <Clock className="w-16 h-16 mx-auto text-amber-500 mb-4" />
+              <h3 className="text-xl font-semibold mb-2">Request Submitted!</h3>
+              <p className="text-muted-foreground mb-6">
+                Your registration is pending approval from Team Captain or Vice Captain.
+                You'll receive an email once your request is reviewed.
+              </p>
+            </>
+          )}
+          <Button onClick={onSwitchToLogin} className="w-full">
+            Go to Login
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-full max-w-md mx-auto animate-fade-in">
@@ -195,7 +265,7 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
 
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Create Account
+            Request Access
           </Button>
 
           <p className="text-center text-sm text-muted-foreground">
