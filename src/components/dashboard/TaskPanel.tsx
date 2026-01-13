@@ -3,9 +3,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Clock, CheckCircle, Play, AlertCircle, Wifi } from 'lucide-react';
+import { Clock, CheckCircle, Play, AlertCircle, Wifi, Edit2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 
 interface Task {
   id: string;
@@ -15,16 +19,18 @@ interface Task {
   status: string;
   assigned_by: string;
   accepted_at: string | null;
-  assigner_name?: string;
-  assigner_role?: string;
+  assigner_name: string | null;
+  assigner_role: string | null;
 }
 
 export function TaskPanel() {
-  const { user } = useAuth();
+  const { user, isLeadership } = useAuth();
   const { toast } = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [editForm, setEditForm] = useState({ title: '', description: '' });
 
   const fetchTasks = useCallback(async () => {
     if (!user) return;
@@ -107,6 +113,26 @@ export function TaskPanel() {
     }
   };
 
+  const handleEditTask = async () => {
+    if (!editingTask) return;
+
+    const { error } = await supabase
+      .from('tasks')
+      .update({ 
+        title: editForm.title, 
+        description: editForm.description || null 
+      })
+      .eq('id', editingTask.id);
+
+    if (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to update task' });
+    } else {
+      toast({ title: 'Task Updated' });
+      setEditingTask(null);
+      fetchTasks();
+    }
+  };
+
   const getStatusClass = (status: string) => {
     switch (status) {
       case 'working': return 'status-badge status-working';
@@ -144,6 +170,15 @@ export function TaskPanel() {
                   <div className="flex-1">
                     <h4 className="font-semibold">{task.title}</h4>
                     {task.description && <p className="text-sm text-muted-foreground mt-1">{task.description}</p>}
+                    
+                    {/* Assigner Info */}
+                    {task.assigner_name && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        <span className="font-medium">Assigned By:</span> {task.assigner_name}
+                        {task.assigner_role && ` (${task.assigner_role})`}
+                      </p>
+                    )}
+                    
                     <div className="flex items-center gap-3 mt-2 text-sm">
                       <span className={getStatusClass(task.status)}>{task.status}</span>
                       <span className="flex items-center gap-1 text-muted-foreground">
@@ -153,6 +188,49 @@ export function TaskPanel() {
                     </div>
                   </div>
                   <div className="flex gap-2">
+                    {/* Leadership can edit task details (not time) */}
+                    {isLeadership && (
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button 
+                            size="sm" 
+                            variant="ghost"
+                            onClick={() => {
+                              setEditingTask(task);
+                              setEditForm({ title: task.title, description: task.description || '' });
+                            }}
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Edit Task</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-4 pt-4">
+                            <div>
+                              <Label>Title</Label>
+                              <Input 
+                                value={editForm.title}
+                                onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                              />
+                            </div>
+                            <div>
+                              <Label>Description</Label>
+                              <Textarea 
+                                value={editForm.description}
+                                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                                rows={3}
+                              />
+                            </div>
+                            <Button onClick={handleEditTask} className="w-full">
+                              Save Changes
+                            </Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    )}
+                    
                     {task.status === 'idle' && (
                       <Button size="sm" onClick={() => handleAccept(task.id)}>
                         <Play className="w-4 h-4 mr-1" /> Accept

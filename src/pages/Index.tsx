@@ -6,9 +6,10 @@ import { TaskPanel } from '@/components/dashboard/TaskPanel';
 import { WorkflowLog } from '@/components/dashboard/WorkflowLog';
 import { TaskCRUD } from '@/components/dashboard/TaskCRUD';
 import { ApprovalPanel } from '@/components/admin/ApprovalPanel';
+import { AlertTab } from '@/components/alerts/AlertTab';
 
 const Index = () => {
-  const { user, isLoading, isLeadership, role } = useAuth();
+  const { user, isLoading, isLeadership, isCaptainOrVice, role } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -27,8 +28,6 @@ const Index = () => {
 
   if (!user) return null;
 
-  const isTeamCaptain = role === 'team_captain';
-
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -42,11 +41,14 @@ const Index = () => {
           
           {/* Sidebar */}
           <div className="space-y-6">
+            {/* Alert Tab for leadership */}
+            {isLeadership && <AlertTab />}
+            
             {/* Task CRUD for leadership */}
             {isLeadership && <TaskCRUD />}
             
-            {/* Approval Panel for Team Captain */}
-            {isTeamCaptain && <ApprovalPanel />}
+            {/* Registration Approval Panel for TL/VC only */}
+            {isCaptainOrVice && <ApprovalPanel />}
           </div>
         </div>
       </main>

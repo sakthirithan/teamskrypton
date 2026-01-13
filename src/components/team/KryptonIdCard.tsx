@@ -1,4 +1,4 @@
-import { User } from 'lucide-react';
+import { User, Eye } from 'lucide-react';
 import { ROLE_LABELS, KryptonRole, STATUS_LABELS, TaskStatus } from '@/lib/constants';
 import { format } from 'date-fns';
 
@@ -14,7 +14,9 @@ interface KryptonIdCardProps {
   };
   role: KryptonRole | null;
   onClick?: () => void;
+  onViewProfile?: () => void;
   compact?: boolean;
+  showProfileIcon?: boolean;
 }
 
 function getRoleBgClass(role: KryptonRole | null): string {
@@ -37,7 +39,7 @@ function getStatusClass(status: TaskStatus | null): string {
   }
 }
 
-export function KryptonIdCard({ profile, role, onClick, compact }: KryptonIdCardProps) {
+export function KryptonIdCard({ profile, role, onClick, onViewProfile, compact, showProfileIcon }: KryptonIdCardProps) {
   if (compact) {
     return (
       <div 
@@ -69,6 +71,20 @@ export function KryptonIdCard({ profile, role, onClick, compact }: KryptonIdCard
     >
       {/* Role Color Strip */}
       <div className={`h-2 ${getRoleBgClass(role)}`} />
+      
+      {/* Profile Icon - Only visible for TL/VC */}
+      {showProfileIcon && onViewProfile && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onViewProfile();
+          }}
+          className="absolute top-4 right-4 p-2 rounded-full bg-primary/10 hover:bg-primary/20 transition-colors"
+          title="View Profile"
+        >
+          <Eye className="w-4 h-4 text-primary" />
+        </button>
+      )}
       
       <div className="p-5">
         {/* Avatar and Name */}

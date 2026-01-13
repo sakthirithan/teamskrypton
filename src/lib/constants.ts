@@ -31,6 +31,11 @@ export const LEADERSHIP_ROLES: KryptonRole[] = [
   'team_manager',
 ];
 
+export const CAPTAIN_ROLES: KryptonRole[] = [
+  'team_captain',
+  'vice_captain',
+];
+
 export const TASK_STATUSES = {
   IDLE: 'idle',
   WORKING: 'working',
@@ -46,6 +51,12 @@ export const STATUS_LABELS: Record<TaskStatus, string> = {
   completed: 'Completed',
   pending: 'Pending',
 };
+
+// Special direct-access emails that bypass approval
+export const DIRECT_ACCESS_EMAILS = [
+  'sakthim.ad24@bitsathy.ac.in',
+  'rahulm.ad24@bitsathy.ac.in',
+];
 
 export const EMAIL_DOMAIN = '@bitsathy.ac.in';
 export const ADMIN_EMAIL = 'theeranaustin@gmail.com';
