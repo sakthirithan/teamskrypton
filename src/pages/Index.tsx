@@ -5,9 +5,10 @@ import { Header } from '@/components/layout/Header';
 import { TaskPanel } from '@/components/dashboard/TaskPanel';
 import { WorkflowLog } from '@/components/dashboard/WorkflowLog';
 import { TaskCRUD } from '@/components/dashboard/TaskCRUD';
+import { ApprovalPanel } from '@/components/admin/ApprovalPanel';
 
-export default function Index() {
-  const { user, isLoading, isLeadership } = useAuth();
+const Index = () => {
+  const { user, isLoading, isLeadership, role } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -26,6 +27,8 @@ export default function Index() {
 
   if (!user) return null;
 
+  const isTeamCaptain = role === 'team_captain';
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -37,12 +40,18 @@ export default function Index() {
             <WorkflowLog />
           </div>
           
-          {/* Sidebar - Task CRUD for leadership */}
+          {/* Sidebar */}
           <div className="space-y-6">
+            {/* Task CRUD for leadership */}
             {isLeadership && <TaskCRUD />}
+            
+            {/* Approval Panel for Team Captain */}
+            {isTeamCaptain && <ApprovalPanel />}
           </div>
         </div>
       </main>
     </div>
   );
-}
+};
+
+export default Index;
