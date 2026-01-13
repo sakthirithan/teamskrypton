@@ -1,9 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useTestSession } from '@/contexts/TestSessionContext';
 import { ROLE_LABELS, KryptonRole } from '@/lib/constants';
-import { LogOut, User, Users, Home, LayoutDashboard, Menu, X } from 'lucide-react';
+import { LogOut, User, Users, Home, LayoutDashboard, Menu, X, FlaskConical, Download, Play, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate, useLocation } from 'react-router-dom';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useToast } from '@/hooks/use-toast';
 
 function getRoleBadgeClass(role: KryptonRole | null): string {
   switch (role) {
@@ -23,9 +33,11 @@ function getRoleBadgeClass(role: KryptonRole | null): string {
 }
 
 export function Header() {
-  const { user, profile, role, signOut } = useAuth();
+  const { user, profile, role, signOut, isCaptainOrVice } = useAuth();
+  const { isTestMode, startTestSession, endTestSession } = useTestSession();
   const navigate = useNavigate();
   const location = useLocation();
+  const { toast } = useToast();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -59,6 +71,28 @@ export function Header() {
     navigate('/auth');
   };
 
+  const handleInstallAPK = () => {
+    // Trigger PWA install prompt or show instructions
+    const installEvent = (window as any).deferredPrompt;
+    if (installEvent) {
+      installEvent.prompt();
+      installEvent.userChoice.then((choiceResult: { outcome: string }) => {
+        if (choiceResult.outcome === 'accepted') {
+          toast({
+            title: "Installing App",
+            description: "Krypton Space is being installed on your device.",
+          });
+        }
+        (window as any).deferredPrompt = null;
+      });
+    } else {
+      toast({
+        title: "Install Krypton Space",
+        description: "Use your browser's menu to 'Add to Home Screen' or 'Install App'.",
+      });
+    }
+  };
+
   const navLinks = [
     { path: '/', label: 'Home', icon: Home },
     { path: '/team', label: 'Team', icon: Users },
@@ -66,6 +100,16 @@ export function Header() {
   ];
 
   const isActive = (path: string) => location.pathname === path;
+
+  // Store install prompt for later use
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      (window as any).deferredPrompt = e;
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  }, []);
 
   return (
     <header className="krypton-gradient text-primary-foreground">
@@ -110,32 +154,73 @@ export function Header() {
 
           {/* User Info & Mobile Menu */}
           <div className="flex items-center gap-4">
-            {/* User Profile */}
-            <div 
-              className="hidden sm:flex items-center gap-3 cursor-pointer hover:opacity-80"
-              onClick={() => user && navigate('/my-space')}
-            >
-              <div className="flex flex-col items-end">
-                <span className="font-medium">{profile?.full_name || 'User'}</span>
-                {role && (
-                  <span className={getRoleBadgeClass(role)}>
-                    {ROLE_LABELS[role]}
-                  </span>
+            {/* User Profile Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <div className="hidden sm:flex items-center gap-3 cursor-pointer hover:opacity-80">
+                  <div className="flex flex-col items-end">
+                    <span className="font-medium">{profile?.full_name || 'User'}</span>
+                    {role && (
+                      <span className={getRoleBadgeClass(role)}>
+                        {ROLE_LABELS[role]}
+                      </span>
+                    )}
+                  </div>
+                  <div className="w-10 h-10 rounded-full bg-primary-foreground/20 flex items-center justify-center">
+                    <User className="w-5 h-5" />
+                  </div>
+                </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>
+                  <div className="flex flex-col">
+                    <span>{profile?.full_name || 'User'}</span>
+                    <span className="text-xs font-normal text-muted-foreground">
+                      {profile?.email}
+                    </span>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                
+                <DropdownMenuItem onClick={() => navigate('/my-space')}>
+                  <LayoutDashboard className="w-4 h-4 mr-2" />
+                  My Space
+                </DropdownMenuItem>
+                
+                <DropdownMenuSeparator />
+                
+                {/* Test Session - Only for TL/VC */}
+                {isCaptainOrVice && (
+                  <>
+                    {!isTestMode ? (
+                      <DropdownMenuItem onClick={startTestSession} className="text-yellow-600">
+                        <Play className="w-4 h-4 mr-2" />
+                        Start Test Session
+                      </DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuItem onClick={endTestSession} className="text-red-600">
+                        <Square className="w-4 h-4 mr-2" />
+                        End Test Session
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuSeparator />
+                  </>
                 )}
-              </div>
-              <div className="w-10 h-10 rounded-full bg-primary-foreground/20 flex items-center justify-center">
-                <User className="w-5 h-5" />
-              </div>
-            </div>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleSignOut}
-              className="text-primary-foreground hover:bg-primary-foreground/10"
-            >
-              <LogOut className="w-5 h-5" />
-            </Button>
+                
+                {/* Install APK - Available to all */}
+                <DropdownMenuItem onClick={handleInstallAPK}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Install App
+                </DropdownMenuItem>
+                
+                <DropdownMenuSeparator />
+                
+                <DropdownMenuItem onClick={handleSignOut} className="text-red-600">
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             {/* Mobile Menu Toggle */}
             <Button
@@ -168,9 +253,63 @@ export function Header() {
                 {link.label}
               </Button>
             ))}
+            
+            <div className="border-t border-primary-foreground/20 pt-2 mt-2">
+              {/* Test Session for mobile - TL/VC only */}
+              {isCaptainOrVice && (
+                !isTestMode ? (
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      startTestSession();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="justify-start text-yellow-300 hover:bg-primary-foreground/10 w-full"
+                  >
+                    <FlaskConical className="w-4 h-4 mr-2" />
+                    Start Test Session
+                  </Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      endTestSession();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="justify-start text-red-300 hover:bg-primary-foreground/10 w-full"
+                  >
+                    <Square className="w-4 h-4 mr-2" />
+                    End Test Session
+                  </Button>
+                )
+              )}
+              
+              {/* Install App for mobile */}
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  handleInstallAPK();
+                  setMobileMenuOpen(false);
+                }}
+                className="justify-start text-primary-foreground hover:bg-primary-foreground/10 w-full"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Install App
+              </Button>
+              
+              <Button
+                variant="ghost"
+                onClick={handleSignOut}
+                className="justify-start text-red-300 hover:bg-primary-foreground/10 w-full"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Sign Out
+              </Button>
+            </div>
           </nav>
         )}
       </div>
     </header>
   );
 }
+
