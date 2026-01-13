@@ -1,0 +1,20 @@
+{
+  "name": "Krypton Space",
+  "short_name": "Krypton",
+  "description": "Teams Krypton - Collab Platform. Where Work Becomes Visible.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#6366f1",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "categories": ["productivity", "business"],
+  "prefer_related_applications": false
+}
