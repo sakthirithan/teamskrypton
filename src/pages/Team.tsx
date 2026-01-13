@@ -21,7 +21,7 @@ interface TeamMember {
 }
 
 const Team = () => {
-  const { user, isLoading, isCaptainOrVice } = useAuth();
+  const { user, isLoading, isLeadership } = useAuth();
   const navigate = useNavigate();
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [isFetching, setIsFetching] = useState(true);
@@ -118,13 +118,13 @@ const Team = () => {
                   // Normal users can only view their own My Space
                   if (member.profile.user_id === user.id) {
                     navigate('/my-space');
-                  } else if (isCaptainOrVice) {
-                    // TL/VC can view any member's profile
+                  } else if (isLeadership) {
+                    // Leadership can view any member's profile
                     navigate(`/member/${member.profile.user_id}`);
                   }
                 }}
-                onViewProfile={isCaptainOrVice ? () => navigate(`/member/${member.profile.user_id}`) : undefined}
-                showProfileIcon={isCaptainOrVice}
+                onViewProfile={isLeadership ? () => navigate(`/member/${member.profile.user_id}`) : undefined}
+                showProfileIcon={isLeadership}
               />
             ))}
           </div>
