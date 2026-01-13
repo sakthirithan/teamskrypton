@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Clock, CheckCircle, Play, AlertCircle } from 'lucide-react';
+import { Clock, CheckCircle, Play, AlertCircle, Wifi } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -24,8 +24,9 @@ export function TaskPanel() {
   const { toast } = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isConnected, setIsConnected] = useState(false);
 
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
     if (!user) return;
     
     const { data, error } = await supabase
@@ -39,11 +40,39 @@ export function TaskPanel() {
       setTasks(data);
     }
     setIsLoading(false);
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchTasks();
-  }, [user]);
+  }, [fetchTasks]);
+
+  // Real-time subscription
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('tasks-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tasks',
+          filter: `assigned_to=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('Task change received:', payload);
+          fetchTasks();
+        }
+      )
+      .subscribe((status) => {
+        setIsConnected(status === 'SUBSCRIBED');
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, fetchTasks]);
 
   const handleAccept = async (taskId: string) => {
     const { error } = await supabase
@@ -97,6 +126,11 @@ export function TaskPanel() {
         <CardTitle className="flex items-center gap-2 font-display">
           <Clock className="w-5 h-5" />
           Today's Tasks
+          {isConnected && (
+            <span title="Real-time connected" className="ml-auto">
+              <Wifi className="w-4 h-4 text-green-500" />
+            </span>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent>
