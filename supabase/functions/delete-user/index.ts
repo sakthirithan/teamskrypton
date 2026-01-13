@@ -20,9 +20,9 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false }
     });
 
-    // Create client with user's auth to verify permissions
+    // Validate JWT from authorization header
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
+    if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "No authorization header" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -33,18 +33,23 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    // Get current user
-    const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
-    if (authError || !currentUser) {
+    // Verify JWT and get claims
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    
+    if (claimsError || !claimsData?.claims) {
+      console.error("JWT validation failed:", claimsError);
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    const currentUserId = claimsData.claims.sub as string;
+
     // Check if current user is TL or VC
     const { data: isCaptainOrVice } = await supabaseAdmin.rpc('is_captain_or_vice', { 
-      _user_id: currentUser.id 
+      _user_id: currentUserId 
     });
 
     if (!isCaptainOrVice) {
@@ -64,14 +69,14 @@ Deno.serve(async (req) => {
     }
 
     // Prevent self-deletion
-    if (targetUserId === currentUser.id) {
+    if (targetUserId === currentUserId) {
       return new Response(JSON.stringify({ error: "Cannot delete yourself" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    console.log(`Hard deleting user ${targetUserId} by ${currentUser.id}`);
+    console.log(`Hard deleting user ${targetUserId} by ${currentUserId}`);
 
     // HARD DELETE - Delete ALL user data in correct order
 
