@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ROLES, ROLE_LABELS, EMAIL_DOMAIN, KryptonRole } from '@/lib/constants';
-import { Loader2, CheckCircle } from 'lucide-react';
+import { Loader2, CheckCircle, Mail } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const registerSchema = z.object({
@@ -37,6 +37,7 @@ interface RegisterFormProps {
 export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [submittedEmail, setSubmittedEmail] = useState('');
   const { toast } = useToast();
 
   const {
@@ -51,6 +52,16 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
 
   const selectedRole = watch('role');
 
+  const sendPendingEmail = async (email: string, fullName: string) => {
+    try {
+      await supabase.functions.invoke('send-notification', {
+        body: { to: email, type: 'pending', fullName }
+      });
+    } catch (error) {
+      console.error('Failed to send pending notification email:', error);
+    }
+  };
+
   const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true);
     try {
@@ -62,7 +73,7 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
           email: data.email,
           department: data.department,
           requested_role: data.role,
-          password_hash: data.password, // Note: In production, this should be hashed
+          password_hash: data.password,
           status: 'pending',
         });
 
@@ -79,10 +90,14 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
         return;
       }
 
+      // Send pending notification email
+      await sendPendingEmail(data.email, data.fullName);
+
+      setSubmittedEmail(data.email);
       setIsSuccess(true);
       toast({
         title: 'Request Submitted',
-        description: 'Your registration request has been sent for approval.',
+        description: 'Check your email for confirmation.',
       });
     } catch (error: any) {
       toast({
@@ -98,14 +113,33 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
   if (isSuccess) {
     return (
       <Card className="w-full max-w-md mx-auto animate-fade-in">
-        <CardContent className="pt-6 text-center">
-          <CheckCircle className="w-16 h-16 text-status-completed mx-auto mb-4" />
-          <h2 className="text-xl font-display font-semibold mb-2">Request Sent!</h2>
-          <p className="text-muted-foreground mb-4">
-            Your registration request has been submitted for approval.
-            You will receive an email once your account is activated.
+        <CardContent className="pt-8 pb-6 text-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[hsl(var(--status-completed))]/10 flex items-center justify-center">
+            <Mail className="w-8 h-8 text-[hsl(var(--status-completed))]" />
+          </div>
+          <h2 className="text-xl font-display font-semibold mb-2">Check Your Email!</h2>
+          <p className="text-muted-foreground mb-2">
+            We've sent a confirmation to:
           </p>
-          <Button onClick={onSwitchToLogin} variant="outline">
+          <p className="font-medium text-primary mb-4">{submittedEmail}</p>
+          <div className="p-4 rounded-lg bg-muted/50 text-left mb-6">
+            <h3 className="font-semibold text-sm mb-2">What happens next?</h3>
+            <ol className="text-sm text-muted-foreground space-y-2">
+              <li className="flex items-start gap-2">
+                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-medium">1</span>
+                <span>Your request is being reviewed by the Team Captain</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-medium">2</span>
+                <span>You'll receive an approval email when ready</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-medium">3</span>
+                <span>Login with your credentials to access Krypton Space</span>
+              </li>
+            </ol>
+          </div>
+          <Button onClick={onSwitchToLogin} variant="outline" className="w-full">
             Back to Login
           </Button>
         </CardContent>
