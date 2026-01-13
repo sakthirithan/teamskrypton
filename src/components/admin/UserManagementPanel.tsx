@@ -217,7 +217,7 @@ export function UserManagementPanel() {
     }
   };
 
-  // IMMEDIATE USER DELETION - No approval required
+  // HARD DELETE - Immediate and irreversible user deletion
   const handleImmediateDelete = async (targetUser: RegisteredUser) => {
     if (targetUser.user_id === user?.id) {
       toast({
@@ -230,37 +230,17 @@ export function UserManagementPanel() {
 
     setProcessingId(targetUser.id);
     try {
-      // Delete user's tasks first (keep logs as per requirement)
-      await supabase
-        .from('tasks')
-        .delete()
-        .eq('assigned_to', targetUser.user_id);
+      // Call edge function for complete hard deletion
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { targetUserId: targetUser.user_id }
+      });
 
-      // Delete user roles
-      await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', targetUser.user_id);
-
-      // Delete user profile
-      await supabase
-        .from('profiles')
-        .delete()
-        .eq('user_id', targetUser.user_id);
-
-      // Delete approvals related to user
-      await supabase
-        .from('approvals')
-        .delete()
-        .or(`target_user_id.eq.${targetUser.user_id},initiated_by.eq.${targetUser.user_id}`);
-
-      // Note: Supabase Auth user deletion requires admin API - 
-      // The user won't be able to login since profile is deleted
-      // Full auth deletion would need an edge function with service role
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       toast({
-        title: 'User Deleted',
-        description: `${targetUser.full_name} has been removed from the system. Task logs have been preserved.`,
+        title: 'User Permanently Deleted',
+        description: `${targetUser.full_name} has been completely removed from the system. All data including logs have been deleted.`,
       });
       
       setDeleteConfirmUser(null);
@@ -405,15 +385,19 @@ export function UserManagementPanel() {
                             </li>
                             <li className="flex items-start gap-2">
                               <X className="w-4 h-4 text-destructive mt-0.5" />
-                              <span>All active tasks removed</span>
+                              <span>All tasks removed</span>
                             </li>
                             <li className="flex items-start gap-2">
-                              <Check className="w-4 h-4 text-green-500 mt-0.5" />
-                              <span>Task logs preserved in Krypton Log</span>
+                              <X className="w-4 h-4 text-destructive mt-0.5" />
+                              <span>All logs and history deleted</span>
                             </li>
                             <li className="flex items-start gap-2">
                               <X className="w-4 h-4 text-destructive mt-0.5" />
                               <span>Cannot re-login or recover account</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <X className="w-4 h-4 text-destructive mt-0.5" />
+                              <span>User treated as if never existed</span>
                             </li>
                           </ul>
                           

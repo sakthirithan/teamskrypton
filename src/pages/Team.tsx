@@ -115,16 +115,23 @@ const Team = () => {
                 profile={member.profile}
                 role={member.role}
                 onClick={() => {
-                  // Normal users can only view their own My Space
+                  // Own profile - go to My Space
                   if (member.profile.user_id === user.id) {
                     navigate('/my-space');
                   } else if (isLeadership) {
-                    // Leadership can view any member's profile
+                    // Leadership can view full dashboard (read-only)
                     navigate(`/member/${member.profile.user_id}`);
+                  } else {
+                    // Normal users see limited public profile
+                    navigate(`/profile/${member.profile.user_id}`);
                   }
                 }}
-                onViewProfile={isLeadership ? () => navigate(`/member/${member.profile.user_id}`) : undefined}
-                showProfileIcon={isLeadership}
+                onViewProfile={
+                  member.profile.user_id !== user.id
+                    ? () => navigate(isLeadership ? `/member/${member.profile.user_id}` : `/profile/${member.profile.user_id}`)
+                    : undefined
+                }
+                showProfileIcon={member.profile.user_id !== user.id}
               />
             ))}
           </div>
