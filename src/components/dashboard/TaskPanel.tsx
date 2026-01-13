@@ -3,13 +3,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Clock, CheckCircle, Play, AlertCircle, Wifi, Edit2 } from 'lucide-react';
+import { Clock, CheckCircle, Play, AlertCircle, Wifi, Edit2, Trash2, Calendar, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ROLE_LABELS, KryptonRole } from '@/lib/constants';
 
 interface Task {
   id: string;
@@ -18,19 +20,53 @@ interface Task {
   deadline: string;
   status: string;
   assigned_by: string;
+  assigned_to: string;
   accepted_at: string | null;
+  created_at: string;
   assigner_name: string | null;
   assigner_role: string | null;
 }
 
+interface Member {
+  user_id: string;
+  full_name: string;
+  role: KryptonRole | null;
+}
+
 export function TaskPanel() {
-  const { user, isLeadership } = useAuth();
+  const { user, isCaptainOrVice, isLeadership } = useAuth();
   const { toast } = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [editForm, setEditForm] = useState({ title: '', description: '' });
+  const [editForm, setEditForm] = useState({ 
+    title: '', 
+    description: '', 
+    deadline: '',
+    assignTo: ''
+  });
+  const [members, setMembers] = useState<Member[]>([]);
+  const [deleteConfirmTask, setDeleteConfirmTask] = useState<Task | null>(null);
+
+  // Fetch members for reassignment
+  useEffect(() => {
+    const fetchMembers = async () => {
+      const { data: profiles } = await supabase.from('profiles').select('user_id, full_name');
+      const { data: roles } = await supabase.from('user_roles').select('user_id, role');
+      
+      if (profiles && roles) {
+        const roleMap = new Map(roles.map(r => [r.user_id, r.role as KryptonRole]));
+        const membersWithRoles = profiles.map(p => ({
+          user_id: p.user_id,
+          full_name: p.full_name,
+          role: roleMap.get(p.user_id) || null
+        }));
+        setMembers(membersWithRoles);
+      }
+    };
+    fetchMembers();
+  }, []);
 
   const fetchTasks = useCallback(async () => {
     if (!user) return;
@@ -116,12 +152,24 @@ export function TaskPanel() {
   const handleEditTask = async () => {
     if (!editingTask) return;
 
+    const updates: any = { 
+      title: editForm.title, 
+      description: editForm.description || null 
+    };
+
+    // Only TL/VC can change deadline and assignee
+    if (isCaptainOrVice) {
+      if (editForm.deadline) {
+        updates.deadline = new Date(editForm.deadline).toISOString();
+      }
+      if (editForm.assignTo && editForm.assignTo !== editingTask.assigned_to) {
+        updates.assigned_to = editForm.assignTo;
+      }
+    }
+
     const { error } = await supabase
       .from('tasks')
-      .update({ 
-        title: editForm.title, 
-        description: editForm.description || null 
-      })
+      .update(updates)
       .eq('id', editingTask.id);
 
     if (error) {
@@ -133,6 +181,22 @@ export function TaskPanel() {
     }
   };
 
+  const handleDeleteTask = async (taskId: string) => {
+    // Only TL/VC can delete tasks - no log entry created
+    const { error } = await supabase
+      .from('tasks')
+      .delete()
+      .eq('id', taskId);
+
+    if (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete task' });
+    } else {
+      toast({ title: 'Task Deleted', description: 'The task has been removed.' });
+      setDeleteConfirmTask(null);
+      fetchTasks();
+    }
+  };
+
   const getStatusClass = (status: string) => {
     switch (status) {
       case 'working': return 'status-badge status-working';
@@ -140,6 +204,10 @@ export function TaskPanel() {
       case 'pending': return 'status-badge status-pending';
       default: return 'status-badge status-idle';
     }
+  };
+
+  const getMemberName = (userId: string) => {
+    return members.find(m => m.user_id === userId)?.full_name || 'Unknown';
   };
 
   if (isLoading) {
@@ -178,6 +246,16 @@ export function TaskPanel() {
                         {task.assigner_role && ` (${task.assigner_role})`}
                       </p>
                     )}
+
+                    {/* Assigned Date */}
+                    <p className="text-xs text-muted-foreground">
+                      <span className="font-medium">Assigned:</span> {format(new Date(task.created_at), 'MMM dd, yyyy HH:mm')}
+                    </p>
+
+                    {/* Deadline */}
+                    <p className="text-xs text-muted-foreground">
+                      <span className="font-medium">Deadline:</span> {format(new Date(task.deadline), 'MMM dd, yyyy HH:mm')}
+                    </p>
                     
                     <div className="flex items-center gap-3 mt-2 text-sm">
                       <span className={getStatusClass(task.status)}>{task.status}</span>
@@ -188,47 +266,131 @@ export function TaskPanel() {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    {/* Leadership can edit task details (not time) */}
-                    {isLeadership && (
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button 
-                            size="sm" 
-                            variant="ghost"
-                            onClick={() => {
-                              setEditingTask(task);
-                              setEditForm({ title: task.title, description: task.description || '' });
-                            }}
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Edit Task</DialogTitle>
-                          </DialogHeader>
-                          <div className="space-y-4 pt-4">
-                            <div>
-                              <Label>Title</Label>
-                              <Input 
-                                value={editForm.title}
-                                onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                              />
-                            </div>
-                            <div>
-                              <Label>Description</Label>
-                              <Textarea 
-                                value={editForm.description}
-                                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                                rows={3}
-                              />
-                            </div>
-                            <Button onClick={handleEditTask} className="w-full">
-                              Save Changes
+                    {/* TL & VC can edit task details including deadline and assignees */}
+                    {isCaptainOrVice && (
+                      <>
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button 
+                              size="sm" 
+                              variant="ghost"
+                              onClick={() => {
+                                setEditingTask(task);
+                                setEditForm({ 
+                                  title: task.title, 
+                                  description: task.description || '',
+                                  deadline: task.deadline ? format(new Date(task.deadline), "yyyy-MM-dd'T'HH:mm") : '',
+                                  assignTo: task.assigned_to
+                                });
+                              }}
+                              title="Edit Task"
+                            >
+                              <Edit2 className="w-4 h-4" />
                             </Button>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Edit Task (TL/VC Override)</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 pt-4">
+                              <div>
+                                <Label>Title</Label>
+                                <Input 
+                                  value={editForm.title}
+                                  onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                                />
+                              </div>
+                              <div>
+                                <Label>Description</Label>
+                                <Textarea 
+                                  value={editForm.description}
+                                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                                  rows={3}
+                                />
+                              </div>
+                              <div>
+                                <Label className="flex items-center gap-1">
+                                  <Calendar className="w-4 h-4" /> Deadline
+                                </Label>
+                                <Input 
+                                  type="datetime-local"
+                                  value={editForm.deadline}
+                                  onChange={(e) => setEditForm({ ...editForm, deadline: e.target.value })}
+                                />
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Note: Start/End times are system-controlled
+                                </p>
+                              </div>
+                              <div>
+                                <Label className="flex items-center gap-1">
+                                  <Users className="w-4 h-4" /> Assigned To
+                                </Label>
+                                <select
+                                  value={editForm.assignTo}
+                                  onChange={(e) => setEditForm({ ...editForm, assignTo: e.target.value })}
+                                  className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                                >
+                                  {members.map((m) => (
+                                    <option key={m.user_id} value={m.user_id}>
+                                      {m.full_name} {m.role && `(${ROLE_LABELS[m.role]})`}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <Button onClick={handleEditTask} className="w-full">
+                                Save Changes
+                              </Button>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+
+                        {/* Delete button for TL/VC */}
+                        <Dialog open={deleteConfirmTask?.id === task.id} onOpenChange={(open) => !open && setDeleteConfirmTask(null)}>
+                          <DialogTrigger asChild>
+                            <Button 
+                              size="sm" 
+                              variant="ghost"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => setDeleteConfirmTask(task)}
+                              title="Delete Task"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Delete Task</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 pt-4">
+                              <p className="text-sm text-muted-foreground">
+                                Are you sure you want to delete this task? This action cannot be undone.
+                              </p>
+                              <div className="p-3 rounded bg-muted">
+                                <p className="font-medium">{task.title}</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Assigned to: {getMemberName(task.assigned_to)}
+                                </p>
+                              </div>
+                              <div className="flex gap-2">
+                                <Button 
+                                  variant="outline" 
+                                  className="flex-1"
+                                  onClick={() => setDeleteConfirmTask(null)}
+                                >
+                                  Cancel
+                                </Button>
+                                <Button 
+                                  variant="destructive" 
+                                  className="flex-1"
+                                  onClick={() => handleDeleteTask(task.id)}
+                                >
+                                  Delete
+                                </Button>
+                              </div>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      </>
                     )}
                     
                     {task.status === 'idle' && (

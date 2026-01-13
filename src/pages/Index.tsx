@@ -5,7 +5,7 @@ import { Header } from '@/components/layout/Header';
 import { TaskPanel } from '@/components/dashboard/TaskPanel';
 import { WorkflowLog } from '@/components/dashboard/WorkflowLog';
 import { TaskCRUD } from '@/components/dashboard/TaskCRUD';
-import { ApprovalPanel } from '@/components/admin/ApprovalPanel';
+import { UserManagementPanel } from '@/components/admin/UserManagementPanel';
 import { AlertTab } from '@/components/alerts/AlertTab';
 
 const Index = () => {
@@ -47,8 +47,8 @@ const Index = () => {
             {/* Task CRUD for leadership */}
             {isLeadership && <TaskCRUD />}
             
-            {/* Registration Approval Panel for TL/VC only */}
-            {isCaptainOrVice && <ApprovalPanel />}
+            {/* User Management Panel for TL/VC only */}
+            {isCaptainOrVice && <UserManagementPanel />}
           </div>
         </div>
       </main>
