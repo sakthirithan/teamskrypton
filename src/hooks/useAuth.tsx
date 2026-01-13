@@ -101,6 +101,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = async () => {
+    // Clear localStorage session data
+    localStorage.removeItem('krypton_session_info');
+    
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);

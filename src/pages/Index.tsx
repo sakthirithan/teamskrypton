@@ -7,10 +7,15 @@ import { WorkflowLog } from '@/components/dashboard/WorkflowLog';
 import { TaskCRUD } from '@/components/dashboard/TaskCRUD';
 import { UserManagementPanel } from '@/components/admin/UserManagementPanel';
 import { AlertTab } from '@/components/alerts/AlertTab';
+import { TestSessionPanel } from '@/components/test-session/TestSessionPanel';
+import { useSessionPersistence } from '@/hooks/useSessionPersistence';
 
 const Index = () => {
   const { user, isLoading, isLeadership, isCaptainOrVice, role } = useAuth();
   const navigate = useNavigate();
+  
+  // Initialize session persistence
+  useSessionPersistence();
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -41,6 +46,9 @@ const Index = () => {
           
           {/* Sidebar */}
           <div className="space-y-6">
+            {/* Test Session Panel for TL/VC */}
+            {isCaptainOrVice && <TestSessionPanel />}
+            
             {/* Alert Tab for leadership */}
             {isLeadership && <AlertTab />}
             
