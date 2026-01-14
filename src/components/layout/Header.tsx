@@ -110,32 +110,37 @@ export function Header() {
   }, []);
 
   return (
-    <header className="krypton-gradient text-primary-foreground">
+    <header className="krypton-gradient text-primary-foreground sticky top-0 z-50 shadow-lg">
       <div className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           {/* Logo and Title */}
           <div className="flex items-center gap-6">
-            <div className="flex flex-col">
-              <h1 
-                className="text-2xl font-display font-bold tracking-tight cursor-pointer"
-                onClick={() => navigate('/')}
-              >
+            <div 
+              className="flex flex-col cursor-pointer group"
+              onClick={() => navigate('/')}
+            >
+              <h1 className="text-2xl font-display font-bold tracking-tight transition-all duration-200 group-hover:tracking-wide">
                 Teams Krypton
               </h1>
-              <p className="text-sm opacity-80">Where Work Becomes Visible</p>
+              <p className="text-sm opacity-80 transition-opacity duration-200 group-hover:opacity-100">
+                Where Work Becomes Visible
+              </p>
             </div>
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-1 ml-8">
-              {navLinks.map((link) => (
+              {navLinks.map((link, index) => (
                 <Button
                   key={link.path}
                   variant="ghost"
                   size="sm"
                   onClick={() => navigate(link.path)}
-                  className={`text-primary-foreground hover:bg-primary-foreground/10 ${
-                    isActive(link.path) ? 'bg-primary-foreground/20' : ''
+                  className={`text-primary-foreground hover:bg-primary-foreground/10 transition-all duration-200 ${
+                    isActive(link.path) 
+                      ? 'bg-primary-foreground/20 shadow-sm' 
+                      : 'hover:translate-y-[-1px]'
                   }`}
+                  style={{ animationDelay: `${index * 50}ms` }}
                 >
                   <link.icon className="w-4 h-4 mr-1.5" />
                   {link.label}
@@ -145,9 +150,9 @@ export function Header() {
           </div>
 
           {/* Date and Time */}
-          <div className="hidden lg:flex flex-col items-center">
+          <div className="hidden lg:flex flex-col items-center px-4 py-2 rounded-lg bg-primary-foreground/5 backdrop-blur-sm">
             <span className="text-sm opacity-80">{formatDate(currentTime)}</span>
-            <span className="text-xl font-mono font-semibold">{formatTime(currentTime)}</span>
+            <span className="text-xl font-mono font-semibold tabular-nums">{formatTime(currentTime)}</span>
           </div>
 
           {/* User Info & Mobile Menu */}
@@ -155,7 +160,7 @@ export function Header() {
             {/* User Profile Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <div className="hidden sm:flex items-center gap-3 cursor-pointer hover:opacity-80">
+                <div className="hidden sm:flex items-center gap-3 cursor-pointer hover:opacity-90 transition-all duration-200 p-2 rounded-lg hover:bg-primary-foreground/10">
                   <div className="flex flex-col items-end">
                     <span className="font-medium">{profile?.full_name || 'User'}</span>
                     {role && (
@@ -164,7 +169,7 @@ export function Header() {
                       </span>
                     )}
                   </div>
-                  <div className="w-10 h-10 rounded-full bg-primary-foreground/20 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-full bg-primary-foreground/20 flex items-center justify-center ring-2 ring-primary-foreground/30 transition-all duration-200 hover:ring-primary-foreground/50">
                     <User className="w-5 h-5" />
                   </div>
                 </div>
@@ -216,8 +221,8 @@ export function Header() {
 
         {/* Mobile Navigation */}
         {mobileMenuOpen && (
-          <nav className="md:hidden mt-4 pt-4 border-t border-primary-foreground/20 flex flex-col gap-2">
-            {navLinks.map((link) => (
+          <nav className="md:hidden mt-4 pt-4 border-t border-primary-foreground/20 flex flex-col gap-2 animate-fade-in">
+            {navLinks.map((link, index) => (
               <Button
                 key={link.path}
                 variant="ghost"
@@ -225,16 +230,17 @@ export function Header() {
                   navigate(link.path);
                   setMobileMenuOpen(false);
                 }}
-                className={`justify-start text-primary-foreground hover:bg-primary-foreground/10 ${
+                className={`justify-start text-primary-foreground hover:bg-primary-foreground/10 transition-all duration-200 ${
                   isActive(link.path) ? 'bg-primary-foreground/20' : ''
                 }`}
+                style={{ animationDelay: `${index * 50}ms` }}
               >
                 <link.icon className="w-4 h-4 mr-2" />
                 {link.label}
               </Button>
             ))}
             
-            <div className="border-t border-primary-foreground/20 pt-2 mt-2">
+            <div className="border-t border-primary-foreground/20 pt-2 mt-2 space-y-1">
               {/* Install App for mobile */}
               <Button
                 variant="ghost"
@@ -242,7 +248,7 @@ export function Header() {
                   handleInstallAPK();
                   setMobileMenuOpen(false);
                 }}
-                className="justify-start text-primary-foreground hover:bg-primary-foreground/10 w-full"
+                className="justify-start text-primary-foreground hover:bg-primary-foreground/10 w-full transition-all duration-200"
               >
                 <Download className="w-4 h-4 mr-2" />
                 Install App
@@ -251,7 +257,7 @@ export function Header() {
               <Button
                 variant="ghost"
                 onClick={handleSignOut}
-                className="justify-start text-red-300 hover:bg-primary-foreground/10 w-full"
+                className="justify-start text-red-300 hover:bg-red-500/20 w-full transition-all duration-200"
               >
                 <LogOut className="w-4 h-4 mr-2" />
                 Sign Out

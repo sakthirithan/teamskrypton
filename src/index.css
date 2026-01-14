@@ -147,8 +147,13 @@
 
 @layer components {
   .krypton-card {
-    @apply bg-card rounded-lg border border-border shadow-sm;
+    @apply bg-card rounded-lg border border-border shadow-sm transition-all duration-200;
     box-shadow: var(--shadow-card);
+  }
+
+  .krypton-card:hover {
+    box-shadow: var(--shadow-elegant);
+    transform: translateY(-1px);
   }
 
   .krypton-gradient {
@@ -156,7 +161,7 @@
   }
 
   .status-badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium transition-all duration-200;
   }
 
   .status-idle {
@@ -166,6 +171,7 @@
   .status-working {
     background-color: hsl(var(--status-working) / 0.15);
     color: hsl(var(--status-working));
+    animation: pulse-soft 2s ease-in-out infinite;
   }
 
   .status-completed {
@@ -179,32 +185,111 @@
   }
 
   .role-badge {
-    @apply inline-flex items-center px-3 py-1 rounded-md text-xs font-semibold uppercase tracking-wider;
+    @apply inline-flex items-center px-3 py-1 rounded-md text-xs font-semibold uppercase tracking-wider transition-transform duration-200;
+  }
+
+  .role-badge:hover {
+    transform: scale(1.02);
   }
 
   .role-captain {
     background-color: hsl(var(--role-captain));
-    @apply text-white;
+    @apply text-white shadow-sm;
   }
 
   .role-vice-captain {
     background-color: hsl(var(--role-vice-captain));
-    @apply text-white;
+    @apply text-white shadow-sm;
   }
 
   .role-strategist {
     background-color: hsl(var(--role-strategist));
-    @apply text-white;
+    @apply text-white shadow-sm;
   }
 
   .role-manager {
     background-color: hsl(var(--role-manager));
-    @apply text-white;
+    @apply text-white shadow-sm;
   }
 
   .role-member {
     background-color: hsl(var(--role-member));
-    @apply text-white;
+    @apply text-white shadow-sm;
+  }
+
+  /* Animated underline for links */
+  .link-underline {
+    @apply relative;
+  }
+
+  .link-underline::after {
+    content: '';
+    @apply absolute w-full h-0.5 bg-primary left-0 bottom-0 origin-left;
+    transform: scaleX(0);
+    transition: transform 0.3s ease-out;
+  }
+
+  .link-underline:hover::after {
+    transform: scaleX(1);
+  }
+
+  /* Hover scale effect */
+  .hover-scale {
+    @apply transition-transform duration-200;
+  }
+
+  .hover-scale:hover {
+    transform: scale(1.03);
+  }
+
+  /* Glass effect for cards */
+  .glass-card {
+    @apply bg-card/80 backdrop-blur-sm border border-border/50 rounded-lg;
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Shimmer loading effect */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 0%,
+      hsl(var(--muted) / 0.5) 50%,
+      hsl(var(--muted)) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s linear infinite;
+  }
+
+  /* Focus ring improvement */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background;
+  }
+
+  /* Smooth page transitions */
+  .page-enter {
+    animation: fade-in 0.4s ease-out;
+  }
+
+  @keyframes pulse-soft {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  @keyframes fade-in {
+    0% { opacity: 0; transform: translateY(10px); }
+    100% { opacity: 1; transform: translateY(0); }
   }
 }
 
