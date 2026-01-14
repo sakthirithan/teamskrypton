@@ -68,15 +68,30 @@ export function KryptonIdCard({
   onClick, 
   onViewProfile, 
   onUpdatePhone,
+  onToggleStatus,
   compact, 
   showProfileIcon,
-  canEditPhone 
+  canEditPhone,
+  isOwnProfile,
+  manualStatusOverride
 }: KryptonIdCardProps) {
   const [isEditingPhone, setIsEditingPhone] = useState(false);
   const [phoneValue, setPhoneValue] = useState(profile.phone_number || '');
   const [isSaving, setIsSaving] = useState(false);
+  const [isTogglingStatus, setIsTogglingStatus] = useState(false);
 
-  const derivedStatus = getDerivedStatus(taskStats);
+  const derivedStatus = getDerivedStatus(taskStats, manualStatusOverride);
+
+  const handleToggleStatus = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!onToggleStatus) return;
+    setIsTogglingStatus(true);
+    try {
+      await onToggleStatus();
+    } finally {
+      setIsTogglingStatus(false);
+    }
+  };
 
   const handleSavePhone = async () => {
     if (!onUpdatePhone) return;
@@ -216,12 +231,28 @@ export function KryptonIdCard({
             <span className="font-medium">{format(new Date(profile.created_at), 'MMM yyyy')}</span>
           </div>
           
-          {/* Derived Status */}
+          {/* Derived Status - Toggleable for own profile */}
           <div className="flex justify-between items-center pt-2 border-t">
             <span className="text-muted-foreground">Status</span>
-            <span className={derivedStatus.className}>
-              {derivedStatus.label}
-            </span>
+            {isOwnProfile && onToggleStatus ? (
+              <button
+                onClick={handleToggleStatus}
+                disabled={isTogglingStatus}
+                className={`${derivedStatus.className} cursor-pointer hover:opacity-80 transition-opacity flex items-center gap-1`}
+                title="Toggle presence status (display only)"
+              >
+                {isTogglingStatus ? (
+                  <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Power className="w-3 h-3" />
+                )}
+                {derivedStatus.label}
+              </button>
+            ) : (
+              <span className={derivedStatus.className}>
+                {derivedStatus.label}
+              </span>
+            )}
           </div>
         </div>
       </div>
