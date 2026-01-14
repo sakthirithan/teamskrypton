@@ -204,17 +204,6 @@ export function KryptonIdCard({
             <span className="font-medium">{format(new Date(profile.created_at), 'MMM yyyy')}</span>
           </div>
           
-          {/* Task Stats */}
-          {taskStats && (
-            <div className="flex justify-between pt-2 border-t">
-              <span className="text-muted-foreground">Tasks</span>
-              <span className="font-medium">
-                <span className="text-[hsl(var(--status-completed))]">{taskStats.completed}</span>
-                <span className="text-muted-foreground"> / {taskStats.total}</span>
-              </span>
-            </div>
-          )}
-          
           {/* Derived Status */}
           <div className="flex justify-between items-center pt-2 border-t">
             <span className="text-muted-foreground">Status</span>
