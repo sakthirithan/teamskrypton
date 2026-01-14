@@ -107,6 +107,7 @@ export type Database = {
           id: string
           is_direct_access: boolean | null
           is_test: boolean | null
+          phone_number: string | null
           updated_at: string
           user_id: string
         }
@@ -120,6 +121,7 @@ export type Database = {
           id?: string
           is_direct_access?: boolean | null
           is_test?: boolean | null
+          phone_number?: string | null
           updated_at?: string
           user_id: string
         }
@@ -133,6 +135,7 @@ export type Database = {
           id?: string
           is_direct_access?: boolean | null
           is_test?: boolean | null
+          phone_number?: string | null
           updated_at?: string
           user_id?: string
         }

@@ -1,6 +1,9 @@
-import { User, Eye } from 'lucide-react';
-import { ROLE_LABELS, KryptonRole, STATUS_LABELS, TaskStatus } from '@/lib/constants';
+import { User, Eye, Phone, Pencil, CheckCircle } from 'lucide-react';
+import { ROLE_LABELS, KryptonRole, TaskStatus } from '@/lib/constants';
 import { format } from 'date-fns';
+import { useState } from 'react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 interface KryptonIdCardProps {
   profile: {
@@ -11,12 +14,20 @@ interface KryptonIdCardProps {
     avatar_url: string | null;
     current_status: TaskStatus | null;
     created_at: string;
+    phone_number?: string | null;
   };
   role: KryptonRole | null;
+  taskStats?: {
+    total: number;
+    completed: number;
+    inProgress: boolean;
+  };
   onClick?: () => void;
   onViewProfile?: () => void;
+  onUpdatePhone?: (phone: string) => Promise<void>;
   compact?: boolean;
   showProfileIcon?: boolean;
+  canEditPhone?: boolean;
 }
 
 function getRoleBgClass(role: KryptonRole | null): string {
@@ -30,16 +41,42 @@ function getRoleBgClass(role: KryptonRole | null): string {
   }
 }
 
-function getStatusClass(status: TaskStatus | null): string {
-  switch (status) {
-    case 'working': return 'status-badge status-working';
-    case 'completed': return 'status-badge status-completed';
-    case 'pending': return 'status-badge status-pending';
-    default: return 'status-badge status-idle';
+// Derive status: Active if has in-progress task, otherwise Offline/Completed
+function getDerivedStatus(taskStats?: { inProgress: boolean; completed: number }): { label: string; className: string } {
+  if (taskStats?.inProgress) {
+    return { label: 'Active', className: 'status-badge status-working' };
   }
+  return { label: 'Offline', className: 'status-badge status-idle' };
 }
 
-export function KryptonIdCard({ profile, role, onClick, onViewProfile, compact, showProfileIcon }: KryptonIdCardProps) {
+export function KryptonIdCard({ 
+  profile, 
+  role, 
+  taskStats,
+  onClick, 
+  onViewProfile, 
+  onUpdatePhone,
+  compact, 
+  showProfileIcon,
+  canEditPhone 
+}: KryptonIdCardProps) {
+  const [isEditingPhone, setIsEditingPhone] = useState(false);
+  const [phoneValue, setPhoneValue] = useState(profile.phone_number || '');
+  const [isSaving, setIsSaving] = useState(false);
+
+  const derivedStatus = getDerivedStatus(taskStats);
+
+  const handleSavePhone = async () => {
+    if (!onUpdatePhone) return;
+    setIsSaving(true);
+    try {
+      await onUpdatePhone(phoneValue);
+      setIsEditingPhone(false);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   if (compact) {
     return (
       <div 
@@ -57,8 +94,8 @@ export function KryptonIdCard({ profile, role, onClick, onViewProfile, compact, 
           <p className="font-medium truncate">{profile.full_name}</p>
           <p className="text-xs text-muted-foreground truncate">{role ? ROLE_LABELS[role] : 'Member'}</p>
         </div>
-        <span className={getStatusClass(profile.current_status)}>
-          {STATUS_LABELS[profile.current_status || 'idle']}
+        <span className={derivedStatus.className}>
+          {derivedStatus.label}
         </span>
       </div>
     );
@@ -119,14 +156,70 @@ export function KryptonIdCard({ profile, role, onClick, onViewProfile, compact, 
             <span className="text-muted-foreground">Email</span>
             <span className="font-medium truncate max-w-[150px]">{profile.email}</span>
           </div>
+          
+          {/* Phone Number - Editable by TL/VC */}
+          <div className="flex justify-between items-center">
+            <span className="text-muted-foreground flex items-center gap-1">
+              <Phone className="w-3 h-3" /> Phone
+            </span>
+            {isEditingPhone ? (
+              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                <Input 
+                  value={phoneValue}
+                  onChange={(e) => setPhoneValue(e.target.value)}
+                  className="h-6 w-24 text-xs px-1"
+                  placeholder="Phone"
+                />
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  className="h-6 w-6 p-0"
+                  onClick={handleSavePhone}
+                  disabled={isSaving}
+                >
+                  <CheckCircle className="w-3 h-3 text-green-600" />
+                </Button>
+              </div>
+            ) : (
+              <span className="font-medium flex items-center gap-1">
+                {profile.phone_number || '-'}
+                {canEditPhone && onUpdatePhone && (
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsEditingPhone(true);
+                    }}
+                    className="p-1 hover:bg-muted rounded"
+                    title="Edit phone number"
+                  >
+                    <Pencil className="w-3 h-3 text-muted-foreground" />
+                  </button>
+                )}
+              </span>
+            )}
+          </div>
+          
           <div className="flex justify-between">
             <span className="text-muted-foreground">Joined</span>
             <span className="font-medium">{format(new Date(profile.created_at), 'MMM yyyy')}</span>
           </div>
+          
+          {/* Task Stats */}
+          {taskStats && (
+            <div className="flex justify-between pt-2 border-t">
+              <span className="text-muted-foreground">Tasks</span>
+              <span className="font-medium">
+                <span className="text-[hsl(var(--status-completed))]">{taskStats.completed}</span>
+                <span className="text-muted-foreground"> / {taskStats.total}</span>
+              </span>
+            </div>
+          )}
+          
+          {/* Derived Status */}
           <div className="flex justify-between items-center pt-2 border-t">
             <span className="text-muted-foreground">Status</span>
-            <span className={getStatusClass(profile.current_status)}>
-              {STATUS_LABELS[profile.current_status || 'idle']}
+            <span className={derivedStatus.className}>
+              {derivedStatus.label}
             </span>
           </div>
         </div>
