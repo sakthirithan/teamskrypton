@@ -14,7 +14,7 @@ import { FileText, CalendarIcon, ExternalLink, Trash2, RotateCcw, Download, Aler
 import { format, isSameDay, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { RefreshButton } from '@/components/ui/RefreshButton';
+import { RefreshButton } from '@/components/ui/RefreshIconButton';
 import { validateExportDateRange, getTodayString } from '@/lib/exportValidation';
 import * as XLSX from 'xlsx';
 

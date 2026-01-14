@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useToast } from '@/hooks/use-toast';
 import { AlertTriangle, Check, X, Upload, Clock, Trash2, Loader2, Play } from 'lucide-react';
 import { format } from 'date-fns';
-import { RefreshButton } from '@/components/ui/RefreshButton';
+import { RefreshButton } from '@/components/ui/RefreshIconButton';
 
 interface Approval {
   id: string;

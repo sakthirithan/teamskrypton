@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { ROLE_LABELS, KryptonRole } from '@/lib/constants';
 import { Badge } from '@/components/ui/badge';
-import { RefreshButton } from '@/components/ui/RefreshButton';
+import { RefreshButton } from '@/components/ui/RefreshIconButton';
 
 interface Task {
   id: string;
