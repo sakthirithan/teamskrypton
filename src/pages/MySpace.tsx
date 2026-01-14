@@ -12,6 +12,7 @@ import { KryptonIdCard } from '@/components/team/KryptonIdCard';
 import { AlertTab } from '@/components/alerts/AlertTab';
 import { LeadershipDashboard } from '@/components/dashboard/LeadershipDashboard';
 import { TeamOverviewWidget } from '@/components/dashboard/TeamOverviewWidget';
+import { DeletionRequestsPanel } from '@/components/admin/DeletionRequestsPanel';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { CheckCircle, Clock, BarChart3, ExternalLink, Trash2, RotateCcw, Download } from 'lucide-react';
 import { format, parseISO } from 'date-fns';

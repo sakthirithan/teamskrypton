@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { ROLE_LABELS, KryptonRole, STATUS_LABELS, TaskStatus } from '@/lib/constants';
 import { validatePhoneNumber, formatPhoneDisplay } from '@/lib/phoneValidation';
@@ -21,7 +22,11 @@ import {
   Search,
   AlertCircle,
   CheckCircle,
-  X
+  X,
+  Send,
+  Zap,
+  Shield,
+  EyeOff
 } from 'lucide-react';
 import {
   Dialog,
@@ -43,7 +48,11 @@ interface UserData {
   role: KryptonRole | null;
 }
 
-export function UserListPanel() {
+interface UserListPanelProps {
+  onClose?: () => void;
+}
+
+export function UserListPanel({ onClose }: UserListPanelProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -60,9 +69,11 @@ export function UserListPanel() {
   // Password reset state
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   
-  // Delete state
+  // Delete state - enhanced for governance flow
   const [deleteReason, setDeleteReason] = useState('');
+  const [deleteMode, setDeleteMode] = useState<'request' | 'direct'>('request');
 
   // Phone edit state
   const [editingPhoneId, setEditingPhoneId] = useState<string | null>(null);
@@ -117,7 +128,18 @@ export function UserListPanel() {
   );
 
   const handleViewProfile = (userId: string) => {
+    onClose?.();
     navigate(`/member/${userId}`);
+  };
+
+  // Password validation
+  const getPasswordStrength = (password: string) => {
+    if (password.length < 6) return { level: 'weak', color: 'text-red-500', message: 'Too short (min 6 chars)' };
+    if (password.length < 8) return { level: 'fair', color: 'text-amber-500', message: 'Fair' };
+    if (password.length >= 8 && /[A-Z]/.test(password) && /[0-9]/.test(password)) {
+      return { level: 'strong', color: 'text-green-500', message: 'Strong' };
+    }
+    return { level: 'good', color: 'text-blue-500', message: 'Good' };
   };
 
   const handleResetPassword = async () => {
@@ -142,7 +164,7 @@ export function UserListPanel() {
       if (error || data?.error) throw error || new Error(data.error);
 
       toast({
-        title: 'Password Reset',
+        title: 'Password Updated by Leadership',
         description: `Password changed for ${selectedUser.full_name}. They must log in with the new password.`
       });
       
@@ -150,6 +172,7 @@ export function UserListPanel() {
       setSelectedUser(null);
       setNewPassword('');
       setConfirmPassword('');
+      setShowPassword(false);
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -161,8 +184,48 @@ export function UserListPanel() {
     }
   };
 
-  const handleDeleteUser = async () => {
+  // Standard deletion request flow - user gets notified to accept/decline
+  const handleSendDeletionRequest = async () => {
     if (!selectedUser) return;
+
+    setProcessingId(selectedUser.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { 
+          targetUserId: selectedUser.user_id,
+          description: deleteReason,
+          immediate: false
+        }
+      });
+
+      if (error || data?.error) throw error || new Error(data.error);
+
+      toast({
+        title: 'Deletion Request Sent',
+        description: `${selectedUser.full_name} has been notified and can accept or decline.`
+      });
+      
+      setDialogType(null);
+      setSelectedUser(null);
+      setDeleteReason('');
+      setDeleteMode('request');
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Request Failed',
+        description: error.message
+      });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  // Direct deletion with special permission - bypasses voting
+  const handleDirectDelete = async () => {
+    if (!selectedUser || !deleteReason.trim()) {
+      toast({ variant: 'destructive', title: 'Reason is required for direct deletion' });
+      return;
+    }
 
     setProcessingId(selectedUser.id);
     try {
@@ -178,12 +241,13 @@ export function UserListPanel() {
 
       toast({
         title: 'User Deleted',
-        description: `${selectedUser.full_name} has been permanently removed`
+        description: `${selectedUser.full_name} has been permanently removed. All team members have been notified.`
       });
       
       setDialogType(null);
       setSelectedUser(null);
       setDeleteReason('');
+      setDeleteMode('request');
       fetchUsers();
     } catch (error: any) {
       toast({
@@ -245,9 +309,11 @@ export function UserListPanel() {
     );
   };
 
+  const passwordStrength = getPasswordStrength(newPassword);
+
   if (isLoading) {
     return (
-      <Card>
+      <Card className="border-0 shadow-none">
         <CardContent className="p-6 text-center text-muted-foreground">
           <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
           Loading users...
@@ -258,20 +324,20 @@ export function UserListPanel() {
 
   return (
     <>
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 font-display">
+      <Card className="border-0 shadow-none">
+        <CardHeader className="pb-3 px-0 pt-0">
+          <CardTitle className="flex items-center gap-2 font-display text-lg">
             <Users className="w-5 h-5" />
-            User Management
+            Team Members
             <Badge variant="secondary" className="ml-2">{users.length}</Badge>
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 px-0">
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Search users..."
+              placeholder="Search by name, email, or department..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9"
@@ -280,7 +346,7 @@ export function UserListPanel() {
 
           {/* User List */}
           <ScrollArea className="h-[400px]">
-            <div className="space-y-2">
+            <div className="space-y-2 pr-2">
               {filteredUsers.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">No users found</p>
               ) : (
@@ -404,7 +470,15 @@ export function UserListPanel() {
       </Card>
 
       {/* Password Reset Dialog */}
-      <Dialog open={dialogType === 'password'} onOpenChange={(open) => !open && setDialogType(null)}>
+      <Dialog open={dialogType === 'password'} onOpenChange={(open) => {
+        if (!open) {
+          setDialogType(null);
+          setSelectedUser(null);
+          setNewPassword('');
+          setConfirmPassword('');
+          setShowPassword(false);
+        }
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -412,7 +486,7 @@ export function UserListPanel() {
               Reset Password
             </DialogTitle>
             <DialogDescription>
-              Set a new password for {selectedUser?.full_name}. They will need to use this password to log in.
+              Set a new password for {selectedUser?.full_name}. Existing sessions will be invalidated.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -423,48 +497,93 @@ export function UserListPanel() {
             
             <div className="space-y-2">
               <Label>New Password</Label>
-              <Input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Enter new password (min 6 characters)"
-              />
+              <div className="relative">
+                <Input
+                  type={showPassword ? 'text' : 'password'}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Enter new password (min 6 characters)"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </Button>
+              </div>
+              {newPassword && (
+                <p className={`text-xs ${passwordStrength.color}`}>
+                  Strength: {passwordStrength.message}
+                </p>
+              )}
             </div>
             
             <div className="space-y-2">
               <Label>Confirm Password</Label>
               <Input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Confirm new password"
               />
+              {confirmPassword && confirmPassword !== newPassword && (
+                <p className="text-xs text-red-500">Passwords do not match</p>
+              )}
+            </div>
+
+            <div className="p-3 rounded-lg border border-amber-500/30 bg-amber-500/10 text-sm">
+              <p className="text-amber-700 dark:text-amber-400">
+                ⚠️ Password updated by Leadership - The user will need to log in with this new password.
+              </p>
             </div>
             
-            <Button
-              onClick={handleResetPassword}
-              disabled={!newPassword || newPassword !== confirmPassword || processingId === selectedUser?.id}
-              className="w-full"
-            >
-              {processingId === selectedUser?.id ? (
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              ) : null}
-              Reset Password
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setDialogType(null);
+                  setNewPassword('');
+                  setConfirmPassword('');
+                }}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleResetPassword}
+                disabled={!newPassword || newPassword.length < 6 || newPassword !== confirmPassword || processingId === selectedUser?.id}
+                className="flex-1"
+              >
+                {processingId === selectedUser?.id ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : null}
+                Reset Password
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Delete User Dialog */}
-      <Dialog open={dialogType === 'delete'} onOpenChange={(open) => !open && setDialogType(null)}>
-        <DialogContent>
+      {/* Delete User Dialog - Enhanced with governance flow */}
+      <Dialog open={dialogType === 'delete'} onOpenChange={(open) => {
+        if (!open) {
+          setDialogType(null);
+          setSelectedUser(null);
+          setDeleteReason('');
+          setDeleteMode('request');
+        }
+      }}>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive">
               <AlertCircle className="w-5 h-5" />
               Delete User
             </DialogTitle>
             <DialogDescription>
-              This action is irreversible. All data associated with this user will be permanently deleted.
+              Choose how to remove this user from the team.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -477,27 +596,109 @@ export function UserListPanel() {
                 </span>
               )}
             </div>
-            
+
+            {/* Deletion Mode Selection */}
             <div className="space-y-2">
-              <Label>Reason for Deletion (Optional)</Label>
-              <Input
-                value={deleteReason}
-                onChange={(e) => setDeleteReason(e.target.value)}
-                placeholder="Enter reason..."
-              />
+              <Label>Deletion Method</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant={deleteMode === 'request' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setDeleteMode('request')}
+                  className="flex-col h-auto py-3"
+                >
+                  <Send className="w-4 h-4 mb-1" />
+                  <span className="text-xs font-medium">Send Request</span>
+                  <span className="text-[10px] opacity-70">User can accept/decline</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant={deleteMode === 'direct' ? 'destructive' : 'outline'}
+                  size="sm"
+                  onClick={() => setDeleteMode('direct')}
+                  className="flex-col h-auto py-3"
+                >
+                  <Zap className="w-4 h-4 mb-1" />
+                  <span className="text-xs font-medium">Direct Delete</span>
+                  <span className="text-[10px] opacity-70">Special permission</span>
+                </Button>
+              </div>
             </div>
-            
-            <Button
-              variant="destructive"
-              onClick={handleDeleteUser}
-              disabled={processingId === selectedUser?.id}
-              className="w-full"
-            >
-              {processingId === selectedUser?.id ? (
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              ) : null}
-              Permanently Delete User
-            </Button>
+
+            {deleteMode === 'request' ? (
+              <div className="space-y-3">
+                <div className="p-3 rounded-lg border bg-muted/50 text-sm">
+                  <h4 className="font-medium mb-2">Standard Deletion Flow:</h4>
+                  <ol className="list-decimal list-inside space-y-1 text-xs text-muted-foreground">
+                    <li>User receives deletion request notification</li>
+                    <li>User can <strong>Accept</strong> (immediate deletion) or <strong>Decline</strong></li>
+                    <li>If declined → Escalated to leadership voting</li>
+                    <li>Any one leader approval → User deleted</li>
+                  </ol>
+                </div>
+                <div className="space-y-2">
+                  <Label>Reason (Optional)</Label>
+                  <Textarea
+                    value={deleteReason}
+                    onChange={(e) => setDeleteReason(e.target.value)}
+                    placeholder="Enter reason for deletion request..."
+                    className="h-20"
+                  />
+                </div>
+                <Button
+                  onClick={handleSendDeletionRequest}
+                  disabled={processingId === selectedUser?.id}
+                  className="w-full"
+                >
+                  {processingId === selectedUser?.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  ) : (
+                    <Send className="w-4 h-4 mr-2" />
+                  )}
+                  Send Deletion Request
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="p-3 rounded-lg border border-destructive/50 bg-destructive/10 text-sm">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Shield className="w-4 h-4 text-destructive" />
+                    <h4 className="font-medium text-destructive">Special Permission</h4>
+                  </div>
+                  <ul className="list-disc list-inside space-y-1 text-xs text-muted-foreground">
+                    <li>Bypasses user acceptance and voting</li>
+                    <li>Immediate permanent deletion</li>
+                    <li>All team members will be notified</li>
+                    <li>Action logged for audit</li>
+                    <li>Notification auto-removes after 24 hours</li>
+                  </ul>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-destructive">Reason (Required)</Label>
+                  <Textarea
+                    value={deleteReason}
+                    onChange={(e) => setDeleteReason(e.target.value)}
+                    placeholder="Describe why direct deletion is necessary..."
+                    className="h-20 border-destructive/50"
+                    required
+                  />
+                </div>
+                <Button
+                  variant="destructive"
+                  onClick={handleDirectDelete}
+                  disabled={!deleteReason.trim() || processingId === selectedUser?.id}
+                  className="w-full"
+                >
+                  {processingId === selectedUser?.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  ) : (
+                    <Zap className="w-4 h-4 mr-2" />
+                  )}
+                  Delete Immediately
+                </Button>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>

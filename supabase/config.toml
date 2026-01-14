@@ -11,3 +11,9 @@ verify_jwt = false
 
 [functions.cleanup-expired-alerts]
 verify_jwt = false
+
+[functions.reset-user-password]
+verify_jwt = false
+
+[functions.handle-deletion-response]
+verify_jwt = false

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { ROLE_LABELS, KryptonRole } from '@/lib/constants';
-import { LogOut, User, Users, Home, LayoutDashboard, Menu, X, Download } from 'lucide-react';
+import { LogOut, User, Users, Home, LayoutDashboard, Menu, X, Download, UserCog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -13,6 +13,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { UserListPanel } from '@/components/admin/UserListPanel';
 
 function getRoleBadgeClass(role: KryptonRole | null): string {
   switch (role) {
@@ -32,12 +34,13 @@ function getRoleBadgeClass(role: KryptonRole | null): string {
 }
 
 export function Header() {
-  const { user, profile, role, signOut } = useAuth();
+  const { user, profile, role, signOut, isCaptainOrVice } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userListOpen, setUserListOpen] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -190,6 +193,17 @@ export function Header() {
                   My Space
                 </DropdownMenuItem>
                 
+                {/* User List - Only for TL & VC */}
+                {isCaptainOrVice && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setUserListOpen(true)}>
+                      <UserCog className="w-4 h-4 mr-2" />
+                      User List
+                    </DropdownMenuItem>
+                  </>
+                )}
+                
                 <DropdownMenuSeparator />
                 
                 {/* Install APK - Available to all */}
@@ -266,6 +280,23 @@ export function Header() {
           </nav>
         )}
       </div>
+
+      {/* User List Dialog - TL/VC Only */}
+      {isCaptainOrVice && (
+        <Dialog open={userListOpen} onOpenChange={setUserListOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <UserCog className="w-5 h-5" />
+                User Management
+              </DialogTitle>
+            </DialogHeader>
+            <div className="overflow-y-auto max-h-[calc(90vh-100px)]">
+              <UserListPanel onClose={() => setUserListOpen(false)} />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </header>
   );
 }
