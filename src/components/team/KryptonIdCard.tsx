@@ -1,4 +1,4 @@
-import { User, Eye, Phone, Pencil, CheckCircle } from 'lucide-react';
+import { User, Eye, Phone, Pencil, CheckCircle, Power } from 'lucide-react';
 import { ROLE_LABELS, KryptonRole, TaskStatus } from '@/lib/constants';
 import { format } from 'date-fns';
 import { useState } from 'react';
@@ -25,9 +25,12 @@ interface KryptonIdCardProps {
   onClick?: () => void;
   onViewProfile?: () => void;
   onUpdatePhone?: (phone: string) => Promise<void>;
+  onToggleStatus?: () => Promise<void>;
   compact?: boolean;
   showProfileIcon?: boolean;
   canEditPhone?: boolean;
+  isOwnProfile?: boolean;
+  manualStatusOverride?: boolean; // If true, user has manually toggled status
 }
 
 function getRoleBgClass(role: KryptonRole | null): string {
@@ -42,7 +45,16 @@ function getRoleBgClass(role: KryptonRole | null): string {
 }
 
 // Derive status: Active if has in-progress task, otherwise Offline/Completed
-function getDerivedStatus(taskStats?: { inProgress: boolean; completed: number }): { label: string; className: string } {
+// This is display-level ONLY - does NOT affect task states, logs, or system truth
+function getDerivedStatus(
+  taskStats?: { inProgress: boolean; completed: number },
+  manualOverride?: boolean
+): { label: string; className: string } {
+  // If user has manually set themselves as Active (presence marker)
+  if (manualOverride) {
+    return { label: 'Active', className: 'status-badge status-working' };
+  }
+  // Otherwise derive from task status
   if (taskStats?.inProgress) {
     return { label: 'Active', className: 'status-badge status-working' };
   }

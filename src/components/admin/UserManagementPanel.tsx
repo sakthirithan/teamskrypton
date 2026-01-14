@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { ROLE_LABELS, KryptonRole } from '@/lib/constants';
 import {
@@ -12,7 +14,9 @@ import {
   Mail,
   Check,
   X,
-  AlertCircle
+  AlertCircle,
+  Zap,
+  Send
 } from 'lucide-react';
 import { format } from 'date-fns';
 import {
@@ -53,7 +57,7 @@ interface RegistrationRequest {
 }
 
 export function UserManagementPanel() {
-  const { user, profile } = useAuth();
+  const { user, profile, isCaptainOrVice } = useAuth();
   const { toast } = useToast();
 
   const [users, setUsers] = useState<RegisteredUser[]>([]);
@@ -62,8 +66,8 @@ export function UserManagementPanel() {
   const [isLoading, setIsLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [deleteConfirmUser, setDeleteConfirmUser] = useState<RegisteredUser | null>(null);
-
-  const isBusy = Boolean(processingId);
+  const [deleteDescription, setDeleteDescription] = useState('');
+  const [deleteMode, setDeleteMode] = useState<'request' | 'immediate'>('request');
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -256,11 +260,9 @@ export function UserManagementPanel() {
     }
   };
 
-  const handleImmediateDelete = async (targetUser: RegisteredUser) => {
-    if (
-      targetUser.user_id === user?.id ||
-      targetUser.id === profile?.id
-    ) {
+  // Send deletion request (standard flow - user gets notified)
+  const handleSendDeletionRequest = async (targetUser: RegisteredUser) => {
+    if (targetUser.user_id === user?.id) {
       toast({
         variant: 'destructive',
         title: 'Cannot Delete',
@@ -272,17 +274,64 @@ export function UserManagementPanel() {
     setProcessingId(targetUser.id);
     try {
       const { data, error } = await supabase.functions.invoke('delete-user', {
-        body: { targetUserId: targetUser.user_id }
+        body: { 
+          targetUserId: targetUser.user_id,
+          description: deleteDescription,
+          immediate: false
+        }
+      });
+
+      if (error || data?.error) throw error || new Error(data.error);
+
+      toast({
+        title: 'Deletion Request Sent',
+        description: data.message || `${targetUser.full_name} has been notified.`
+      });
+
+      setDeleteConfirmUser(null);
+      setDeleteDescription('');
+      fetchData();
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Request Failed',
+        description: error.message
+      });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  // Immediate deletion (special permission - TL/VC only)
+  const handleImmediateDelete = async (targetUser: RegisteredUser) => {
+    if (targetUser.user_id === user?.id) {
+      toast({
+        variant: 'destructive',
+        title: 'Cannot Delete',
+        description: 'You cannot delete your own account'
+      });
+      return;
+    }
+
+    setProcessingId(targetUser.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { 
+          targetUserId: targetUser.user_id,
+          description: deleteDescription,
+          immediate: true
+        }
       });
 
       if (error || data?.error) throw error || new Error(data.error);
 
       toast({
         title: 'User Deleted',
-        description: `${targetUser.full_name} permanently removed`
+        description: data.message || `${targetUser.full_name} permanently removed`
       });
 
       setDeleteConfirmUser(null);
+      setDeleteDescription('');
       fetchData();
     } catch (error: any) {
       toast({
@@ -376,95 +425,160 @@ export function UserManagementPanel() {
                       </div>
                     </div>
                     
-                    {/* Delete Button with Confirmation Dialog */}
-                    <Dialog open={deleteConfirmUser?.id === u.id} onOpenChange={(open) => !open && setDeleteConfirmUser(null)}>
-                      <DialogTrigger asChild>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setDeleteConfirmUser(u)}
-                          disabled={processingId === u.id || u.user_id === user?.id}
-                          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                          title="Delete User Immediately"
-                        >
-                          {processingId === u.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="w-4 h-4" />
-                          )}
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle className="flex items-center gap-2 text-destructive">
-                            <AlertCircle className="w-5 h-5" />
-                            Immediate User Deletion
-                          </DialogTitle>
-                          <DialogDescription>
-                            This action is <strong>immediate and irreversible</strong>. The user will be:
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4 py-4">
-                          <div className="p-3 rounded-lg border bg-muted/50">
-                            <p className="font-semibold">{u.full_name}</p>
-                            <p className="text-sm text-muted-foreground">{u.email}</p>
-                            {u.role && (
-                              <span className="inline-block mt-1 px-2 py-0.5 text-xs rounded bg-primary/10 text-primary font-medium">
-                                {ROLE_LABELS[u.role]}
-                              </span>
+                    {/* Delete Button with Confirmation Dialog - Only for TL/VC */}
+                    {isCaptainOrVice && (
+                      <Dialog open={deleteConfirmUser?.id === u.id} onOpenChange={(open) => {
+                        if (!open) {
+                          setDeleteConfirmUser(null);
+                          setDeleteDescription('');
+                          setDeleteMode('request');
+                        }
+                      }}>
+                        <DialogTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setDeleteConfirmUser(u)}
+                            disabled={processingId === u.id || u.user_id === user?.id}
+                            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            title="Delete User"
+                          >
+                            {processingId === u.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
                             )}
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-md">
+                          <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2 text-destructive">
+                              <AlertCircle className="w-5 h-5" />
+                              User Deletion
+                            </DialogTitle>
+                            <DialogDescription>
+                              Choose how to remove this user from the team.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-4 py-4">
+                            <div className="p-3 rounded-lg border bg-muted/50">
+                              <p className="font-semibold">{u.full_name}</p>
+                              <p className="text-sm text-muted-foreground">{u.email}</p>
+                              {u.role && (
+                                <span className="inline-block mt-1 px-2 py-0.5 text-xs rounded bg-primary/10 text-primary font-medium">
+                                  {ROLE_LABELS[u.role]}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Deletion Mode Selection */}
+                            <div className="space-y-2">
+                              <Label>Deletion Method</Label>
+                              <div className="grid grid-cols-2 gap-2">
+                                <Button
+                                  variant={deleteMode === 'request' ? 'default' : 'outline'}
+                                  size="sm"
+                                  onClick={() => setDeleteMode('request')}
+                                  className="flex-col h-auto py-3"
+                                >
+                                  <Send className="w-4 h-4 mb-1" />
+                                  <span className="text-xs">Send Request</span>
+                                </Button>
+                                <Button
+                                  variant={deleteMode === 'immediate' ? 'destructive' : 'outline'}
+                                  size="sm"
+                                  onClick={() => setDeleteMode('immediate')}
+                                  className="flex-col h-auto py-3"
+                                >
+                                  <Zap className="w-4 h-4 mb-1" />
+                                  <span className="text-xs">Immediate</span>
+                                </Button>
+                              </div>
+                            </div>
+
+                            {deleteMode === 'request' ? (
+                              <div className="space-y-3">
+                                <p className="text-sm text-muted-foreground">
+                                  User will be notified and can Accept or Decline. If declined, leadership votes.
+                                </p>
+                                <div>
+                                  <Label>Reason (optional)</Label>
+                                  <Textarea
+                                    placeholder="Explain why the user is being removed..."
+                                    value={deleteDescription}
+                                    onChange={(e) => setDeleteDescription(e.target.value)}
+                                    rows={2}
+                                  />
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="space-y-3">
+                                <p className="text-sm text-destructive font-medium">
+                                  ⚠️ Special Permission: Immediate & Irreversible
+                                </p>
+                                <ul className="text-xs space-y-1 text-muted-foreground">
+                                  <li>• Profile deleted permanently</li>
+                                  <li>• All tasks and logs removed</li>
+                                  <li>• Cannot re-login or recover</li>
+                                  <li>• Team notified of removal</li>
+                                </ul>
+                                <div>
+                                  <Label>Description for team notification</Label>
+                                  <Textarea
+                                    placeholder="This will be visible to all team members..."
+                                    value={deleteDescription}
+                                    onChange={(e) => setDeleteDescription(e.target.value)}
+                                    rows={2}
+                                  />
+                                </div>
+                              </div>
+                            )}
+                            
+                            <div className="flex gap-2 pt-2">
+                              <Button 
+                                variant="outline" 
+                                className="flex-1"
+                                onClick={() => {
+                                  setDeleteConfirmUser(null);
+                                  setDeleteDescription('');
+                                  setDeleteMode('request');
+                                }}
+                              >
+                                Cancel
+                              </Button>
+                              {deleteMode === 'request' ? (
+                                <Button 
+                                  className="flex-1"
+                                  onClick={() => handleSendDeletionRequest(u)}
+                                  disabled={processingId === u.id}
+                                >
+                                  {processingId === u.id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                                  ) : (
+                                    <Send className="w-4 h-4 mr-1" />
+                                  )}
+                                  Send Request
+                                </Button>
+                              ) : (
+                                <Button 
+                                  variant="destructive" 
+                                  className="flex-1"
+                                  onClick={() => handleImmediateDelete(u)}
+                                  disabled={processingId === u.id}
+                                >
+                                  {processingId === u.id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                                  ) : (
+                                    <Zap className="w-4 h-4 mr-1" />
+                                  )}
+                                  Delete Now
+                                </Button>
+                              )}
+                            </div>
                           </div>
-                          
-                          <ul className="text-sm space-y-2 text-muted-foreground">
-                            <li className="flex items-start gap-2">
-                              <X className="w-4 h-4 text-destructive mt-0.5" />
-                              <span>Removed from authentication system</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                              <X className="w-4 h-4 text-destructive mt-0.5" />
-                              <span>Profile deleted permanently</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                              <X className="w-4 h-4 text-destructive mt-0.5" />
-                              <span>All tasks removed</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                              <X className="w-4 h-4 text-destructive mt-0.5" />
-                              <span>All logs and history deleted</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                              <X className="w-4 h-4 text-destructive mt-0.5" />
-                              <span>Cannot re-login or recover account</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                              <X className="w-4 h-4 text-destructive mt-0.5" />
-                              <span>User treated as if never existed</span>
-                            </li>
-                          </ul>
-                          
-                          <div className="flex gap-2 pt-2">
-                            <Button 
-                              variant="outline" 
-                              className="flex-1"
-                              onClick={() => setDeleteConfirmUser(null)}
-                            >
-                              Cancel
-                            </Button>
-                            <Button 
-                              variant="destructive" 
-                              className="flex-1"
-                              onClick={() => handleImmediateDelete(u)}
-                              disabled={processingId === u.id}
-                            >
-                              {processingId === u.id ? (
-                                <Loader2 className="w-4 h-4 animate-spin mr-1" />
-                              ) : null}
-                              Delete Permanently
-                            </Button>
-                          </div>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
+                        </DialogContent>
+                      </Dialog>
+                    )}
                   </div>
                 </div>
               ))
