@@ -15,7 +15,7 @@ import {
 interface Task {
   id: string;
   status: string;
-  assigned_to: string;
+  assigned_to: string | null;
   completed_at: string | null;
   duration_minutes: number | null;
 }
@@ -70,7 +70,7 @@ export const LeadershipDashboard = memo(function LeadershipDashboard({
       : 0;
     
     // Team utilization (members with active tasks)
-    const activeMembers = new Set(workingTasks.map(t => t.assigned_to)).size;
+    const activeMembers = new Set(workingTasks.filter(t => t.assigned_to).map(t => t.assigned_to)).size;
     const utilizationRate = members.length > 0 
       ? Math.round((activeMembers / members.length) * 100) 
       : 0;

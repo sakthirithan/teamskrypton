@@ -32,7 +32,7 @@ interface Task {
   duration_minutes: number | null;
   assigner_name: string | null;
   assigner_role: string | null;
-  assigned_to: string;
+  assigned_to: string | null;
 }
 
 
@@ -377,8 +377,8 @@ const MySpace = () => {
               <TeamOverviewWidget 
                 members={teamMembers}
                 workingTasks={allTasks
-                  .filter(t => t.status === 'working')
-                  .map(t => ({ assigned_to: t.assigned_to, title: t.title }))
+                  .filter(t => t.status === 'working' && t.assigned_to)
+                  .map(t => ({ assigned_to: t.assigned_to!, title: t.title }))
                 }
               />
             )}
