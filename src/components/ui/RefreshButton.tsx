@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -10,13 +11,13 @@ interface RefreshButtonProps {
   variant?: 'ghost' | 'outline' | 'default';
 }
 
-export function RefreshButton({ 
+export const RefreshButton: React.FC<RefreshButtonProps> = ({ 
   onClick, 
   isRefreshing, 
   className,
   size = 'sm',
   variant = 'ghost'
-}: RefreshButtonProps) {
+}) => {
   return (
     <Button 
       variant={variant}
@@ -29,4 +30,4 @@ export function RefreshButton({
       <RefreshCw className={cn("w-4 h-4", isRefreshing && "animate-spin")} />
     </Button>
   );
-}
+};
