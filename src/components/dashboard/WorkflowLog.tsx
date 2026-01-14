@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useTestSession } from '@/contexts/TestSessionContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { FileText, CalendarIcon, ExternalLink, Filter } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { FileText, CalendarIcon, ExternalLink, Trash2, RotateCcw } from 'lucide-react';
 import { format, isSameDay } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 interface LogEntry {
   id: string;
@@ -28,67 +31,141 @@ interface LogEntry {
 type StatusFilter = 'all' | 'completed' | 'pending';
 
 export function WorkflowLog() {
-  const { isLeadership } = useAuth();
+  const { user, isLeadership, isCaptainOrVice } = useAuth();
+  const { isTestMode } = useTestSession();
+  const { toast } = useToast();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [deleteConfirmLog, setDeleteConfirmLog] = useState<LogEntry | null>(null);
+
+  const fetchLogs = async () => {
+    // Fetch completed AND pending tasks - exclude test data for non-leadership
+    let query = supabase
+      .from('tasks')
+      .select('id, title, accepted_at, completed_at, duration_minutes, assigned_to, assigner_name, assigner_role, status')
+      .in('status', ['completed', 'pending'])
+      .order('completed_at', { ascending: false, nullsFirst: false })
+      .limit(100);
+
+    // Exclude test data for non-leadership users
+    if (!isLeadership) {
+      query = query.eq('is_test', false);
+    }
+
+    const { data: tasksData } = await query;
+
+    if (tasksData && tasksData.length > 0) {
+      // Fetch user names
+      const userIds = [...new Set(tasksData.map(t => t.assigned_to).filter(Boolean))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, full_name')
+        .in('user_id', userIds);
+
+      const nameMap = new Map(profiles?.map(p => [p.user_id, p.full_name]) || []);
+
+      // Fetch documents
+      const taskIds = tasksData.map(t => t.id);
+      const { data: docs } = await supabase
+        .from('task_documents')
+        .select('task_id, github_url')
+        .in('task_id', taskIds);
+
+      const docsMap = new Map(docs?.map(d => [d.task_id, d.github_url]) || []);
+
+      const enrichedLogs = tasksData.map(task => ({
+        ...task,
+        completed_by_name: task.assigned_to ? nameMap.get(task.assigned_to) : undefined,
+        github_url: docsMap.get(task.id)
+      }));
+
+      setLogs(enrichedLogs);
+    } else {
+      setLogs([]);
+    }
+    setIsLoading(false);
+  };
 
   useEffect(() => {
-    const fetchLogs = async () => {
-      // Fetch completed AND pending tasks - exclude test data for non-leadership
-      let query = supabase
-        .from('tasks')
-        .select('id, title, accepted_at, completed_at, duration_minutes, assigned_to, assigner_name, assigner_role, status')
-        .in('status', ['completed', 'pending'])
-        .order('completed_at', { ascending: false, nullsFirst: false })
-        .limit(100);
-
-      // Exclude test data for non-leadership users
-      if (!isLeadership) {
-        query = query.eq('is_test', false);
-      }
-
-      const { data: tasksData } = await query;
-
-      if (tasksData && tasksData.length > 0) {
-        // Fetch user names
-        const userIds = [...new Set(tasksData.map(t => t.assigned_to).filter(Boolean))];
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('user_id, full_name')
-          .in('user_id', userIds);
-
-        const nameMap = new Map(profiles?.map(p => [p.user_id, p.full_name]) || []);
-
-        // Fetch documents
-        const taskIds = tasksData.map(t => t.id);
-        const { data: docs } = await supabase
-          .from('task_documents')
-          .select('task_id, github_url')
-          .in('task_id', taskIds);
-
-        const docsMap = new Map(docs?.map(d => [d.task_id, d.github_url]) || []);
-
-        const enrichedLogs = tasksData.map(task => ({
-          ...task,
-          completed_by_name: task.assigned_to ? nameMap.get(task.assigned_to) : undefined,
-          github_url: docsMap.get(task.id)
-        }));
-
-        setLogs(enrichedLogs);
-      }
-      setIsLoading(false);
-    };
     fetchLogs();
   }, [isLeadership]);
+
+  // Reset task to Idle - TL/VC only
+  const handleResetTask = async (log: LogEntry) => {
+    if (!user) return;
+    
+    try {
+      // Reset task to idle status
+      await supabase
+        .from('tasks')
+        .update({ 
+          status: 'idle',
+          accepted_at: null,
+          completed_at: null,
+          duration_minutes: null
+        })
+        .eq('id', log.id);
+
+      // Create alert to notify the assigned user
+      await supabase
+        .from('task_alerts')
+        .insert({
+          task_id: log.id,
+          message: 'Your task was reset by leadership. Please accept and complete it again.',
+          created_by: user.id,
+          is_test: isTestMode
+        });
+
+      toast({ 
+        title: 'Task Reset', 
+        description: 'Task restored to Today\'s Task panel. User notified.' 
+      });
+      setDeleteConfirmLog(null);
+      fetchLogs();
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message });
+    }
+  };
+
+  // Delete task permanently - TL/VC only
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      // Delete task documents first
+      await supabase
+        .from('task_documents')
+        .delete()
+        .eq('task_id', taskId);
+
+      // Delete task alerts
+      await supabase
+        .from('task_alerts')
+        .delete()
+        .eq('task_id', taskId);
+
+      // Delete the task
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', taskId);
+
+      if (error) throw error;
+
+      toast({ title: 'Task Deleted', description: 'Task permanently removed from log.' });
+      setDeleteConfirmLog(null);
+      fetchLogs();
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message });
+    }
+  };
 
   // Filter logs by selected date and status
   const filteredLogs = logs.filter(log => {
     // Date filter
     const dateMatch = selectedDate 
       ? (log.completed_at && isSameDay(new Date(log.completed_at), selectedDate)) ||
-        (log.status === 'pending' && !log.completed_at) // Pending tasks show for any date when no completion
+        (log.status === 'pending' && !log.completed_at)
       : true;
 
     // Status filter
@@ -197,6 +274,7 @@ export function WorkflowLog() {
                   <TableHead>Duration</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Docs</TableHead>
+                  {isCaptainOrVice && <TableHead>Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -240,12 +318,75 @@ export function WorkflowLog() {
                         <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
+                    {isCaptainOrVice && (
+                      <TableCell>
+                        <Button 
+                          size="sm" 
+                          variant="ghost"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0"
+                          onClick={() => setDeleteConfirmLog(log)}
+                          title="Reset/Delete Task"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </div>
         )}
+
+        {/* Delete/Reset Confirmation Dialog */}
+        <Dialog open={!!deleteConfirmLog} onOpenChange={(open) => !open && setDeleteConfirmLog(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Task Action</DialogTitle>
+              <DialogDescription>
+                Choose an action for this task.
+              </DialogDescription>
+            </DialogHeader>
+            {deleteConfirmLog && (
+              <div className="space-y-4 pt-4">
+                <div className="p-3 rounded bg-muted">
+                  <p className="font-medium">{deleteConfirmLog.title}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Assigned to: {deleteConfirmLog.completed_by_name}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Status: {deleteConfirmLog.status}
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Button 
+                    variant="outline"
+                    onClick={() => handleResetTask(deleteConfirmLog)}
+                    className="w-full"
+                  >
+                    <RotateCcw className="w-4 h-4 mr-2" />
+                    Reset to Today's Task (User Notified)
+                  </Button>
+                  <Button 
+                    variant="destructive" 
+                    onClick={() => handleDeleteTask(deleteConfirmLog.id)}
+                    className="w-full"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete Permanently
+                  </Button>
+                  <Button 
+                    variant="ghost"
+                    onClick={() => setDeleteConfirmLog(null)}
+                    className="w-full"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );

@@ -2,14 +2,18 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useTestSession } from '@/contexts/TestSessionContext';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
 import { KryptonIdCard } from '@/components/team/KryptonIdCard';
 import { AlertTab } from '@/components/alerts/AlertTab';
-import { CheckCircle, Clock, BarChart3, ExternalLink } from 'lucide-react';
+import { CheckCircle, Clock, BarChart3, ExternalLink, Trash2, RotateCcw } from 'lucide-react';
 import { format } from 'date-fns';
 import { TaskStatus } from '@/lib/constants';
+import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 interface Task {
   id: string;
@@ -22,6 +26,7 @@ interface Task {
   duration_minutes: number | null;
   assigner_name: string | null;
   assigner_role: string | null;
+  assigned_to: string;
 }
 
 interface TaskDoc {
@@ -30,13 +35,16 @@ interface TaskDoc {
 }
 
 const MySpace = () => {
-  const { user, profile, role, isLoading } = useAuth();
+  const { user, profile, role, isLoading, isCaptainOrVice } = useAuth();
+  const { isTestMode } = useTestSession();
+  const { toast } = useToast();
   const navigate = useNavigate();
-  const [pendingTasks, setPendingTasks] = useState<Task[]>([]);
+  const [inProgressTasks, setInProgressTasks] = useState<Task[]>([]);
   const [completedTasks, setCompletedTasks] = useState<Task[]>([]);
   const [taskDocs, setTaskDocs] = useState<Map<string, string>>(new Map());
   const [stats, setStats] = useState({ accepted: 0, completed: 0, missed: 0, avgTime: 0 });
   const [isFetching, setIsFetching] = useState(true);
+  const [deleteConfirmTask, setDeleteConfirmTask] = useState<Task | null>(null);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -44,55 +52,131 @@ const MySpace = () => {
     }
   }, [user, isLoading, navigate]);
 
+  const fetchData = async () => {
+    if (!user) return;
+
+    // Fetch all tasks assigned to user
+    const { data: tasks } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('assigned_to', user.id)
+      .order('created_at', { ascending: false });
+
+    // Fetch task documents
+    const { data: docs } = await supabase
+      .from('task_documents')
+      .select('task_id, github_url')
+      .eq('user_id', user.id);
+
+    if (docs) {
+      setTaskDocs(new Map(docs.map(d => [d.task_id, d.github_url])));
+    }
+
+    if (tasks) {
+      const now = new Date();
+      
+      // In Progress (working status)
+      const inProgress = tasks.filter(t => t.status === 'working');
+      setInProgressTasks(inProgress);
+
+      // Completed
+      const completed = tasks.filter(t => t.status === 'completed');
+      setCompletedTasks(completed);
+
+      // Stats
+      const accepted = tasks.filter(t => t.accepted_at).length;
+      const completedCount = completed.length;
+      const missed = tasks.filter(t => 
+        t.status === 'pending' || 
+        (t.status !== 'completed' && new Date(t.deadline) <= now)
+      ).length;
+      const totalDuration = completed.reduce((sum, t) => sum + (t.duration_minutes || 0), 0);
+      const avgTime = completedCount > 0 ? Math.round(totalDuration / completedCount) : 0;
+
+      setStats({ accepted, completed: completedCount, missed, avgTime });
+    }
+    setIsFetching(false);
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      if (!user) return;
-
-      // Fetch all tasks assigned to user
-      const { data: tasks } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('assigned_to', user.id)
-        .order('created_at', { ascending: false });
-
-      // Fetch task documents
-      const { data: docs } = await supabase
-        .from('task_documents')
-        .select('task_id, github_url')
-        .eq('user_id', user.id);
-
-      if (docs) {
-        setTaskDocs(new Map(docs.map(d => [d.task_id, d.github_url])));
-      }
-
-      if (tasks) {
-        const now = new Date();
-        
-        // In Progress (working status, deadline not passed)
-        const pending = tasks.filter(t => t.status === 'working' && new Date(t.deadline) > now);
-        setPendingTasks(pending);
-
-        // Completed
-        const completed = tasks.filter(t => t.status === 'completed');
-        setCompletedTasks(completed);
-
-        // Stats
-        const accepted = tasks.filter(t => t.accepted_at).length;
-        const completedCount = completed.length;
-        const missed = tasks.filter(t => 
-          t.status === 'pending' || 
-          (t.status !== 'completed' && new Date(t.deadline) <= now)
-        ).length;
-        const totalDuration = completed.reduce((sum, t) => sum + (t.duration_minutes || 0), 0);
-        const avgTime = completedCount > 0 ? Math.round(totalDuration / completedCount) : 0;
-
-        setStats({ accepted, completed: completedCount, missed, avgTime });
-      }
-      setIsFetching(false);
-    };
-
     fetchData();
   }, [user]);
+
+  // Complete task from In Progress
+  const handleComplete = async (task: Task) => {
+    const completedAt = new Date().toISOString();
+    const duration = task.accepted_at 
+      ? Math.round((new Date(completedAt).getTime() - new Date(task.accepted_at).getTime()) / 60000)
+      : 0;
+
+    const { error } = await supabase
+      .from('tasks')
+      .update({ status: 'completed', completed_at: completedAt, duration_minutes: duration })
+      .eq('id', task.id);
+
+    if (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to complete task' });
+    } else {
+      toast({ title: 'Task Completed!', description: `Duration: ${duration} minutes` });
+      fetchData();
+    }
+  };
+
+  // Reset task to Idle - TL/VC only
+  const handleResetTask = async (task: Task) => {
+    if (!user) return;
+    
+    try {
+      await supabase
+        .from('tasks')
+        .update({ 
+          status: 'idle',
+          accepted_at: null,
+          completed_at: null,
+          duration_minutes: null
+        })
+        .eq('id', task.id);
+
+      await supabase
+        .from('task_alerts')
+        .insert({
+          task_id: task.id,
+          message: 'Your task was reset by leadership. Please accept and complete it again.',
+          created_by: user.id,
+          is_test: isTestMode
+        });
+
+      toast({ 
+        title: 'Task Reset', 
+        description: 'Task restored to Today\'s Task panel.' 
+      });
+      setDeleteConfirmTask(null);
+      fetchData();
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message });
+    }
+  };
+
+  // Delete task permanently - TL/VC only
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      await supabase.from('task_documents').delete().eq('task_id', taskId);
+      await supabase.from('task_alerts').delete().eq('task_id', taskId);
+      
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', taskId);
+
+      if (error) throw error;
+
+      toast({ title: 'Task Deleted', description: 'Task permanently removed.' });
+      setDeleteConfirmTask(null);
+      fetchData();
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message });
+    }
+  };
 
   if (isLoading || !user) {
     return (
@@ -167,7 +251,7 @@ const MySpace = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {pendingTasks.length === 0 ? (
+                {inProgressTasks.length === 0 ? (
                   <p className="text-center text-muted-foreground py-4">No tasks in progress</p>
                 ) : (
                   <Table>
@@ -178,10 +262,11 @@ const MySpace = () => {
                         <TableHead>Started</TableHead>
                         <TableHead>Deadline</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Action</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {pendingTasks.map((task) => (
+                      {inProgressTasks.map((task) => (
                         <TableRow key={task.id}>
                           <TableCell className="font-medium">{task.title}</TableCell>
                           <TableCell>
@@ -199,6 +284,15 @@ const MySpace = () => {
                           <TableCell>{task.accepted_at ? format(new Date(task.accepted_at), 'HH:mm') : '-'}</TableCell>
                           <TableCell>{format(new Date(task.deadline), 'MMM dd, HH:mm')}</TableCell>
                           <TableCell><span className="status-badge status-working">Working</span></TableCell>
+                          <TableCell>
+                            <Button 
+                              size="sm" 
+                              variant="secondary"
+                              onClick={() => handleComplete(task)}
+                            >
+                              <CheckCircle className="w-4 h-4 mr-1" /> Complete
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -229,6 +323,7 @@ const MySpace = () => {
                         <TableHead>End</TableHead>
                         <TableHead>Duration</TableHead>
                         <TableHead>Docs</TableHead>
+                        {isCaptainOrVice && <TableHead>Actions</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -266,6 +361,19 @@ const MySpace = () => {
                               <span className="text-muted-foreground">-</span>
                             )}
                           </TableCell>
+                          {isCaptainOrVice && (
+                            <TableCell>
+                              <Button 
+                                size="sm" 
+                                variant="ghost"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0"
+                                onClick={() => setDeleteConfirmTask(task)}
+                                title="Reset/Delete Task"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))}
                     </TableBody>
@@ -276,6 +384,53 @@ const MySpace = () => {
           </div>
         </div>
       </main>
+
+      {/* Delete/Reset Confirmation Dialog */}
+      <Dialog open={!!deleteConfirmTask} onOpenChange={(open) => !open && setDeleteConfirmTask(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Task Action</DialogTitle>
+            <DialogDescription>
+              Choose an action for this task.
+            </DialogDescription>
+          </DialogHeader>
+          {deleteConfirmTask && (
+            <div className="space-y-4 pt-4">
+              <div className="p-3 rounded bg-muted">
+                <p className="font-medium">{deleteConfirmTask.title}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Status: {deleteConfirmTask.status}
+                </p>
+              </div>
+              <div className="flex flex-col gap-2">
+                <Button 
+                  variant="outline"
+                  onClick={() => handleResetTask(deleteConfirmTask)}
+                  className="w-full"
+                >
+                  <RotateCcw className="w-4 h-4 mr-2" />
+                  Reset to Today's Task
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  onClick={() => handleDeleteTask(deleteConfirmTask.id)}
+                  className="w-full"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Permanently
+                </Button>
+                <Button 
+                  variant="ghost"
+                  onClick={() => setDeleteConfirmTask(null)}
+                  className="w-full"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
