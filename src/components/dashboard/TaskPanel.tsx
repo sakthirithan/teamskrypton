@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, memo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,6 +14,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { ROLE_LABELS, KryptonRole } from '@/lib/constants';
 import { Badge } from '@/components/ui/badge';
 import { RefreshButton } from '@/components/ui/RefreshIconButton';
+import { CommandCenter } from './CommandCenter';
 
 interface Task {
   id: string;
@@ -59,13 +60,9 @@ export function TaskPanel() {
     deadline: '',
     assignTo: ''
   });
-  const [alertForm, setAlertForm] = useState({ taskId: '', message: '' });
-  const [showAlertDialog, setShowAlertDialog] = useState(false);
   const [members, setMembers] = useState<Member[]>([]);
   const [deleteConfirmTask, setDeleteConfirmTask] = useState<Task | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [pushToPendingTask, setPushToPendingTask] = useState<Task | null>(null);
-  const [pendingReason, setPendingReason] = useState('');
   const lastRefreshRef = useRef<number>(0);
 
   // Debounced refresh to prevent duplicate calls
@@ -259,60 +256,6 @@ export function TaskPanel() {
       toast({ title: 'Task Updated' });
       setEditingTask(null);
       fetchTasks();
-    }
-  };
-
-  // Send alert message to task - Leadership only
-  const handleSendAlert = async () => {
-    if (!alertForm.taskId || !alertForm.message || !user) return;
-
-    const { error } = await supabase
-      .from('task_alerts')
-      .insert({
-        task_id: alertForm.taskId,
-        message: alertForm.message,
-        created_by: user.id
-      });
-
-    if (error) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Failed to send alert' });
-    } else {
-      toast({ title: 'Alert Sent', description: 'The assigned user has been notified' });
-      setAlertForm({ taskId: '', message: '' });
-      setShowAlertDialog(false);
-      fetchTasks();
-    }
-  };
-
-  // Push task to Pending - TL/VC only
-  const handlePushToPending = async () => {
-    if (!pushToPendingTask || !user || !pendingReason) return;
-
-    try {
-      // Update task status to pending
-      await supabase
-        .from('tasks')
-        .update({ status: 'pending' })
-        .eq('id', pushToPendingTask.id);
-
-      // Create alert with reason
-      await supabase
-        .from('task_alerts')
-        .insert({
-          task_id: pushToPendingTask.id,
-          message: `Task pushed to Pending by leadership: ${pendingReason}`,
-          created_by: user.id
-        });
-
-      toast({ 
-        title: 'Task Pushed to Pending', 
-        description: 'User has been notified.' 
-      });
-      setPushToPendingTask(null);
-      setPendingReason('');
-      fetchTasks();
-    } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Error', description: error.message });
     }
   };
 
@@ -594,58 +537,12 @@ export function TaskPanel() {
                               </DialogContent>
                             </Dialog>
 
-                            {/* Alert Button */}
-                            <Dialog open={showAlertDialog && alertForm.taskId === task.id} onOpenChange={(open) => {
-                              setShowAlertDialog(open);
-                              if (open) setAlertForm({ taskId: task.id, message: '' });
-                            }}>
-                              <DialogTrigger asChild>
-                                <Button 
-                                  size="sm" 
-                                  variant="ghost"
-                                  className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
-                                  onClick={() => setAlertForm({ taskId: task.id, message: '' })}
-                                  title="Send Alert"
-                                >
-                                  <MessageSquare className="w-4 h-4" />
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent>
-                                <DialogHeader>
-                                  <DialogTitle>Send Alert to Assigned User</DialogTitle>
-                                  <DialogDescription>
-                                    This alert will be visible to {getMemberName(task.assigned_to)} on this task.
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <div className="space-y-4 pt-4">
-                                  <div>
-                                    <Label>Alert Message</Label>
-                                    <Textarea 
-                                      value={alertForm.message}
-                                      onChange={(e) => setAlertForm({ ...alertForm, message: e.target.value })}
-                                      placeholder="Enter your alert message..."
-                                      rows={3}
-                                    />
-                                  </div>
-                                  <Button onClick={handleSendAlert} className="w-full" disabled={!alertForm.message}>
-                                    Send Alert
-                                  </Button>
-                                </div>
-                              </DialogContent>
-                            </Dialog>
-
-                            {/* Push to Pending - TL/VC only */}
-                            {isCaptainOrVice && task.status !== 'pending' && (
-                              <Button 
-                                size="sm" 
-                                variant="ghost"
-                                className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
-                                onClick={() => setPushToPendingTask(task)}
-                                title="Push to Pending"
-                              >
-                                <AlertTriangle className="w-4 h-4" />
-                              </Button>
-                            )}
+                            {/* Command Center - Symbol-based quick actions */}
+                            <CommandCenter 
+                              task={task} 
+                              getMemberName={getMemberName}
+                              onActionComplete={fetchTasks}
+                            />
 
                             {/* Delete/Reset Button - TL/VC ONLY */}
                             {isCaptainOrVice && (
@@ -763,31 +660,11 @@ export function TaskPanel() {
                       </p>
                     )}
                   </div>
-                  {isCaptainOrVice && (
-                    <div className="flex gap-1">
-                      <Button 
-                        size="sm" 
-                        variant="ghost"
-                        className="text-amber-600"
-                        onClick={() => {
-                          setAlertForm({ taskId: task.id, message: '' });
-                          setShowAlertDialog(true);
-                        }}
-                        title="Send Alert"
-                      >
-                        <MessageSquare className="w-4 h-4" />
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="ghost"
-                        className="text-orange-600"
-                        onClick={() => setPushToPendingTask(task)}
-                        title="Push to Pending"
-                      >
-                        <AlertTriangle className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  )}
+                  <CommandCenter 
+                    task={task} 
+                    getMemberName={getMemberName}
+                    onActionComplete={fetchTasks}
+                  />
                 </div>
               ))}
             </div>
@@ -795,57 +672,6 @@ export function TaskPanel() {
         </Card>
       )}
 
-      {/* Push to Pending Dialog */}
-      <Dialog open={!!pushToPendingTask} onOpenChange={(open) => !open && setPushToPendingTask(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-orange-600" />
-              Push Task to Pending
-            </DialogTitle>
-            <DialogDescription>
-              This will mark the task as Pending and notify the assigned user.
-            </DialogDescription>
-          </DialogHeader>
-          {pushToPendingTask && (
-            <div className="space-y-4 pt-4">
-              <div className="p-3 rounded bg-muted">
-                <p className="font-medium">{pushToPendingTask.title}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Assigned to: {getMemberName(pushToPendingTask.assigned_to)}
-                </p>
-              </div>
-              <div>
-                <Label>Reason (Required)</Label>
-                <Textarea 
-                  value={pendingReason}
-                  onChange={(e) => setPendingReason(e.target.value)}
-                  placeholder="Explain why this task is being marked as pending..."
-                  rows={3}
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button 
-                  onClick={handlePushToPending}
-                  disabled={!pendingReason}
-                  className="flex-1"
-                >
-                  Push to Pending
-                </Button>
-                <Button 
-                  variant="ghost"
-                  onClick={() => {
-                    setPushToPendingTask(null);
-                    setPendingReason('');
-                  }}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </>
   );
 }
