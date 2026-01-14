@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { AlertTriangle, Check, X, Upload, Clock, Trash2, FileText, Loader2, Play } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, differenceInHours } from 'date-fns';
+import { RefreshButton } from '@/components/ui/RefreshButton';
 
 interface Approval {
   id: string;
@@ -47,9 +48,22 @@ export function AlertTab() {
   const [pendingTasks, setPendingTasks] = useState<PendingTask[]>([]);
   const [completedTasks, setCompletedTasks] = useState<CompletedTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [reasons, setReasons] = useState<Record<string, string>>({});
   const [docForm, setDocForm] = useState({ taskId: '', githubUrl: '', description: '' });
+  const lastRefreshRef = useRef<number>(0);
+
+  const handleManualRefresh = useCallback(async () => {
+    const now = Date.now();
+    if (now - lastRefreshRef.current < 1000) return;
+    lastRefreshRef.current = now;
+    
+    setIsRefreshing(true);
+    await fetchData();
+    setIsRefreshing(false);
+    toast({ title: 'Alerts refreshed' });
+  }, []);
 
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -494,6 +508,7 @@ export function AlertTab() {
               {totalAlerts}
             </span>
           )}
+          <RefreshButton onClick={handleManualRefresh} isRefreshing={isRefreshing} />
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">

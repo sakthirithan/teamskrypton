@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { ROLE_LABELS, KryptonRole } from '@/lib/constants';
 import { Badge } from '@/components/ui/badge';
+import { RefreshButton } from '@/components/ui/RefreshButton';
 
 interface Task {
   id: string;
@@ -49,6 +50,7 @@ export function TaskPanel() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [taskAlerts, setTaskAlerts] = useState<Map<string, TaskAlert[]>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [editForm, setEditForm] = useState({ 
@@ -64,6 +66,19 @@ export function TaskPanel() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [pushToPendingTask, setPushToPendingTask] = useState<Task | null>(null);
   const [pendingReason, setPendingReason] = useState('');
+  const lastRefreshRef = useRef<number>(0);
+
+  // Debounced refresh to prevent duplicate calls
+  const handleManualRefresh = useCallback(async () => {
+    const now = Date.now();
+    if (now - lastRefreshRef.current < 1000) return; // Debounce 1 second
+    lastRefreshRef.current = now;
+    
+    setIsRefreshing(true);
+    await fetchTasks();
+    setIsRefreshing(false);
+    toast({ title: 'Tasks refreshed' });
+  }, []);
 
   // Fetch members for reassignment
   useEffect(() => {
@@ -400,6 +415,7 @@ export function TaskPanel() {
                   <Wifi className="w-4 h-4 text-green-500" />
                 </span>
               )}
+              <RefreshButton onClick={handleManualRefresh} isRefreshing={isRefreshing} />
             </div>
             
             {/* Status Filter */}

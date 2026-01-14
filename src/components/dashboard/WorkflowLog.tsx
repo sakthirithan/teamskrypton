@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,10 +10,12 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { FileText, CalendarIcon, ExternalLink, Trash2, RotateCcw, Download } from 'lucide-react';
+import { FileText, CalendarIcon, ExternalLink, Trash2, RotateCcw, Download, AlertCircle } from 'lucide-react';
 import { format, isSameDay, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { RefreshButton } from '@/components/ui/RefreshButton';
+import { validateExportDateRange, getTodayString } from '@/lib/exportValidation';
 import * as XLSX from 'xlsx';
 
 interface LogEntry {
@@ -37,12 +39,26 @@ export function WorkflowLog() {
   const { toast } = useToast();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [deleteConfirmLog, setDeleteConfirmLog] = useState<LogEntry | null>(null);
   const [fromDate, setFromDate] = useState<string>('');
   const [toDate, setToDate] = useState<string>('');
   const [showExportDialog, setShowExportDialog] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const lastRefreshRef = useRef<number>(0);
+
+  const handleManualRefresh = useCallback(async () => {
+    const now = Date.now();
+    if (now - lastRefreshRef.current < 1000) return;
+    lastRefreshRef.current = now;
+    
+    setIsRefreshing(true);
+    await fetchLogs();
+    setIsRefreshing(false);
+    toast({ title: 'Log refreshed' });
+  }, []);
 
   const fetchLogs = async () => {
     // Fetch completed AND pending tasks
@@ -158,8 +174,16 @@ export function WorkflowLog() {
     }
   };
 
-  // Export logs to XLSX
+  // Export logs to XLSX with date validation
   const handleExport = (exportFormat: 'csv' | 'xlsx') => {
+    // Validate date range
+    const validation = validateExportDateRange(fromDate, toDate);
+    if (!validation.isValid) {
+      setExportError(validation.error);
+      return;
+    }
+    setExportError(null);
+
     let dataToExport = filteredLogs;
 
     // Apply date range filter if specified
@@ -208,6 +232,8 @@ export function WorkflowLog() {
 
     toast({ title: 'Export Complete', description: `Downloaded ${filename}` });
     setShowExportDialog(false);
+    setFromDate('');
+    setToDate('');
   };
 
   // Filter logs by selected date and status
@@ -248,6 +274,7 @@ export function WorkflowLog() {
           <div className="flex items-center gap-2">
             <FileText className="w-5 h-5" />
             Krypton Log
+            <RefreshButton onClick={handleManualRefresh} isRefreshing={isRefreshing} />
           </div>
           <div className="flex items-center gap-2">
             {/* Export Button - Leadership only */}
@@ -255,7 +282,10 @@ export function WorkflowLog() {
               <Button 
                 variant="outline" 
                 size="sm"
-                onClick={() => setShowExportDialog(true)}
+                onClick={() => {
+                  setExportError(null);
+                  setShowExportDialog(true);
+                }}
               >
                 <Download className="w-4 h-4 mr-2" />
                 Export
@@ -466,7 +496,11 @@ export function WorkflowLog() {
                   <Input 
                     type="date"
                     value={fromDate}
-                    onChange={(e) => setFromDate(e.target.value)}
+                    onChange={(e) => {
+                      setFromDate(e.target.value);
+                      setExportError(null);
+                    }}
+                    max={getTodayString()}
                   />
                 </div>
                 <div>
@@ -474,10 +508,20 @@ export function WorkflowLog() {
                   <Input 
                     type="date"
                     value={toDate}
-                    onChange={(e) => setToDate(e.target.value)}
+                    onChange={(e) => {
+                      setToDate(e.target.value);
+                      setExportError(null);
+                    }}
+                    max={getTodayString()}
                   />
                 </div>
               </div>
+              {exportError && (
+                <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 p-2 rounded">
+                  <AlertCircle className="w-4 h-4" />
+                  {exportError}
+                </div>
+              )}
               <p className="text-xs text-muted-foreground">
                 Leave dates empty to export full history
               </p>
