@@ -355,13 +355,25 @@ export function AlertTab() {
 
     try {
       if (approve) {
-        // User approved their own deletion
+        // User approved their own deletion - update status
         await supabase
           .from('approvals')
           .update({ status: 'approved' })
           .eq('id', approvalId);
 
-        toast({ title: 'Deletion Approved', description: 'Your profile will be deleted.' });
+        // Execute the deletion via edge function
+        const { data, error } = await supabase.functions.invoke('execute-user-deletion', {
+          body: { approvalId }
+        });
+
+        if (error || data?.error) {
+          console.error('Deletion execution failed:', error || data?.error);
+        }
+
+        toast({ title: 'Deletion Approved', description: 'Your profile is being deleted.' });
+        
+        // Sign out the user
+        await supabase.auth.signOut();
       } else {
         // User declined - escalate to team vote
         await supabase
@@ -384,6 +396,50 @@ export function AlertTab() {
           description: 'The request has been escalated to team leadership for review.' 
         });
       }
+      fetchData();
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  // Handle leadership vote on deletion
+  const handleDeletionVote = async (approvalId: string) => {
+    if (!user) return;
+    setProcessingId(approvalId);
+
+    const approval = approvals.find(a => a.id === approvalId);
+    if (!approval) return;
+
+    try {
+      // Cast the vote
+      await supabase
+        .from('approval_votes')
+        .insert({
+          approval_id: approvalId,
+          voter_id: user.id,
+          vote_type: 'approve'
+        });
+
+      // Update approval status to approved
+      await supabase
+        .from('approvals')
+        .update({ status: 'approved' })
+        .eq('id', approvalId);
+
+      // Execute the deletion via edge function
+      const { data, error } = await supabase.functions.invoke('execute-user-deletion', {
+        body: { approvalId }
+      });
+
+      if (error || data?.error) {
+        console.error('Deletion execution failed:', error || data?.error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Deletion failed' });
+      } else {
+        toast({ title: 'User Deleted', description: data.message || 'User has been permanently removed.' });
+      }
+
       fetchData();
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error', description: error.message });
@@ -668,16 +724,19 @@ export function AlertTab() {
                       <span className="font-semibold">Deletion Vote (Escalated)</span>
                     </div>
                     <p className="text-sm text-muted-foreground mb-3">
-                      {approval.target_user_name} declined self-deletion. Any leadership approval will proceed.
+                      {approval.target_user_name} declined self-deletion. Any leadership approval will proceed with immediate deletion.
                     </p>
                     {!userHasVoted(approval) ? (
                       <Button 
                         size="sm" 
                         variant="destructive"
-                        onClick={() => handleVote(approval.id, 'approve')}
+                        onClick={() => handleDeletionVote(approval.id)}
                         disabled={processingId === approval.id}
                       >
-                        Approve Deletion
+                        {processingId === approval.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                        ) : null}
+                        Approve & Delete
                       </Button>
                     ) : (
                       <p className="text-xs text-muted-foreground">You have already voted</p>

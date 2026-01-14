@@ -5,6 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// This function is called when a deletion is approved (either by user or by leadership vote)
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -33,7 +34,7 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    // Verify JWT and get claims
+    // Verify JWT
     const token = authHeader.replace("Bearer ", "");
     const { data: claimsData, error: claimsError } = await supabase.auth.getUser(token);
     
@@ -45,119 +46,85 @@ Deno.serve(async (req) => {
       });
     }
 
-    const currentUserId = claimsData.user.id;
+    const { approvalId } = await req.json();
 
-    // Check if current user is TL or VC
-    const { data: isCaptainOrVice } = await supabaseAdmin.rpc('is_captain_or_vice', { 
-      _user_id: currentUserId 
-    });
-
-    if (!isCaptainOrVice) {
-      return new Response(JSON.stringify({ error: "Only Team Captain or Vice Captain can delete users" }), {
-        status: 403,
+    if (!approvalId) {
+      return new Response(JSON.stringify({ error: "Approval ID required" }), {
+        status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const { targetUserId, description, immediate } = await req.json();
+    // Get the approval record
+    const { data: approval, error: approvalError } = await supabaseAdmin
+      .from('approvals')
+      .select('*')
+      .eq('id', approvalId)
+      .single();
+
+    if (approvalError || !approval) {
+      return new Response(JSON.stringify({ error: "Approval not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (approval.status !== 'approved') {
+      return new Response(JSON.stringify({ error: "Approval is not in approved status" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const targetUserId = approval.target_user_id;
 
     if (!targetUserId) {
-      return new Response(JSON.stringify({ error: "Target user ID required" }), {
+      return new Response(JSON.stringify({ error: "No target user ID in approval" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Prevent self-deletion
-    if (targetUserId === currentUserId) {
-      return new Response(JSON.stringify({ error: "Cannot delete yourself" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Get target user info before deletion for notification
+    // Get target user info for notification
     const { data: targetProfile } = await supabaseAdmin
       .from('profiles')
-      .select('full_name, email')
+      .select('full_name')
       .eq('user_id', targetUserId)
       .single();
 
-    // Get current user's info for notification
-    const { data: currentProfile } = await supabaseAdmin
+    // Get initiator info
+    const { data: initiatorProfile } = await supabaseAdmin
       .from('profiles')
       .select('full_name')
-      .eq('user_id', currentUserId)
+      .eq('user_id', approval.initiated_by)
       .single();
 
-    if (immediate) {
-      // IMMEDIATE DELETE - Special permission used by TL/VC
-      console.log(`Immediate hard delete of user ${targetUserId} by ${currentUserId}`);
-      
-      await performHardDelete(supabaseAdmin, targetUserId);
+    console.log(`Executing deletion of user ${targetUserId}`);
 
-      // Create notification for all team members about the deletion (auto-deletes after 24 hours via scheduled job or client)
-      await supabaseAdmin
-        .from('approvals')
-        .insert({
-          approval_type: 'deletion_request',
-          target_user_id: targetUserId,
-          initiated_by: currentUserId,
-          reason: description || `User ${targetProfile?.full_name || 'Unknown'} was removed from the team by ${currentProfile?.full_name || 'Leadership'}.`,
-          status: 'approved' // Already done, just for notification
-        });
+    // Perform the hard delete
+    await performHardDelete(supabaseAdmin, targetUserId);
 
-      return new Response(JSON.stringify({ 
-        success: true, 
-        message: `User ${targetProfile?.full_name || 'Unknown'} permanently deleted` 
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    // Create a notification approval for all team members (read-only, auto-deletes after 24h)
+    await supabaseAdmin
+      .from('approvals')
+      .insert({
+        approval_type: 'deletion_request',
+        target_user_id: null, // No target since user is deleted
+        initiated_by: approval.initiated_by,
+        reason: `${targetProfile?.full_name || 'A user'} was removed from the team by ${initiatorProfile?.full_name || 'Leadership'}. ${approval.reason || ''}`,
+        status: 'approved' // Completed
       });
-    } else {
-      // STANDARD FLOW - Create deletion request for user to approve/decline
-      console.log(`Creating deletion request for user ${targetUserId} by ${currentUserId}`);
 
-      // Check if there's already a pending deletion request
-      const { data: existingRequest } = await supabaseAdmin
-        .from('approvals')
-        .select('id')
-        .eq('target_user_id', targetUserId)
-        .eq('approval_type', 'deletion_request')
-        .eq('status', 'pending')
-        .single();
-
-      if (existingRequest) {
-        return new Response(JSON.stringify({ 
-          error: "A deletion request is already pending for this user" 
-        }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      // Create deletion request - user will see this in their alerts
-      await supabaseAdmin
-        .from('approvals')
-        .insert({
-          approval_type: 'deletion_request',
-          target_user_id: targetUserId,
-          initiated_by: currentUserId,
-          reason: description || null,
-          status: 'pending'
-        });
-
-      return new Response(JSON.stringify({ 
-        success: true, 
-        message: `Deletion request sent to ${targetProfile?.full_name || 'user'}. They will be asked to accept or decline.` 
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    return new Response(JSON.stringify({ 
+      success: true, 
+      message: `User ${targetProfile?.full_name || 'Unknown'} has been permanently deleted` 
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
 
   } catch (error: unknown) {
-    console.error("Error in delete-user function:", error);
+    console.error("Error in execute-user-deletion function:", error);
     const message = error instanceof Error ? error.message : 'Unknown error';
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
@@ -223,12 +190,11 @@ async function performHardDelete(supabaseAdmin: any, targetUserId: string) {
     .delete()
     .eq('user_id', targetUserId);
 
-  // 10. Delete from Supabase Auth (this logs them out immediately)
+  // 10. Delete from Supabase Auth
   const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(targetUserId);
   
   if (deleteError) {
     console.error('Error deleting auth user:', deleteError);
-    // Continue anyway - the user data is already deleted
   }
 
   console.log(`User ${targetUserId} hard deleted successfully`);
