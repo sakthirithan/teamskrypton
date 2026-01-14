@@ -2,18 +2,20 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useTestSession } from '@/contexts/TestSessionContext';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { KryptonIdCard } from '@/components/team/KryptonIdCard';
 import { AlertTab } from '@/components/alerts/AlertTab';
-import { CheckCircle, Clock, BarChart3, ExternalLink, Trash2, RotateCcw } from 'lucide-react';
-import { format } from 'date-fns';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { CheckCircle, Clock, BarChart3, ExternalLink, Trash2, RotateCcw, Download } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
 import { TaskStatus } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import * as XLSX from 'xlsx';
 
 interface Task {
   id: string;
@@ -36,7 +38,6 @@ interface TaskDoc {
 
 const MySpace = () => {
   const { user, profile, role, isLoading, isCaptainOrVice } = useAuth();
-  const { isTestMode } = useTestSession();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [inProgressTasks, setInProgressTasks] = useState<Task[]>([]);
@@ -45,6 +46,9 @@ const MySpace = () => {
   const [stats, setStats] = useState({ accepted: 0, completed: 0, missed: 0, avgTime: 0 });
   const [isFetching, setIsFetching] = useState(true);
   const [deleteConfirmTask, setDeleteConfirmTask] = useState<Task | null>(null);
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [fromDate, setFromDate] = useState<string>('');
+  const [toDate, setToDate] = useState<string>('');
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -142,8 +146,7 @@ const MySpace = () => {
         .insert({
           task_id: task.id,
           message: 'Your task was reset by leadership. Please accept and complete it again.',
-          created_by: user.id,
-          is_test: isTestMode
+          created_by: user.id
         });
 
       toast({ 
@@ -176,6 +179,57 @@ const MySpace = () => {
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error', description: error.message });
     }
+  };
+
+  // Export personal log
+  const handleExport = (exportFormat: 'csv' | 'xlsx') => {
+    let dataToExport = completedTasks;
+
+    // Apply date range filter if specified
+    if (fromDate || toDate) {
+      dataToExport = dataToExport.filter(task => {
+        const taskDate = task.completed_at ? new Date(task.completed_at) : null;
+        if (!taskDate) return false;
+        
+        if (fromDate && taskDate < parseISO(fromDate)) return false;
+        if (toDate && taskDate > parseISO(toDate + 'T23:59:59')) return false;
+        return true;
+      });
+    }
+
+    if (dataToExport.length === 0) {
+      toast({ variant: 'destructive', title: 'No Data', description: 'No tasks match the selected filters.' });
+      return;
+    }
+
+    const exportData = dataToExport.map(task => ({
+      'Date': task.completed_at ? format(new Date(task.completed_at), 'yyyy-MM-dd') : '-',
+      'Task': task.title,
+      'Assigned By': task.assigner_name ? `${task.assigner_name}${task.assigner_role ? ` (${task.assigner_role})` : ''}` : '-',
+      'Start Time': task.accepted_at ? format(new Date(task.accepted_at), 'HH:mm') : '-',
+      'End Time': task.completed_at ? format(new Date(task.completed_at), 'HH:mm') : '-',
+      'Duration (min)': task.duration_minutes || '-',
+      'Documentation URL': taskDocs.get(task.id) || '-'
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Personal Log');
+
+    const dateRange = fromDate && toDate 
+      ? `${fromDate}_to_${toDate}` 
+      : fromDate 
+        ? `from_${fromDate}` 
+        : toDate 
+          ? `to_${toDate}` 
+          : 'full_history';
+
+    const username = profile?.full_name?.replace(/\s+/g, '_') || 'user';
+    const filename = `Krypton_Log_${username}_${dateRange}.${exportFormat}`;
+    XLSX.writeFile(wb, filename);
+
+    toast({ title: 'Export Complete', description: `Downloaded ${filename}` });
+    setShowExportDialog(false);
   };
 
   if (isLoading || !user) {
@@ -304,9 +358,19 @@ const MySpace = () => {
             {/* Personal Log */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 font-display">
-                  <CheckCircle className="w-5 h-5 text-[hsl(var(--status-completed))]" />
-                  Personal Log
+                <CardTitle className="flex items-center justify-between font-display">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-5 h-5 text-[hsl(var(--status-completed))]" />
+                    Personal Log
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setShowExportDialog(true)}
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Export
+                  </Button>
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -429,6 +493,51 @@ const MySpace = () => {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Export Dialog */}
+      <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Export Personal Log</DialogTitle>
+            <DialogDescription>
+              Select date range and format for export.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>From Date</Label>
+                <Input 
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label>To Date</Label>
+                <Input 
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Leave dates empty to export full history
+            </p>
+            <div className="flex gap-2">
+              <Button onClick={() => handleExport('xlsx')} className="flex-1">
+                <Download className="w-4 h-4 mr-2" />
+                Export XLSX
+              </Button>
+              <Button onClick={() => handleExport('csv')} variant="outline" className="flex-1">
+                <Download className="w-4 h-4 mr-2" />
+                Export CSV
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

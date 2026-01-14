@@ -10,7 +10,7 @@ import { AlertTab } from '@/components/alerts/AlertTab';
 import { useSessionPersistence } from '@/hooks/useSessionPersistence';
 
 const Index = () => {
-  const { user, isLoading, isLeadership, isCaptainOrVice, role } = useAuth();
+  const { user, isLoading, isLeadership, isCaptainOrVice } = useAuth();
   const navigate = useNavigate();
   
   // Initialize session persistence
