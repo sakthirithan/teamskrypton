@@ -198,6 +198,36 @@ export type Database = {
         }
         Relationships: []
       }
+      task_alerts: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          is_read: boolean
+          is_test: boolean | null
+          message: string
+          task_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          is_read?: boolean
+          is_test?: boolean | null
+          message: string
+          task_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_read?: boolean
+          is_test?: boolean | null
+          message?: string
+          task_id?: string
+        }
+        Relationships: []
+      }
       task_documents: {
         Row: {
           description: string | null

@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useTestSession } from '@/contexts/TestSessionContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Clock, CheckCircle, Play, AlertCircle, Wifi, Edit2, Trash2, Calendar, Users, RotateCcw } from 'lucide-react';
+import { Clock, CheckCircle, Play, AlertCircle, Wifi, Edit2, Trash2, Calendar, Users, RotateCcw, Bell, MessageSquare } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format, formatDistanceToNow } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { ROLE_LABELS, KryptonRole } from '@/lib/constants';
+import { Badge } from '@/components/ui/badge';
 
 interface Task {
   id: string;
@@ -26,6 +27,14 @@ interface Task {
   created_at: string;
   assigner_name: string | null;
   assigner_role: string | null;
+  is_test?: boolean;
+}
+
+interface TaskAlert {
+  id: string;
+  message: string;
+  created_at: string;
+  is_read: boolean;
 }
 
 interface Member {
@@ -34,13 +43,14 @@ interface Member {
   role: KryptonRole | null;
 }
 
-type StatusFilter = 'all' | 'working' | 'pending';
+type StatusFilter = 'all' | 'idle' | 'working' | 'pending';
 
 export function TaskPanel() {
   const { user, isCaptainOrVice, isLeadership } = useAuth();
   const { isTestMode } = useTestSession();
   const { toast } = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [taskAlerts, setTaskAlerts] = useState<Map<string, TaskAlert[]>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -50,6 +60,8 @@ export function TaskPanel() {
     deadline: '',
     assignTo: ''
   });
+  const [alertForm, setAlertForm] = useState({ taskId: '', message: '' });
+  const [showAlertDialog, setShowAlertDialog] = useState(false);
   const [members, setMembers] = useState<Member[]>([]);
   const [deleteConfirmTask, setDeleteConfirmTask] = useState<Task | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -76,18 +88,49 @@ export function TaskPanel() {
   const fetchTasks = useCallback(async () => {
     if (!user) return;
     
-    const { data, error } = await supabase
+    let query = supabase
       .from('tasks')
       .select('*')
-      .eq('assigned_to', user.id)
       .in('status', ['idle', 'working', 'pending'])
       .order('deadline', { ascending: true });
 
+    // Leadership sees ALL tasks; normal users see only their own
+    if (!isLeadership) {
+      query = query.eq('assigned_to', user.id);
+    }
+
+    // Exclude test data for non-leadership
+    if (!isLeadership) {
+      query = query.eq('is_test', false);
+    }
+
+    const { data, error } = await query;
+
     if (!error && data) {
       setTasks(data);
+      
+      // Fetch alerts for these tasks
+      if (data.length > 0) {
+        const taskIds = data.map(t => t.id);
+        const { data: alertsData } = await supabase
+          .from('task_alerts')
+          .select('*')
+          .in('task_id', taskIds)
+          .order('created_at', { ascending: false });
+        
+        if (alertsData) {
+          const alertsMap = new Map<string, TaskAlert[]>();
+          alertsData.forEach(alert => {
+            const existing = alertsMap.get(alert.task_id) || [];
+            existing.push(alert);
+            alertsMap.set(alert.task_id, existing);
+          });
+          setTaskAlerts(alertsMap);
+        }
+      }
     }
     setIsLoading(false);
-  }, [user]);
+  }, [user, isLeadership]);
 
   useEffect(() => {
     fetchTasks();
@@ -105,10 +148,20 @@ export function TaskPanel() {
           event: '*',
           schema: 'public',
           table: 'tasks',
-          filter: `assigned_to=eq.${user.id}`,
         },
         (payload) => {
           console.log('Task change received:', payload);
+          fetchTasks();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'task_alerts',
+        },
+        () => {
           fetchTasks();
         }
       )
@@ -122,6 +175,13 @@ export function TaskPanel() {
   }, [user, fetchTasks]);
 
   const handleAccept = async (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    // Only assigned user can accept
+    if (task && task.assigned_to !== user?.id) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Only the assigned user can accept this task' });
+      return;
+    }
+
     const { error } = await supabase
       .from('tasks')
       .update({ status: 'working', accepted_at: new Date().toISOString() })
@@ -136,6 +196,13 @@ export function TaskPanel() {
   };
 
   const handleComplete = async (taskId: string, acceptedAt: string | null) => {
+    const task = tasks.find(t => t.id === taskId);
+    // Only assigned user can complete
+    if (task && task.assigned_to !== user?.id) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Only the assigned user can complete this task' });
+      return;
+    }
+
     const completedAt = new Date().toISOString();
     const duration = acceptedAt 
       ? Math.round((new Date(completedAt).getTime() - new Date(acceptedAt).getTime()) / 60000)
@@ -162,8 +229,8 @@ export function TaskPanel() {
       description: editForm.description || null 
     };
 
-    // Only TL/VC can change deadline and assignee
-    if (isCaptainOrVice) {
+    // Leadership can change deadline and assignee
+    if (isLeadership) {
       if (editForm.deadline) {
         updates.deadline = new Date(editForm.deadline).toISOString();
       }
@@ -186,8 +253,31 @@ export function TaskPanel() {
     }
   };
 
+  // Send alert message to task - Leadership only
+  const handleSendAlert = async () => {
+    if (!alertForm.taskId || !alertForm.message || !user) return;
+
+    const { error } = await supabase
+      .from('task_alerts')
+      .insert({
+        task_id: alertForm.taskId,
+        message: alertForm.message,
+        created_by: user.id,
+        is_test: isTestMode
+      });
+
+    if (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to send alert' });
+    } else {
+      toast({ title: 'Alert Sent', description: 'The assigned user has been notified' });
+      setAlertForm({ taskId: '', message: '' });
+      setShowAlertDialog(false);
+      fetchTasks();
+    }
+  };
+
+  // Delete task - TL/VC only (non-completed tasks are deleted)
   const handleDeleteTask = async (taskId: string) => {
-    // Only TL/VC can delete tasks - no log entry created
     const { error } = await supabase
       .from('tasks')
       .delete()
@@ -202,36 +292,35 @@ export function TaskPanel() {
     }
   };
 
-  // TL/VC can delete completed tasks - triggers reason flow
-  const handleDeleteCompletedTask = async (task: Task) => {
+  // Reset task to Idle - TL/VC can reset any task (from log or panel)
+  const handleResetTask = async (task: Task) => {
     if (!user) return;
     
     try {
-      // Move task back to user's Today's Task as "working" status
+      // Reset task to idle status - preserves timestamps for audit
       await supabase
         .from('tasks')
         .update({ 
-          status: 'working',
+          status: 'idle',
+          accepted_at: null,
           completed_at: null,
           duration_minutes: null
         })
         .eq('id', task.id);
 
-      // Create approval request for the user to provide reason
+      // Create alert to notify the assigned user
       await supabase
-        .from('approvals')
+        .from('task_alerts')
         .insert({
-          approval_type: 'task_deletion_reason',
-          target_task_id: task.id,
-          target_user_id: task.assigned_to,
-          initiated_by: user.id,
-          status: 'pending',
+          task_id: task.id,
+          message: 'Your task was reset by leadership. Please accept and complete it again.',
+          created_by: user.id,
           is_test: isTestMode
         });
 
       toast({ 
-        title: 'Completed Task Removed', 
-        description: 'Task restored to user\'s panel. They will be asked for a reason.' 
+        title: 'Task Reset', 
+        description: 'Task restored to Idle. User has been notified.' 
       });
       setDeleteConfirmTask(null);
       fetchTasks();
@@ -256,10 +345,11 @@ export function TaskPanel() {
   // Filter tasks by status
   const filteredTasks = tasks.filter(task => {
     if (statusFilter === 'all') return true;
-    if (statusFilter === 'working') return task.status === 'working' || task.status === 'idle';
-    if (statusFilter === 'pending') return task.status === 'pending';
-    return true;
+    return task.status === statusFilter;
   });
+
+  // Check if current user is the assigned user for a task
+  const isAssignedUser = (task: Task) => task.assigned_to === user?.id;
 
   if (isLoading) {
     return <Card><CardContent className="p-6 text-center text-muted-foreground">Loading tasks...</CardContent></Card>;
@@ -272,6 +362,7 @@ export function TaskPanel() {
           <div className="flex items-center gap-2">
             <Clock className="w-5 h-5" />
             Today's Tasks
+            {isLeadership && <Badge variant="secondary" className="ml-2 text-xs">All Tasks</Badge>}
             {isConnected && (
               <span title="Real-time connected">
                 <Wifi className="w-4 h-4 text-green-500" />
@@ -289,8 +380,11 @@ export function TaskPanel() {
             <ToggleGroupItem value="all" size="sm" className="text-xs px-3">
               All
             </ToggleGroupItem>
+            <ToggleGroupItem value="idle" size="sm" className="text-xs px-3">
+              Idle
+            </ToggleGroupItem>
             <ToggleGroupItem value="working" size="sm" className="text-xs px-3">
-              Active
+              Working
             </ToggleGroupItem>
             <ToggleGroupItem value="pending" size="sm" className="text-xs px-3">
               Pending
@@ -301,194 +395,274 @@ export function TaskPanel() {
       <CardContent>
         {filteredTasks.length === 0 ? (
           <p className="text-center text-muted-foreground py-8">
-            {statusFilter !== 'all' ? 'No tasks match the current filter' : 'No tasks assigned to you'}
+            {statusFilter !== 'all' ? 'No tasks match the current filter' : (isLeadership ? 'No active tasks' : 'No tasks assigned to you')}
           </p>
         ) : (
           <div className="space-y-4">
-            {filteredTasks.map((task) => (
-              <div key={task.id} className="p-4 rounded-lg border bg-card hover:shadow-card transition-shadow">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <h4 className="font-semibold">{task.title}</h4>
-                    {task.description && <p className="text-sm text-muted-foreground mt-1">{task.description}</p>}
-                    
-                    {/* Assigner Info */}
-                    {task.assigner_name && (
-                      <p className="text-xs text-muted-foreground mt-2">
-                        <span className="font-medium">Assigned By:</span> {task.assigner_name}
-                        {task.assigner_role && ` (${task.assigner_role})`}
+            {filteredTasks.map((task) => {
+              const alerts = taskAlerts.get(task.id) || [];
+              const unreadAlerts = alerts.filter(a => !a.is_read);
+              
+              return (
+                <div key={task.id} className="p-4 rounded-lg border bg-card hover:shadow-card transition-shadow">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-semibold">{task.title}</h4>
+                        {unreadAlerts.length > 0 && (
+                          <Badge variant="destructive" className="text-xs">
+                            <Bell className="w-3 h-3 mr-1" />
+                            {unreadAlerts.length}
+                          </Badge>
+                        )}
+                        {task.is_test && isLeadership && (
+                          <Badge variant="outline" className="text-xs">Test</Badge>
+                        )}
+                      </div>
+                      {task.description && <p className="text-sm text-muted-foreground mt-1">{task.description}</p>}
+                      
+                      {/* Show alerts if any */}
+                      {unreadAlerts.length > 0 && (
+                        <div className="mt-2 p-2 rounded bg-destructive/10 border border-destructive/20">
+                          <p className="text-xs font-medium text-destructive mb-1">Leadership Alert:</p>
+                          <p className="text-sm">{unreadAlerts[0].message}</p>
+                        </div>
+                      )}
+                      
+                      {/* Assigned To Info - visible for leadership */}
+                      {isLeadership && (
+                        <p className="text-xs text-muted-foreground mt-2">
+                          <span className="font-medium">Assigned To:</span> {getMemberName(task.assigned_to)}
+                        </p>
+                      )}
+                      
+                      {/* Assigner Info */}
+                      {task.assigner_name && (
+                        <p className="text-xs text-muted-foreground">
+                          <span className="font-medium">Assigned By:</span> {task.assigner_name}
+                          {task.assigner_role && ` (${task.assigner_role})`}
+                        </p>
+                      )}
+
+                      {/* Assigned Date */}
+                      <p className="text-xs text-muted-foreground">
+                        <span className="font-medium">Assigned:</span> {format(new Date(task.created_at), 'MMM dd, yyyy HH:mm')}
                       </p>
-                    )}
 
-                    {/* Assigned Date */}
-                    <p className="text-xs text-muted-foreground">
-                      <span className="font-medium">Assigned:</span> {format(new Date(task.created_at), 'MMM dd, yyyy HH:mm')}
-                    </p>
+                      {/* Deadline */}
+                      <p className="text-xs text-muted-foreground">
+                        <span className="font-medium">Deadline:</span> {format(new Date(task.deadline), 'MMM dd, yyyy HH:mm')}
+                      </p>
+                      
+                      <div className="flex items-center gap-3 mt-2 text-sm">
+                        <span className={getStatusClass(task.status)}>{task.status}</span>
+                        <span className="flex items-center gap-1 text-muted-foreground">
+                          <AlertCircle className="w-3 h-3" />
+                          {formatDistanceToNow(new Date(task.deadline), { addSuffix: true })}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 flex-wrap justify-end">
+                      {/* Leadership can edit tasks */}
+                      {isLeadership && (
+                        <>
+                          {/* Edit Button */}
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button 
+                                size="sm" 
+                                variant="ghost"
+                                onClick={() => {
+                                  setEditingTask(task);
+                                  setEditForm({ 
+                                    title: task.title, 
+                                    description: task.description || '',
+                                    deadline: task.deadline ? format(new Date(task.deadline), "yyyy-MM-dd'T'HH:mm") : '',
+                                    assignTo: task.assigned_to
+                                  });
+                                }}
+                                title="Edit Task"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Edit Task</DialogTitle>
+                              </DialogHeader>
+                              <div className="space-y-4 pt-4">
+                                <div>
+                                  <Label>Title</Label>
+                                  <Input 
+                                    value={editForm.title}
+                                    onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                                  />
+                                </div>
+                                <div>
+                                  <Label>Description</Label>
+                                  <Textarea 
+                                    value={editForm.description}
+                                    onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                                    rows={3}
+                                  />
+                                </div>
+                                <div>
+                                  <Label className="flex items-center gap-1">
+                                    <Calendar className="w-4 h-4" /> Deadline
+                                  </Label>
+                                  <Input 
+                                    type="datetime-local"
+                                    value={editForm.deadline}
+                                    onChange={(e) => setEditForm({ ...editForm, deadline: e.target.value })}
+                                  />
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    Note: Start/End times are system-controlled
+                                  </p>
+                                </div>
+                                <div>
+                                  <Label className="flex items-center gap-1">
+                                    <Users className="w-4 h-4" /> Assigned To
+                                  </Label>
+                                  <select
+                                    value={editForm.assignTo}
+                                    onChange={(e) => setEditForm({ ...editForm, assignTo: e.target.value })}
+                                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                                  >
+                                    {members.map((m) => (
+                                      <option key={m.user_id} value={m.user_id}>
+                                        {m.full_name} {m.role && `(${ROLE_LABELS[m.role]})`}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <Button onClick={handleEditTask} className="w-full">
+                                  Save Changes
+                                </Button>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
 
-                    {/* Deadline */}
-                    <p className="text-xs text-muted-foreground">
-                      <span className="font-medium">Deadline:</span> {format(new Date(task.deadline), 'MMM dd, yyyy HH:mm')}
-                    </p>
-                    
-                    <div className="flex items-center gap-3 mt-2 text-sm">
-                      <span className={getStatusClass(task.status)}>{task.status}</span>
-                      <span className="flex items-center gap-1 text-muted-foreground">
-                        <AlertCircle className="w-3 h-3" />
-                        {formatDistanceToNow(new Date(task.deadline), { addSuffix: true })}
-                      </span>
+                          {/* Alert Button */}
+                          <Dialog open={showAlertDialog && alertForm.taskId === task.id} onOpenChange={(open) => {
+                            setShowAlertDialog(open);
+                            if (open) setAlertForm({ taskId: task.id, message: '' });
+                          }}>
+                            <DialogTrigger asChild>
+                              <Button 
+                                size="sm" 
+                                variant="ghost"
+                                className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                onClick={() => setAlertForm({ taskId: task.id, message: '' })}
+                                title="Send Alert"
+                              >
+                                <MessageSquare className="w-4 h-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Send Alert to Assigned User</DialogTitle>
+                                <DialogDescription>
+                                  This alert will be visible to {getMemberName(task.assigned_to)} on this task.
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="space-y-4 pt-4">
+                                <div>
+                                  <Label>Alert Message</Label>
+                                  <Textarea 
+                                    value={alertForm.message}
+                                    onChange={(e) => setAlertForm({ ...alertForm, message: e.target.value })}
+                                    placeholder="Enter your alert message..."
+                                    rows={3}
+                                  />
+                                </div>
+                                <Button onClick={handleSendAlert} className="w-full" disabled={!alertForm.message}>
+                                  Send Alert
+                                </Button>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+
+                          {/* Delete/Reset Button - TL/VC ONLY */}
+                          {isCaptainOrVice && (
+                            <Dialog open={deleteConfirmTask?.id === task.id} onOpenChange={(open) => !open && setDeleteConfirmTask(null)}>
+                              <DialogTrigger asChild>
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost"
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  onClick={() => setDeleteConfirmTask(task)}
+                                  title="Delete/Reset Task"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent>
+                                <DialogHeader>
+                                  <DialogTitle>Task Action</DialogTitle>
+                                  <DialogDescription>
+                                    Choose an action for this task.
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <div className="space-y-4 pt-4">
+                                  <div className="p-3 rounded bg-muted">
+                                    <p className="font-medium">{task.title}</p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      Assigned to: {getMemberName(task.assigned_to)}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      Status: {task.status}
+                                    </p>
+                                  </div>
+                                  <div className="flex flex-col gap-2">
+                                    <Button 
+                                      variant="outline"
+                                      onClick={() => handleResetTask(task)}
+                                      className="w-full"
+                                    >
+                                      <RotateCcw className="w-4 h-4 mr-2" />
+                                      Reset to Idle (User Notified)
+                                    </Button>
+                                    <Button 
+                                      variant="destructive" 
+                                      onClick={() => handleDeleteTask(task.id)}
+                                      className="w-full"
+                                    >
+                                      <Trash2 className="w-4 h-4 mr-2" />
+                                      Delete Permanently
+                                    </Button>
+                                    <Button 
+                                      variant="ghost"
+                                      onClick={() => setDeleteConfirmTask(null)}
+                                      className="w-full"
+                                    >
+                                      Cancel
+                                    </Button>
+                                  </div>
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+                          )}
+                        </>
+                      )}
+                      
+                      {/* Accept button - only for assigned user when idle */}
+                      {task.status === 'idle' && isAssignedUser(task) && (
+                        <Button size="sm" onClick={() => handleAccept(task.id)}>
+                          <Play className="w-4 h-4 mr-1" /> Accept
+                        </Button>
+                      )}
+                      
+                      {/* Complete button - only for assigned user when working */}
+                      {task.status === 'working' && isAssignedUser(task) && (
+                        <Button size="sm" variant="secondary" onClick={() => handleComplete(task.id, task.accepted_at)}>
+                          <CheckCircle className="w-4 h-4 mr-1" /> Complete
+                        </Button>
+                      )}
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    {/* TL & VC can edit task details including deadline and assignees */}
-                    {isCaptainOrVice && (
-                      <>
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button 
-                              size="sm" 
-                              variant="ghost"
-                              onClick={() => {
-                                setEditingTask(task);
-                                setEditForm({ 
-                                  title: task.title, 
-                                  description: task.description || '',
-                                  deadline: task.deadline ? format(new Date(task.deadline), "yyyy-MM-dd'T'HH:mm") : '',
-                                  assignTo: task.assigned_to
-                                });
-                              }}
-                              title="Edit Task"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Edit Task (TL/VC Override)</DialogTitle>
-                            </DialogHeader>
-                            <div className="space-y-4 pt-4">
-                              <div>
-                                <Label>Title</Label>
-                                <Input 
-                                  value={editForm.title}
-                                  onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                                />
-                              </div>
-                              <div>
-                                <Label>Description</Label>
-                                <Textarea 
-                                  value={editForm.description}
-                                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                                  rows={3}
-                                />
-                              </div>
-                              <div>
-                                <Label className="flex items-center gap-1">
-                                  <Calendar className="w-4 h-4" /> Deadline
-                                </Label>
-                                <Input 
-                                  type="datetime-local"
-                                  value={editForm.deadline}
-                                  onChange={(e) => setEditForm({ ...editForm, deadline: e.target.value })}
-                                />
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Note: Start/End times are system-controlled
-                                </p>
-                              </div>
-                              <div>
-                                <Label className="flex items-center gap-1">
-                                  <Users className="w-4 h-4" /> Assigned To
-                                </Label>
-                                <select
-                                  value={editForm.assignTo}
-                                  onChange={(e) => setEditForm({ ...editForm, assignTo: e.target.value })}
-                                  className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
-                                >
-                                  {members.map((m) => (
-                                    <option key={m.user_id} value={m.user_id}>
-                                      {m.full_name} {m.role && `(${ROLE_LABELS[m.role]})`}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                              <Button onClick={handleEditTask} className="w-full">
-                                Save Changes
-                              </Button>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
-
-                        {/* Delete button for TL/VC */}
-                        <Dialog open={deleteConfirmTask?.id === task.id} onOpenChange={(open) => !open && setDeleteConfirmTask(null)}>
-                          <DialogTrigger asChild>
-                            <Button 
-                              size="sm" 
-                              variant="ghost"
-                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                              onClick={() => setDeleteConfirmTask(task)}
-                              title="Delete Task"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Delete Task</DialogTitle>
-                              <DialogDescription>
-                                {task.status === 'completed' 
-                                  ? 'This will restore the task to the user\'s panel and request a reason.' 
-                                  : 'This action cannot be undone.'}
-                              </DialogDescription>
-                            </DialogHeader>
-                            <div className="space-y-4 pt-4">
-                              <div className="p-3 rounded bg-muted">
-                                <p className="font-medium">{task.title}</p>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Assigned to: {getMemberName(task.assigned_to)}
-                                </p>
-                              </div>
-                              <div className="flex gap-2">
-                                <Button 
-                                  variant="outline" 
-                                  className="flex-1"
-                                  onClick={() => setDeleteConfirmTask(null)}
-                                >
-                                  Cancel
-                                </Button>
-                                <Button 
-                                  variant="destructive" 
-                                  className="flex-1"
-                                  onClick={() => task.status === 'completed' 
-                                    ? handleDeleteCompletedTask(task) 
-                                    : handleDeleteTask(task.id)}
-                                >
-                                  {task.status === 'completed' ? (
-                                    <>
-                                      <RotateCcw className="w-4 h-4 mr-1" />
-                                      Remove & Restore
-                                    </>
-                                  ) : 'Delete'}
-                                </Button>
-                              </div>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
-                      </>
-                    )}
-                    
-                    {task.status === 'idle' && (
-                      <Button size="sm" onClick={() => handleAccept(task.id)}>
-                        <Play className="w-4 h-4 mr-1" /> Accept
-                      </Button>
-                    )}
-                    {task.status === 'working' && (
-                      <Button size="sm" variant="secondary" onClick={() => handleComplete(task.id, task.accepted_at)}>
-                        <CheckCircle className="w-4 h-4 mr-1" /> Complete
-                      </Button>
-                    )}
-                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </CardContent>
