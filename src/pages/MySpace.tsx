@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -11,10 +11,12 @@ import { Label } from '@/components/ui/label';
 import { KryptonIdCard } from '@/components/team/KryptonIdCard';
 import { AlertTab } from '@/components/alerts/AlertTab';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { CheckCircle, Clock, BarChart3, ExternalLink, Trash2, RotateCcw, Download } from 'lucide-react';
+import { CheckCircle, Clock, BarChart3, ExternalLink, Trash2, RotateCcw, Download, AlertCircle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { TaskStatus } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
+import { RefreshButton } from '@/components/ui/RefreshButton';
+import { validateExportDateRange, getTodayString } from '@/lib/exportValidation';
 import * as XLSX from 'xlsx';
 
 interface Task {
@@ -45,11 +47,25 @@ const MySpace = () => {
   const [taskDocs, setTaskDocs] = useState<Map<string, string>>(new Map());
   const [stats, setStats] = useState({ accepted: 0, completed: 0, missed: 0, avgTime: 0 });
   const [isFetching, setIsFetching] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [deleteConfirmTask, setDeleteConfirmTask] = useState<Task | null>(null);
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [fromDate, setFromDate] = useState<string>('');
   const [toDate, setToDate] = useState<string>('');
+  const [exportError, setExportError] = useState<string | null>(null);
   const [manualStatusOverride, setManualStatusOverride] = useState(false);
+  const lastRefreshRef = useRef<number>(0);
+
+  const handleManualRefresh = useCallback(async () => {
+    const now = Date.now();
+    if (now - lastRefreshRef.current < 1000) return;
+    lastRefreshRef.current = now;
+    
+    setIsRefreshing(true);
+    await fetchData();
+    setIsRefreshing(false);
+    toast({ title: 'Data refreshed' });
+  }, []);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -182,8 +198,15 @@ const MySpace = () => {
     }
   };
 
-  // Export personal log
+  // Export personal log with validation
   const handleExport = (exportFormat: 'csv' | 'xlsx') => {
+    const validation = validateExportDateRange(fromDate, toDate);
+    if (!validation.isValid) {
+      setExportError(validation.error);
+      return;
+    }
+    setExportError(null);
+
     let dataToExport = completedTasks;
 
     // Apply date range filter if specified
@@ -320,6 +343,7 @@ const MySpace = () => {
                 <CardTitle className="flex items-center gap-2 font-display">
                   <Clock className="w-5 h-5 text-[hsl(var(--status-working))]" />
                   In Progress
+                  <RefreshButton onClick={handleManualRefresh} isRefreshing={isRefreshing} />
                 </CardTitle>
               </CardHeader>
               <CardContent>

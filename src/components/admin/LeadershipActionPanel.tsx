@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,9 +14,11 @@ import {
   RefreshCw,
   Bell,
   Shield,
-  Activity
+  Activity,
+  RotateCcw
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, addHours, isBefore } from 'date-fns';
+import { RefreshButton } from '@/components/ui/RefreshButton';
 
 interface TeamStats {
   totalMembers: number;
@@ -25,6 +27,22 @@ interface TeamStats {
   pendingTasks: number;
   workingNow: number;
   idleTasks: number;
+}
+
+interface ActiveUser {
+  user_id: string;
+  full_name: string;
+  status: 'working' | 'pending' | 'idle';
+  task_title?: string;
+}
+
+interface DeadlineRiskTask {
+  id: string;
+  title: string;
+  assigned_to: string;
+  assigned_to_name: string;
+  deadline: string;
+  status: string;
 }
 
 interface RecentActivity {
@@ -46,9 +64,12 @@ export function LeadershipActionPanel() {
     workingNow: 0,
     idleTasks: 0
   });
+  const [activeUsers, setActiveUsers] = useState<ActiveUser[]>([]);
+  const [deadlineRisks, setDeadlineRisks] = useState<DeadlineRiskTask[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const lastRefreshRef = useRef<number>(0);
 
   const fetchStats = useCallback(async () => {
     if (!user) return;
@@ -63,8 +84,16 @@ export function LeadershipActionPanel() {
       // Fetch all tasks
       const { data: tasks } = await supabase
         .from('tasks')
-        .select('status, completed_at')
+        .select('id, title, status, completed_at, deadline, assigned_to')
         .eq('is_test', false);
+
+      // Fetch profiles for names
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, full_name')
+        .eq('is_test', false);
+
+      const nameMap = new Map(profiles?.map(p => [p.user_id, p.full_name]) || []);
 
       // Calculate stats
       const today = new Date();
@@ -90,6 +119,36 @@ export function LeadershipActionPanel() {
         idleTasks
       });
 
+      // Build active users snapshot
+      const userStatusMap = new Map<string, ActiveUser>();
+      tasks?.forEach(task => {
+        if (task.status === 'working' || task.status === 'pending') {
+          const existing = userStatusMap.get(task.assigned_to);
+          // Working takes priority over pending in display
+          if (!existing || task.status === 'working') {
+            userStatusMap.set(task.assigned_to, {
+              user_id: task.assigned_to,
+              full_name: nameMap.get(task.assigned_to) || 'Unknown',
+              status: task.status as 'working' | 'pending',
+              task_title: task.title
+            });
+          }
+        }
+      });
+      setActiveUsers(Array.from(userStatusMap.values()));
+
+      // Deadline risk - tasks approaching deadline in next 24 hours
+      const in24Hours = addHours(new Date(), 24);
+      const riskyTasks = tasks?.filter(t => {
+        if (t.status === 'completed' || t.status === 'pending') return false;
+        const deadline = new Date(t.deadline);
+        return isBefore(deadline, in24Hours) && isBefore(new Date(), deadline);
+      }).map(t => ({
+        ...t,
+        assigned_to_name: nameMap.get(t.assigned_to) || 'Unknown'
+      })) || [];
+      setDeadlineRisks(riskyTasks);
+
       // Fetch recent workflow activity
       const { data: activityData } = await supabase
         .from('workflow_log')
@@ -101,12 +160,6 @@ export function LeadershipActionPanel() {
       if (activityData) {
         // Enrich with names
         const enriched = await Promise.all(activityData.map(async (log) => {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('full_name')
-            .eq('user_id', log.user_id)
-            .maybeSingle();
-
           const { data: task } = await supabase
             .from('tasks')
             .select('title')
@@ -116,7 +169,7 @@ export function LeadershipActionPanel() {
           return {
             id: log.id,
             action: log.action,
-            user_name: profile?.full_name || 'Unknown',
+            user_name: nameMap.get(log.user_id) || 'Unknown',
             task_title: task?.title || 'Unknown Task',
             created_at: log.created_at
           };
@@ -159,15 +212,19 @@ export function LeadershipActionPanel() {
     };
   }, [fetchStats]);
 
-  const handleRefresh = async () => {
+  const handleGlobalRefresh = async () => {
+    const now = Date.now();
+    if (now - lastRefreshRef.current < 1000) return;
+    lastRefreshRef.current = now;
+    
     setIsRefreshing(true);
     await fetchStats();
     setIsRefreshing(false);
-    toast({ title: 'Dashboard Refreshed' });
+    toast({ title: 'Command Center Refreshed', description: 'All data updated' });
   };
 
   // Push all pending tasks alert
-  const handleBroadcastReminder = async () => {
+  const handlePushPending = async () => {
     if (!user) return;
 
     const { data: pendingTasks } = await supabase
@@ -202,27 +259,31 @@ export function LeadershipActionPanel() {
     }
   };
 
-  // Reset all idle tasks older than 24 hours
-  const handleCleanupIdleTasks = async () => {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    const { data: oldIdleTasks } = await supabase
-      .from('tasks')
-      .select('id, title')
-      .eq('status', 'idle')
-      .eq('is_test', false)
-      .lt('created_at', yesterday.toISOString());
-
-    if (!oldIdleTasks || oldIdleTasks.length === 0) {
-      toast({ title: 'No Stale Tasks', description: 'All idle tasks are recent.' });
+  // Push alerts to deadline risks
+  const handlePushAlerts = async () => {
+    if (!user || deadlineRisks.length === 0) {
+      toast({ title: 'No Deadline Risks', description: 'No tasks approaching deadline' });
       return;
     }
 
-    toast({ 
-      title: 'Stale Tasks Found', 
-      description: `${oldIdleTasks.length} tasks idle for 24+ hours. Review in Today's Task panel.`
-    });
+    const alerts = deadlineRisks.map(task => ({
+      task_id: task.id,
+      message: '⏰ Deadline approaching! Please complete your task soon.',
+      created_by: user.id
+    }));
+
+    const { error } = await supabase
+      .from('task_alerts')
+      .insert(alerts);
+
+    if (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to send deadline alerts' });
+    } else {
+      toast({ 
+        title: 'Deadline Alerts Sent', 
+        description: `Notified ${deadlineRisks.length} users` 
+      });
+    }
   };
 
   if (isLoading) {
@@ -248,14 +309,7 @@ export function LeadershipActionPanel() {
               </span>
             )}
           </div>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-          >
-            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-          </Button>
+          <RefreshButton onClick={handleGlobalRefresh} isRefreshing={isRefreshing} />
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -303,6 +357,44 @@ export function LeadershipActionPanel() {
           </div>
         </div>
 
+        {/* Active Users Snapshot */}
+        {activeUsers.length > 0 && (
+          <div className="space-y-2 pt-2 border-t">
+            <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+              <Users className="w-3 h-3" /> Active Users ({activeUsers.length})
+            </p>
+            <div className="max-h-24 overflow-y-auto space-y-1">
+              {activeUsers.map((au) => (
+                <div key={au.user_id} className="flex items-center justify-between text-xs p-1.5 rounded bg-muted/30">
+                  <span className="font-medium truncate flex-1">{au.full_name}</span>
+                  <span className={`${au.status === 'working' ? 'status-badge status-working' : 'status-badge status-pending'}`}>
+                    {au.status === 'working' ? 'Working' : 'Pending'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Deadline Risk List */}
+        {deadlineRisks.length > 0 && (
+          <div className="space-y-2 pt-2 border-t">
+            <p className="text-xs font-medium text-destructive flex items-center gap-1">
+              <AlertTriangle className="w-3 h-3" /> Deadline Risks ({deadlineRisks.length})
+            </p>
+            <div className="max-h-24 overflow-y-auto space-y-1">
+              {deadlineRisks.map((task) => (
+                <div key={task.id} className="text-xs p-1.5 rounded bg-destructive/10 border border-destructive/20">
+                  <p className="font-medium truncate">{task.title}</p>
+                  <p className="text-muted-foreground">
+                    {task.assigned_to_name} • Due {format(new Date(task.deadline), 'HH:mm')}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Quick Actions - TL/VC Only */}
         {isCaptainOrVice && (
           <div className="space-y-2 pt-2 border-t">
@@ -314,19 +406,31 @@ export function LeadershipActionPanel() {
                 variant="outline" 
                 size="sm" 
                 className="h-auto py-2 flex-col"
-                onClick={handleBroadcastReminder}
+                onClick={handlePushPending}
+                disabled={stats.pendingTasks === 0}
               >
                 <Bell className="w-4 h-4 mb-1" />
-                <span className="text-[10px]">Remind Pending</span>
+                <span className="text-[10px]">Push Pending</span>
               </Button>
               <Button 
                 variant="outline" 
                 size="sm" 
                 className="h-auto py-2 flex-col"
-                onClick={handleCleanupIdleTasks}
+                onClick={handlePushAlerts}
+                disabled={deadlineRisks.length === 0}
               >
-                <RefreshCw className="w-4 h-4 mb-1" />
-                <span className="text-[10px]">Check Stale</span>
+                <AlertTriangle className="w-4 h-4 mb-1" />
+                <span className="text-[10px]">Push Alerts</span>
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-auto py-2 flex-col col-span-2"
+                onClick={handleGlobalRefresh}
+                disabled={isRefreshing}
+              >
+                <RefreshCw className={`w-4 h-4 mb-1 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <span className="text-[10px]">Force Refresh All</span>
               </Button>
             </div>
           </div>
