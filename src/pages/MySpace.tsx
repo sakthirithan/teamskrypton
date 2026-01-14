@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -10,10 +10,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { KryptonIdCard } from '@/components/team/KryptonIdCard';
 import { AlertTab } from '@/components/alerts/AlertTab';
+import { LeadershipDashboard } from '@/components/dashboard/LeadershipDashboard';
+import { TeamOverviewWidget } from '@/components/dashboard/TeamOverviewWidget';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { CheckCircle, Clock, BarChart3, ExternalLink, Trash2, RotateCcw, Download } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-import { TaskStatus } from '@/lib/constants';
+import { TaskStatus, KryptonRole } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
 import { RefreshButton } from '@/components/ui/RefreshIconButton';
 import { validateExportDateRange } from '@/lib/exportValidation';
@@ -34,12 +36,20 @@ interface Task {
 }
 
 
+interface TeamMember {
+  user_id: string;
+  full_name: string;
+  role: KryptonRole | null;
+}
+
 const MySpace = () => {
-  const { user, profile, role, isLoading, isCaptainOrVice } = useAuth();
+  const { user, profile, role, isLoading, isCaptainOrVice, isLeadership } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [inProgressTasks, setInProgressTasks] = useState<Task[]>([]);
   const [completedTasks, setCompletedTasks] = useState<Task[]>([]);
+  const [allTasks, setAllTasks] = useState<Task[]>([]); // For leadership dashboard
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]); // For leadership widgets
   const [taskDocs, setTaskDocs] = useState<Map<string, string>>(new Map());
   const [stats, setStats] = useState({ accepted: 0, completed: 0, missed: 0, avgTime: 0 });
   const [, setIsFetching] = useState(true);
@@ -69,11 +79,11 @@ const MySpace = () => {
     }
   }, [user, isLoading, navigate]);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!user) return;
 
-    // Fetch all tasks assigned to user
-    const { data: tasks } = await supabase
+    // Fetch user's own tasks
+    const { data: userTasks } = await supabase
       .from('tasks')
       .select('*')
       .eq('assigned_to', user.id)
@@ -89,21 +99,21 @@ const MySpace = () => {
       setTaskDocs(new Map(docs.map(d => [d.task_id, d.github_url])));
     }
 
-    if (tasks) {
+    if (userTasks) {
       const now = new Date();
       
       // In Progress (working status)
-      const inProgress = tasks.filter(t => t.status === 'working');
+      const inProgress = userTasks.filter(t => t.status === 'working');
       setInProgressTasks(inProgress);
 
       // Completed
-      const completed = tasks.filter(t => t.status === 'completed');
+      const completed = userTasks.filter(t => t.status === 'completed');
       setCompletedTasks(completed);
 
       // Stats
-      const accepted = tasks.filter(t => t.accepted_at).length;
+      const accepted = userTasks.filter(t => t.accepted_at).length;
       const completedCount = completed.length;
-      const missed = tasks.filter(t => 
+      const missed = userTasks.filter(t => 
         t.status === 'pending' || 
         (t.status !== 'completed' && new Date(t.deadline) <= now)
       ).length;
@@ -112,12 +122,36 @@ const MySpace = () => {
 
       setStats({ accepted, completed: completedCount, missed, avgTime });
     }
+
+    // Leadership-only data: fetch all tasks and team members
+    if (isLeadership) {
+      const [allTasksRes, profilesRes, rolesRes] = await Promise.all([
+        supabase.from('tasks').select('*').order('created_at', { ascending: false }),
+        supabase.from('profiles').select('user_id, full_name'),
+        supabase.from('user_roles').select('user_id, role')
+      ]);
+
+      if (allTasksRes.data) {
+        setAllTasks(allTasksRes.data);
+      }
+
+      if (profilesRes.data && rolesRes.data) {
+        const roleMap = new Map(rolesRes.data.map(r => [r.user_id, r.role as KryptonRole]));
+        const members = profilesRes.data.map(p => ({
+          user_id: p.user_id,
+          full_name: p.full_name,
+          role: roleMap.get(p.user_id) || null
+        }));
+        setTeamMembers(members);
+      }
+    }
+
     setIsFetching(false);
-  };
+  }, [user, isLeadership]);
 
   useEffect(() => {
     fetchData();
-  }, [user]);
+  }, [fetchData]);
 
   // Complete task from In Progress
   const handleComplete = async (task: Task) => {
@@ -330,6 +364,25 @@ const MySpace = () => {
 
           {/* Main Content */}
           <div className="lg:col-span-3 space-y-6">
+            {/* Leadership Dashboard - TL/VC Only */}
+            {isCaptainOrVice && (
+              <LeadershipDashboard 
+                tasks={allTasks} 
+                members={teamMembers} 
+              />
+            )}
+
+            {/* Team Overview Widget - TL/VC Only */}
+            {isCaptainOrVice && teamMembers.length > 0 && (
+              <TeamOverviewWidget 
+                members={teamMembers}
+                workingTasks={allTasks
+                  .filter(t => t.status === 'working')
+                  .map(t => ({ assigned_to: t.assigned_to, title: t.title }))
+                }
+              />
+            )}
+
             {/* Alerts Panel */}
             <AlertTab />
 
