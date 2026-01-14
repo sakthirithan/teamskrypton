@@ -11,7 +11,7 @@ import { CheckCircle, BarChart3, ArrowLeft, Clock, AlertTriangle, ExternalLink }
 import { format } from 'date-fns';
 import { KryptonRole, TaskStatus } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
-import { RefreshButton } from '@/components/ui/RefreshButton';
+import { RefreshButton } from '@/components/ui/RefreshIconButton';
 
 interface MemberData {
   profile: {

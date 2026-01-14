@@ -12,7 +12,7 @@ import { KryptonRole, TaskStatus, LEADERSHIP_ROLES } from '@/lib/constants';
 import { Users, Download, Search, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
-import { RefreshButton } from '@/components/ui/RefreshButton';
+import { RefreshButton } from '@/components/ui/RefreshIconButton';
 import { validateExportDateRange, getTodayString } from '@/lib/exportValidation';
 import * as XLSX from 'xlsx';
 

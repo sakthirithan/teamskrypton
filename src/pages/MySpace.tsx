@@ -15,7 +15,7 @@ import { CheckCircle, Clock, BarChart3, ExternalLink, Trash2, RotateCcw, Downloa
 import { format, parseISO } from 'date-fns';
 import { TaskStatus } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
-import { RefreshButton } from '@/components/ui/RefreshButton';
+import { RefreshButton } from '@/components/ui/RefreshIconButton';
 import { validateExportDateRange } from '@/lib/exportValidation';
 import * as XLSX from 'xlsx';
 

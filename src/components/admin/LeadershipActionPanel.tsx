@@ -17,7 +17,7 @@ import {
   Activity
 } from 'lucide-react';
 import { format, addHours, isBefore } from 'date-fns';
-import { RefreshButton } from '@/components/ui/RefreshButton';
+import { RefreshButton } from '@/components/ui/RefreshIconButton';
 
 interface TeamStats {
   totalMembers: number;
