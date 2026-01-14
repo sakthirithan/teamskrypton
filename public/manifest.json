@@ -1,7 +1,7 @@
 {
-  "name": "Krypton Space",
+  "name": "Teams Krypton",
   "short_name": "Krypton",
-  "description": "Teams Krypton - Collab Platform. Where Work Becomes Visible.",
+  "description": "Teams Krypton - Where Work Becomes Visible.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",

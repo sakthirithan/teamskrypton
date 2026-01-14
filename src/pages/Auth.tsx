@@ -29,7 +29,7 @@ const Auth = () => {
       <div className="krypton-gradient py-8">
         <div className="container mx-auto px-6 text-center">
           <h1 className="text-3xl md:text-4xl font-display font-bold text-primary-foreground mb-2">
-            Krypton Space
+            Teams Krypton
           </h1>
           <p className="text-primary-foreground/80">
             Where Work Becomes Visible

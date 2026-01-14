@@ -78,14 +78,14 @@ export function Header() {
         if (choiceResult.outcome === 'accepted') {
           toast({
             title: "Installing App",
-            description: "Krypton Space is being installed on your device.",
+            description: "Teams Krypton is being installed on your device.",
           });
         }
         (window as any).deferredPrompt = null;
       });
     } else {
       toast({
-        title: "Install Krypton Space",
+        title: "Install Teams Krypton",
         description: "Use your browser's menu to 'Add to Home Screen' or 'Install App'.",
       });
     }
@@ -120,7 +120,7 @@ export function Header() {
                 className="text-2xl font-display font-bold tracking-tight cursor-pointer"
                 onClick={() => navigate('/')}
               >
-                Krypton Space
+                Teams Krypton
               </h1>
               <p className="text-sm opacity-80">Where Work Becomes Visible</p>
             </div>
