@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -10,6 +10,8 @@ import { KryptonIdCard } from '@/components/team/KryptonIdCard';
 import { CheckCircle, BarChart3, ArrowLeft, Clock, AlertTriangle, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import { KryptonRole, TaskStatus } from '@/lib/constants';
+import { useToast } from '@/hooks/use-toast';
+import { RefreshButton } from '@/components/ui/RefreshButton';
 
 interface MemberData {
   profile: {
@@ -49,6 +51,7 @@ interface Approval {
 const MemberProfile = () => {
   const { userId } = useParams<{ userId: string }>();
   const { user, isLoading, isLeadership } = useAuth();
+  const { toast } = useToast();
   const navigate = useNavigate();
   const [member, setMember] = useState<MemberData | null>(null);
   const [inProgressTasks, setInProgressTasks] = useState<Task[]>([]);
@@ -58,6 +61,125 @@ const MemberProfile = () => {
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [stats, setStats] = useState({ accepted: 0, completed: 0, missed: 0, avgTime: 0 });
   const [isFetching, setIsFetching] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const lastRefreshRef = useRef<number>(0);
+
+  const fetchMember = useCallback(async () => {
+    if (!userId) return;
+
+    // Fetch profile
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    // Fetch role
+    const { data: roleData } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .single();
+
+    // Fetch all tasks assigned to member
+    const { data: tasks } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('assigned_to', userId)
+      .order('created_at', { ascending: false });
+
+    // Fetch task documents
+    const { data: docs } = await supabase
+      .from('task_documents')
+      .select('task_id, github_url')
+      .eq('user_id', userId);
+
+    // Fetch pending approvals for this member's tasks
+    const { data: approvalsData } = await supabase
+      .from('approvals')
+      .select('*')
+      .eq('target_user_id', userId)
+      .eq('approval_type', 'task_reason')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+
+    if (docs) {
+      setTaskDocs(new Map(docs.map(d => [d.task_id, d.github_url])));
+    }
+
+    if (profile) {
+      setMember({
+        profile: {
+          user_id: profile.user_id,
+          full_name: profile.full_name,
+          email: profile.email,
+          department: profile.department,
+          avatar_url: profile.avatar_url,
+          current_status: profile.current_status as TaskStatus | null,
+          created_at: profile.created_at,
+        },
+        role: roleData?.role as KryptonRole | null,
+      });
+    }
+
+    if (tasks) {
+      const now = new Date();
+      
+      // In Progress (working status, deadline not passed)
+      const inProgress = tasks.filter(t => t.status === 'working' && new Date(t.deadline) > now);
+      setInProgressTasks(inProgress);
+
+      // Pending tasks (deadline exceeded)
+      const pending = tasks.filter(t => t.status === 'pending');
+      setPendingTasks(pending);
+
+      // Completed
+      const completed = tasks.filter(t => t.status === 'completed');
+      setCompletedTasks(completed);
+
+      // Stats
+      const accepted = tasks.filter(t => t.accepted_at).length;
+      const completedCount = completed.length;
+      const missed = tasks.filter(t => 
+        t.status === 'pending' || 
+        (t.status !== 'completed' && new Date(t.deadline) <= now)
+      ).length;
+      const totalDuration = completed.reduce((sum, t) => sum + (t.duration_minutes || 0), 0);
+      const avgTime = completedCount > 0 ? Math.round(totalDuration / completedCount) : 0;
+
+      setStats({ accepted, completed: completedCount, missed, avgTime });
+    }
+
+    if (approvalsData) {
+      // Enrich with task titles
+      const enriched = await Promise.all(approvalsData.map(async (a) => {
+        let task_title = '';
+        if (a.target_task_id) {
+          const { data } = await supabase
+            .from('tasks')
+            .select('title')
+            .eq('id', a.target_task_id)
+            .maybeSingle();
+          task_title = data?.title || '';
+        }
+        return { ...a, task_title };
+      }));
+      setApprovals(enriched);
+    }
+
+    setIsFetching(false);
+  }, [userId]);
+
+  const handleManualRefresh = useCallback(async () => {
+    const now = Date.now();
+    if (now - lastRefreshRef.current < 1000) return;
+    lastRefreshRef.current = now;
+    
+    setIsRefreshing(true);
+    await fetchMember();
+    setIsRefreshing(false);
+    toast({ title: 'Profile data refreshed' });
+  }, [fetchMember, toast]);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -73,114 +195,8 @@ const MemberProfile = () => {
   }, [user, isLoading, isLeadership, userId, navigate]);
 
   useEffect(() => {
-    const fetchMember = async () => {
-      if (!userId) return;
-
-      // Fetch profile
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-
-      // Fetch role
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .single();
-
-      // Fetch all tasks assigned to member
-      const { data: tasks } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('assigned_to', userId)
-        .order('created_at', { ascending: false });
-
-      // Fetch task documents
-      const { data: docs } = await supabase
-        .from('task_documents')
-        .select('task_id, github_url')
-        .eq('user_id', userId);
-
-      // Fetch pending approvals for this member's tasks
-      const { data: approvalsData } = await supabase
-        .from('approvals')
-        .select('*')
-        .eq('target_user_id', userId)
-        .eq('approval_type', 'task_reason')
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
-
-      if (docs) {
-        setTaskDocs(new Map(docs.map(d => [d.task_id, d.github_url])));
-      }
-
-      if (profile) {
-        setMember({
-          profile: {
-            user_id: profile.user_id,
-            full_name: profile.full_name,
-            email: profile.email,
-            department: profile.department,
-            avatar_url: profile.avatar_url,
-            current_status: profile.current_status as TaskStatus | null,
-            created_at: profile.created_at,
-          },
-          role: roleData?.role as KryptonRole | null,
-        });
-      }
-
-      if (tasks) {
-        const now = new Date();
-        
-        // In Progress (working status, deadline not passed)
-        const inProgress = tasks.filter(t => t.status === 'working' && new Date(t.deadline) > now);
-        setInProgressTasks(inProgress);
-
-        // Pending tasks (deadline exceeded)
-        const pending = tasks.filter(t => t.status === 'pending');
-        setPendingTasks(pending);
-
-        // Completed
-        const completed = tasks.filter(t => t.status === 'completed');
-        setCompletedTasks(completed);
-
-        // Stats
-        const accepted = tasks.filter(t => t.accepted_at).length;
-        const completedCount = completed.length;
-        const missed = tasks.filter(t => 
-          t.status === 'pending' || 
-          (t.status !== 'completed' && new Date(t.deadline) <= now)
-        ).length;
-        const totalDuration = completed.reduce((sum, t) => sum + (t.duration_minutes || 0), 0);
-        const avgTime = completedCount > 0 ? Math.round(totalDuration / completedCount) : 0;
-
-        setStats({ accepted, completed: completedCount, missed, avgTime });
-      }
-
-      if (approvalsData) {
-        // Enrich with task titles
-        const enriched = await Promise.all(approvalsData.map(async (a) => {
-          let task_title = '';
-          if (a.target_task_id) {
-            const { data } = await supabase
-              .from('tasks')
-              .select('title')
-              .eq('id', a.target_task_id)
-              .maybeSingle();
-            task_title = data?.title || '';
-          }
-          return { ...a, task_title };
-        }));
-        setApprovals(enriched);
-      }
-
-      setIsFetching(false);
-    };
-
     fetchMember();
-  }, [userId]);
+  }, [fetchMember]);
 
   if (isLoading || !user) {
     return (
@@ -222,10 +238,13 @@ const MemberProfile = () => {
     <div className="min-h-screen bg-background">
       <Header />
       <main className="container mx-auto px-6 py-6">
-        <Button variant="ghost" onClick={() => navigate('/team')} className="mb-4">
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Team
-        </Button>
+        <div className="flex items-center gap-2 mb-4">
+          <Button variant="ghost" onClick={() => navigate('/team')}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Team
+          </Button>
+          <RefreshButton onClick={handleManualRefresh} isRefreshing={isRefreshing} />
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Sidebar - Krypton ID */}

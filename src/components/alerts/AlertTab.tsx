@@ -231,8 +231,9 @@ export function AlertTab() {
               .eq('id', approval.target_task_id);
           }
         } else if (approval.approval_type === 'deletion_vote') {
-          // Any 1 of 4 leadership can approve
-          shouldApprove = approveCount >= 1;
+          // Require 3 of 4 leadership votes for deletion (majority)
+          shouldApprove = approveCount >= 3;
+          shouldReject = rejectCount >= 2; // If 2 reject, cancel the deletion
         } else if (approval.approval_type === 'report_download') {
           // 3 of 4 leadership must download
           shouldApprove = approveCount >= 3;
@@ -738,21 +739,34 @@ export function AlertTab() {
                       <Trash2 className="w-4 h-4 text-destructive" />
                       <span className="font-semibold">Deletion Vote (Escalated)</span>
                     </div>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      {approval.target_user_name} declined self-deletion. Any leadership approval will proceed with immediate deletion.
+                    <p className="text-sm text-muted-foreground mb-2">
+                      {approval.target_user_name} declined self-deletion. Requires 3 leadership votes to proceed.
+                    </p>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Votes: {approval.votes?.filter(v => v.vote_type === 'approve').length || 0}/3 to approve, {approval.votes?.filter(v => v.vote_type === 'reject').length || 0}/2 to reject
                     </p>
                     {!userHasVoted(approval) ? (
-                      <Button 
-                        size="sm" 
-                        variant="destructive"
-                        onClick={() => handleDeletionVote(approval.id)}
-                        disabled={processingId === approval.id}
-                      >
-                        {processingId === approval.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin mr-1" />
-                        ) : null}
-                        Approve & Delete
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button 
+                          size="sm" 
+                          variant="destructive"
+                          onClick={() => handleDeletionVote(approval.id)}
+                          disabled={processingId === approval.id}
+                        >
+                          {processingId === approval.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                          ) : null}
+                          Approve Deletion
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleVote(approval.id, 'reject')}
+                          disabled={processingId === approval.id}
+                        >
+                          Reject
+                        </Button>
+                      </div>
                     ) : (
                       <p className="text-xs text-muted-foreground">You have already voted</p>
                     )}
