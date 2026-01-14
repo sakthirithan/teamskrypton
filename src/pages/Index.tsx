@@ -6,6 +6,7 @@ import { TaskPanel } from '@/components/dashboard/TaskPanel';
 import { WorkflowLog } from '@/components/dashboard/WorkflowLog';
 import { TaskCRUD } from '@/components/dashboard/TaskCRUD';
 import { UserManagementPanel } from '@/components/admin/UserManagementPanel';
+import { LeadershipActionPanel } from '@/components/admin/LeadershipActionPanel';
 import { AlertTab } from '@/components/alerts/AlertTab';
 import { useSessionPersistence } from '@/hooks/useSessionPersistence';
 
@@ -45,6 +46,9 @@ const Index = () => {
           
           {/* Sidebar */}
           <div className="space-y-6">
+            {/* Command Center for leadership */}
+            {isLeadership && <LeadershipActionPanel />}
+            
             {/* Alert Tab for leadership */}
             {isLeadership && <AlertTab />}
             

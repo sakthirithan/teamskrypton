@@ -49,6 +49,7 @@ const MySpace = () => {
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [fromDate, setFromDate] = useState<string>('');
   const [toDate, setToDate] = useState<string>('');
+  const [manualStatusOverride, setManualStatusOverride] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -267,6 +268,15 @@ const MySpace = () => {
                 }}
                 role={role}
                 taskStats={taskStats}
+                isOwnProfile={true}
+                manualStatusOverride={manualStatusOverride}
+                onToggleStatus={async () => {
+                  setManualStatusOverride(!manualStatusOverride);
+                  toast({ 
+                    title: manualStatusOverride ? 'Status: Offline' : 'Status: Active',
+                    description: 'This is a presence indicator only. Does not affect tasks.'
+                  });
+                }}
               />
             )}
 
