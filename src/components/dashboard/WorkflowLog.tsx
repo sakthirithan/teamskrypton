@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useTestSession } from '@/contexts/TestSessionContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -9,10 +8,13 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { FileText, CalendarIcon, ExternalLink, Trash2, RotateCcw } from 'lucide-react';
-import { format, isSameDay } from 'date-fns';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { FileText, CalendarIcon, ExternalLink, Trash2, RotateCcw, Download } from 'lucide-react';
+import { format, isSameDay, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import * as XLSX from 'xlsx';
 
 interface LogEntry {
   id: string;
@@ -32,27 +34,24 @@ type StatusFilter = 'all' | 'completed' | 'pending';
 
 export function WorkflowLog() {
   const { user, isLeadership, isCaptainOrVice } = useAuth();
-  const { isTestMode } = useTestSession();
   const { toast } = useToast();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [deleteConfirmLog, setDeleteConfirmLog] = useState<LogEntry | null>(null);
+  const [fromDate, setFromDate] = useState<string>('');
+  const [toDate, setToDate] = useState<string>('');
+  const [showExportDialog, setShowExportDialog] = useState(false);
 
   const fetchLogs = async () => {
-    // Fetch completed AND pending tasks - exclude test data for non-leadership
+    // Fetch completed AND pending tasks
     let query = supabase
       .from('tasks')
       .select('id, title, accepted_at, completed_at, duration_minutes, assigned_to, assigner_name, assigner_role, status')
       .in('status', ['completed', 'pending'])
       .order('completed_at', { ascending: false, nullsFirst: false })
       .limit(100);
-
-    // Exclude test data for non-leadership users
-    if (!isLeadership) {
-      query = query.eq('is_test', false);
-    }
 
     const { data: tasksData } = await query;
 
@@ -114,8 +113,7 @@ export function WorkflowLog() {
         .insert({
           task_id: log.id,
           message: 'Your task was reset by leadership. Please accept and complete it again.',
-          created_by: user.id,
-          is_test: isTestMode
+          created_by: user.id
         });
 
       toast({ 
@@ -160,6 +158,58 @@ export function WorkflowLog() {
     }
   };
 
+  // Export logs to XLSX
+  const handleExport = (exportFormat: 'csv' | 'xlsx') => {
+    let dataToExport = filteredLogs;
+
+    // Apply date range filter if specified
+    if (fromDate || toDate) {
+      dataToExport = dataToExport.filter(log => {
+        const logDate = log.completed_at ? new Date(log.completed_at) : null;
+        if (!logDate) return false;
+        
+        if (fromDate && logDate < parseISO(fromDate)) return false;
+        if (toDate && logDate > parseISO(toDate + 'T23:59:59')) return false;
+        return true;
+      });
+    }
+
+    if (dataToExport.length === 0) {
+      toast({ variant: 'destructive', title: 'No Data', description: 'No logs match the selected filters.' });
+      return;
+    }
+
+    const exportData = dataToExport.map(log => ({
+      'Date': log.completed_at ? format(new Date(log.completed_at), 'yyyy-MM-dd') : 'Pending',
+      'Task': log.title,
+      'User': log.completed_by_name || '-',
+      'Assigned By': log.assigner_name ? `${log.assigner_name}${log.assigner_role ? ` (${log.assigner_role})` : ''}` : '-',
+      'Start Time': log.accepted_at ? format(new Date(log.accepted_at), 'HH:mm') : '-',
+      'End Time': log.completed_at ? format(new Date(log.completed_at), 'HH:mm') : '-',
+      'Duration (min)': log.duration_minutes || '-',
+      'Status': log.status,
+      'Documentation URL': log.github_url || '-'
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Krypton Log');
+
+    const dateRange = fromDate && toDate 
+      ? `${fromDate}_to_${toDate}` 
+      : fromDate 
+        ? `from_${fromDate}` 
+        : toDate 
+          ? `to_${toDate}` 
+          : 'full_history';
+
+    const filename = `Krypton_Log_${dateRange}.${exportFormat}`;
+    XLSX.writeFile(wb, filename);
+
+    toast({ title: 'Export Complete', description: `Downloaded ${filename}` });
+    setShowExportDialog(false);
+  };
+
   // Filter logs by selected date and status
   const filteredLogs = logs.filter(log => {
     // Date filter
@@ -200,6 +250,18 @@ export function WorkflowLog() {
             Krypton Log
           </div>
           <div className="flex items-center gap-2">
+            {/* Export Button - Leadership only */}
+            {isLeadership && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowExportDialog(true)}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Export
+              </Button>
+            )}
+
             {/* Status Filter */}
             <ToggleGroup 
               type="single" 
@@ -385,6 +447,51 @@ export function WorkflowLog() {
                 </div>
               </div>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Export Dialog */}
+        <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Export Krypton Log</DialogTitle>
+              <DialogDescription>
+                Select date range and format for export.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 pt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>From Date</Label>
+                  <Input 
+                    type="date"
+                    value={fromDate}
+                    onChange={(e) => setFromDate(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>To Date</Label>
+                  <Input 
+                    type="date"
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Leave dates empty to export full history
+              </p>
+              <div className="flex gap-2">
+                <Button onClick={() => handleExport('xlsx')} className="flex-1">
+                  <Download className="w-4 h-4 mr-2" />
+                  Export XLSX
+                </Button>
+                <Button onClick={() => handleExport('csv')} variant="outline" className="flex-1">
+                  <Download className="w-4 h-4 mr-2" />
+                  Export CSV
+                </Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       </CardContent>

@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { useTestSession } from '@/contexts/TestSessionContext';
 import { ROLE_LABELS, KryptonRole } from '@/lib/constants';
-import { LogOut, User, Users, Home, LayoutDashboard, Menu, X, FlaskConical, Download, Play, Square } from 'lucide-react';
+import { LogOut, User, Users, Home, LayoutDashboard, Menu, X, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -33,8 +32,7 @@ function getRoleBadgeClass(role: KryptonRole | null): string {
 }
 
 export function Header() {
-  const { user, profile, role, signOut, isCaptainOrVice } = useAuth();
-  const { isTestMode, startTestSession, endTestSession } = useTestSession();
+  const { user, profile, role, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -189,24 +187,6 @@ export function Header() {
                 
                 <DropdownMenuSeparator />
                 
-                {/* Test Session - Only for TL/VC */}
-                {isCaptainOrVice && (
-                  <>
-                    {!isTestMode ? (
-                      <DropdownMenuItem onClick={startTestSession} className="text-yellow-600">
-                        <Play className="w-4 h-4 mr-2" />
-                        Start Test Session
-                      </DropdownMenuItem>
-                    ) : (
-                      <DropdownMenuItem onClick={endTestSession} className="text-red-600">
-                        <Square className="w-4 h-4 mr-2" />
-                        End Test Session
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuSeparator />
-                  </>
-                )}
-                
                 {/* Install APK - Available to all */}
                 <DropdownMenuItem onClick={handleInstallAPK}>
                   <Download className="w-4 h-4 mr-2" />
@@ -255,35 +235,6 @@ export function Header() {
             ))}
             
             <div className="border-t border-primary-foreground/20 pt-2 mt-2">
-              {/* Test Session for mobile - TL/VC only */}
-              {isCaptainOrVice && (
-                !isTestMode ? (
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      startTestSession();
-                      setMobileMenuOpen(false);
-                    }}
-                    className="justify-start text-yellow-300 hover:bg-primary-foreground/10 w-full"
-                  >
-                    <FlaskConical className="w-4 h-4 mr-2" />
-                    Start Test Session
-                  </Button>
-                ) : (
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      endTestSession();
-                      setMobileMenuOpen(false);
-                    }}
-                    className="justify-start text-red-300 hover:bg-primary-foreground/10 w-full"
-                  >
-                    <Square className="w-4 h-4 mr-2" />
-                    End Test Session
-                  </Button>
-                )
-              )}
-              
               {/* Install App for mobile */}
               <Button
                 variant="ghost"
@@ -312,4 +263,3 @@ export function Header() {
     </header>
   );
 }
-

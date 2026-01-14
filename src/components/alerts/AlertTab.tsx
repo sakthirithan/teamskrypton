@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useTestSession } from '@/contexts/TestSessionContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -9,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { AlertTriangle, Check, X, Upload, Clock, Trash2, FileText, Loader2 } from 'lucide-react';
+import { AlertTriangle, Check, X, Upload, Clock, Trash2, FileText, Loader2, Play } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface Approval {
@@ -43,7 +42,6 @@ interface CompletedTask {
 
 export function AlertTab() {
   const { user, isLeadership, isCaptainOrVice } = useAuth();
-  const { isTestMode } = useTestSession();
   const { toast } = useToast();
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [pendingTasks, setPendingTasks] = useState<PendingTask[]>([]);
@@ -56,17 +54,12 @@ export function AlertTab() {
   const fetchData = useCallback(async () => {
     if (!user) return;
 
-    // Fetch approvals relevant to the user (exclude test data for non-leadership)
+    // Fetch approvals relevant to the user
     let approvalsQuery = supabase
       .from('approvals')
       .select('*')
       .eq('status', 'pending')
       .order('created_at', { ascending: false });
-
-    // Filter out test approvals for non-leadership
-    if (!isLeadership && !isTestMode) {
-      approvalsQuery = approvalsQuery.eq('is_test', false);
-    }
 
     const { data: approvalsData } = await approvalsQuery;
 
@@ -158,7 +151,7 @@ export function AlertTab() {
     }
 
     setIsLoading(false);
-  }, [user, isLeadership, isTestMode]);
+  }, [user, isLeadership]);
 
   useEffect(() => {
     fetchData();
@@ -195,8 +188,7 @@ export function AlertTab() {
         .insert({
           approval_id: approvalId,
           voter_id: user.id,
-          vote_type: voteType,
-          is_test: isTestMode
+          vote_type: voteType
         });
 
       if (error) throw error;
@@ -268,8 +260,7 @@ export function AlertTab() {
           target_user_id: user.id,
           initiated_by: user.id,
           reason: reasons[taskId],
-          status: 'pending',
-          is_test: isTestMode
+          status: 'pending'
         });
 
       if (error) throw error;
@@ -279,6 +270,41 @@ export function AlertTab() {
         description: 'Waiting for approval from leadership (2 required)' 
       });
       setReasons({ ...reasons, [taskId]: '' });
+      fetchData();
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  // Resume task (moves from pending back to working)
+  const handleResumeTask = async (taskId: string) => {
+    if (!user) return;
+    setProcessingId(taskId);
+
+    try {
+      // Update task status back to working
+      const { error } = await supabase
+        .from('tasks')
+        .update({ status: 'working' })
+        .eq('id', taskId);
+
+      if (error) throw error;
+
+      // Create alert to notify leadership that deadline was missed but task resumed
+      await supabase
+        .from('task_alerts')
+        .insert({
+          task_id: taskId,
+          message: 'Task resumed after deadline miss. User is now working on it.',
+          created_by: user.id
+        });
+
+      toast({ 
+        title: 'Task Resumed', 
+        description: 'Leadership has been notified.' 
+      });
       fetchData();
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error', description: error.message });
@@ -305,8 +331,7 @@ export function AlertTab() {
           task_id: docForm.taskId,
           user_id: user.id,
           github_url: docForm.githubUrl,
-          description: docForm.description || null,
-          is_test: isTestMode
+          description: docForm.description || null
         });
 
       if (error) throw error;
@@ -336,7 +361,6 @@ export function AlertTab() {
           .update({ status: 'approved' })
           .eq('id', approvalId);
 
-        // Delete user (this would need admin rights - handled by edge function)
         toast({ title: 'Deletion Approved', description: 'Your profile will be deleted.' });
       } else {
         // User declined - escalate to team vote
@@ -352,8 +376,7 @@ export function AlertTab() {
             approval_type: 'deletion_vote',
             target_user_id: approval.target_user_id,
             initiated_by: approval.initiated_by,
-            status: 'pending',
-            is_test: isTestMode
+            status: 'pending'
           });
 
         toast({ 
@@ -421,7 +444,7 @@ export function AlertTab() {
         {/* Pending Tasks requiring reason */}
         {pendingTasks.length > 0 && (
           <div className="space-y-3">
-            <h4 className="font-medium text-sm text-muted-foreground">Missed Deadlines - Provide Reason</h4>
+            <h4 className="font-medium text-sm text-muted-foreground">Missed Deadlines - Provide Reason or Resume</h4>
             {pendingTasks.map(task => (
               <div key={task.id} className="p-4 rounded-lg border border-[hsl(var(--status-pending))]/30 bg-[hsl(var(--status-pending))]/5">
                 <div className="flex justify-between items-start mb-3">
@@ -434,20 +457,31 @@ export function AlertTab() {
                   <span className="status-badge status-pending">Pending</span>
                 </div>
                 <Textarea
-                  placeholder="Explain the delay (mandatory)..."
+                  placeholder="Explain the delay (mandatory for approval)..."
                   value={reasons[task.id] || ''}
                   onChange={(e) => setReasons({ ...reasons, [task.id]: e.target.value })}
                   rows={2}
                   className="mb-2"
                 />
-                <Button 
-                  size="sm" 
-                  onClick={() => handleSubmitReason(task.id)}
-                  disabled={!reasons[task.id] || processingId === task.id}
-                >
-                  {processingId === task.id ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
-                  Submit Reason
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    size="sm" 
+                    onClick={() => handleSubmitReason(task.id)}
+                    disabled={!reasons[task.id] || processingId === task.id}
+                  >
+                    {processingId === task.id ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+                    Submit Reason
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => handleResumeTask(task.id)}
+                    disabled={processingId === task.id}
+                  >
+                    <Play className="w-4 h-4 mr-1" />
+                    Resume Task
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
