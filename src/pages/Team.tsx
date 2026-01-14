@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -9,9 +9,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { KryptonRole, TaskStatus, LEADERSHIP_ROLES } from '@/lib/constants';
-import { Users, Download, Search } from 'lucide-react';
+import { Users, Download, Search, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
+import { RefreshButton } from '@/components/ui/RefreshButton';
+import { validateExportDateRange, getTodayString } from '@/lib/exportValidation';
 import * as XLSX from 'xlsx';
 
 interface TeamMember {
@@ -39,10 +41,24 @@ const Team = () => {
   const navigate = useNavigate();
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [isFetching, setIsFetching] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  const [exportError, setExportError] = useState<string | null>(null);
+  const lastRefreshRef = useRef<number>(0);
+
+  const handleManualRefresh = useCallback(async () => {
+    const now = Date.now();
+    if (now - lastRefreshRef.current < 1000) return;
+    lastRefreshRef.current = now;
+    
+    setIsRefreshing(true);
+    await fetchMembers();
+    setIsRefreshing(false);
+    toast({ title: 'Team data refreshed' });
+  }, []);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -133,8 +149,15 @@ const Team = () => {
     }
   };
 
-  // Export team directory with task history
+  // Export team directory with task history and validation
   const handleExport = async (exportFormat: 'csv' | 'xlsx') => {
+    const validation = validateExportDateRange(fromDate, toDate);
+    if (!validation.isValid) {
+      setExportError(validation.error);
+      return;
+    }
+    setExportError(null);
+
     // Fetch all completed tasks with date filter
     let query = supabase
       .from('tasks')
@@ -216,13 +239,14 @@ const Team = () => {
       <Header />
       <main className="container mx-auto px-6 py-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-          <div>
+          <div className="flex items-center gap-2">
             <h2 className="text-2xl font-display font-bold flex items-center gap-2">
               <Users className="w-6 h-6" />
               Team Directory
             </h2>
-            <p className="text-muted-foreground mt-1">
-              All team members and their status ({members.length} total)
+            <RefreshButton onClick={handleManualRefresh} isRefreshing={isRefreshing} />
+            <p className="text-muted-foreground mt-1 hidden sm:block">
+              ({members.length} members)
             </p>
           </div>
           
@@ -238,7 +262,10 @@ const Team = () => {
             </div>
             
             {isLeadership && (
-              <Button variant="outline" onClick={() => setShowExportDialog(true)}>
+              <Button variant="outline" onClick={() => {
+                setExportError(null);
+                setShowExportDialog(true);
+              }}>
                 <Download className="w-4 h-4 mr-2" />
                 Export
               </Button>
@@ -304,7 +331,11 @@ const Team = () => {
                   <Input 
                     type="date" 
                     value={fromDate}
-                    onChange={(e) => setFromDate(e.target.value)}
+                    onChange={(e) => {
+                      setFromDate(e.target.value);
+                      setExportError(null);
+                    }}
+                    max={getTodayString()}
                   />
                 </div>
                 <div>
@@ -312,10 +343,21 @@ const Team = () => {
                   <Input 
                     type="date" 
                     value={toDate}
-                    onChange={(e) => setToDate(e.target.value)}
+                    onChange={(e) => {
+                      setToDate(e.target.value);
+                      setExportError(null);
+                    }}
+                    max={getTodayString()}
                   />
                 </div>
               </div>
+              
+              {exportError && (
+                <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 p-2 rounded">
+                  <AlertCircle className="w-4 h-4" />
+                  {exportError}
+                </div>
+              )}
               
               <p className="text-xs text-muted-foreground">
                 Leave dates empty for full history export.

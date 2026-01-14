@@ -53,6 +53,7 @@ export type Database = {
         Row: {
           approval_type: Database["public"]["Enums"]["approval_type"]
           created_at: string
+          expires_at: string | null
           id: string
           initiated_by: string | null
           is_test: boolean | null
@@ -65,6 +66,7 @@ export type Database = {
         Insert: {
           approval_type: Database["public"]["Enums"]["approval_type"]
           created_at?: string
+          expires_at?: string | null
           id?: string
           initiated_by?: string | null
           is_test?: boolean | null
@@ -77,6 +79,7 @@ export type Database = {
         Update: {
           approval_type?: Database["public"]["Enums"]["approval_type"]
           created_at?: string
+          expires_at?: string | null
           id?: string
           initiated_by?: string | null
           is_test?: boolean | null
@@ -205,6 +208,8 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string
+          expires_at: string | null
+          has_response: boolean | null
           id: string
           is_read: boolean
           is_test: boolean | null
@@ -214,6 +219,8 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by: string
+          expires_at?: string | null
+          has_response?: boolean | null
           id?: string
           is_read?: boolean
           is_test?: boolean | null
@@ -223,6 +230,8 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string
+          expires_at?: string | null
+          has_response?: boolean | null
           id?: string
           is_read?: boolean
           is_test?: boolean | null
