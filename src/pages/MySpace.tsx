@@ -240,6 +240,13 @@ const MySpace = () => {
     );
   }
 
+  // Calculate task stats for the ID card
+  const taskStats = {
+    total: stats.accepted,
+    completed: stats.completed,
+    inProgress: inProgressTasks.length > 0
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -259,6 +266,7 @@ const MySpace = () => {
                   created_at: profile.created_at,
                 }}
                 role={role}
+                taskStats={taskStats}
               />
             )}
 
