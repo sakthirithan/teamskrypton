@@ -8,8 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { AlertTriangle, Check, X, Upload, Clock, Trash2, FileText, Loader2, Play } from 'lucide-react';
-import { format, differenceInHours } from 'date-fns';
+import { AlertTriangle, Check, X, Upload, Clock, Trash2, Loader2, Play } from 'lucide-react';
+import { format } from 'date-fns';
 import { RefreshButton } from '@/components/ui/RefreshButton';
 
 interface Approval {
@@ -42,7 +42,7 @@ interface CompletedTask {
 }
 
 export function AlertTab() {
-  const { user, isLeadership, isCaptainOrVice } = useAuth();
+  const { user, isLeadership } = useAuth();
   const { toast } = useToast();
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [pendingTasks, setPendingTasks] = useState<PendingTask[]>([]);

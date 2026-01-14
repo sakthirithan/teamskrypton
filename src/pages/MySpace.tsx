@@ -11,12 +11,12 @@ import { Label } from '@/components/ui/label';
 import { KryptonIdCard } from '@/components/team/KryptonIdCard';
 import { AlertTab } from '@/components/alerts/AlertTab';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { CheckCircle, Clock, BarChart3, ExternalLink, Trash2, RotateCcw, Download, AlertCircle } from 'lucide-react';
+import { CheckCircle, Clock, BarChart3, ExternalLink, Trash2, RotateCcw, Download } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { TaskStatus } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
 import { RefreshButton } from '@/components/ui/RefreshButton';
-import { validateExportDateRange, getTodayString } from '@/lib/exportValidation';
+import { validateExportDateRange } from '@/lib/exportValidation';
 import * as XLSX from 'xlsx';
 
 interface Task {
@@ -33,10 +33,6 @@ interface Task {
   assigned_to: string;
 }
 
-interface TaskDoc {
-  task_id: string;
-  github_url: string;
-}
 
 const MySpace = () => {
   const { user, profile, role, isLoading, isCaptainOrVice } = useAuth();
@@ -46,13 +42,13 @@ const MySpace = () => {
   const [completedTasks, setCompletedTasks] = useState<Task[]>([]);
   const [taskDocs, setTaskDocs] = useState<Map<string, string>>(new Map());
   const [stats, setStats] = useState({ accepted: 0, completed: 0, missed: 0, avgTime: 0 });
-  const [isFetching, setIsFetching] = useState(true);
+  const [, setIsFetching] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [deleteConfirmTask, setDeleteConfirmTask] = useState<Task | null>(null);
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [fromDate, setFromDate] = useState<string>('');
   const [toDate, setToDate] = useState<string>('');
-  const [exportError, setExportError] = useState<string | null>(null);
+  const [, setExportError] = useState<string | null>(null);
   const [manualStatusOverride, setManualStatusOverride] = useState(false);
   const lastRefreshRef = useRef<number>(0);
 

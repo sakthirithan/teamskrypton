@@ -14,8 +14,7 @@ import {
   RefreshCw,
   Bell,
   Shield,
-  Activity,
-  RotateCcw
+  Activity
 } from 'lucide-react';
 import { format, addHours, isBefore } from 'date-fns';
 import { RefreshButton } from '@/components/ui/RefreshButton';
