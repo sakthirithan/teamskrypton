@@ -182,41 +182,25 @@ export function UserListPanel({ onClose }: UserListPanelProps) {
     setProcessingId(request.id);
 
     try {
-      const { error } = await supabase.auth.signUp({
-        email: request.email,
-        password: request.password_hash,
-        options: {
-          data: {
-            full_name: request.full_name,
-            department: request.department,
-            role: request.requested_role,
-          },
-          emailRedirectTo: `${window.location.origin}/`
-        }
+      // Use secure server-side user creation
+      const { data, error } = await supabase.functions.invoke('create-user-account', {
+        body: { requestId: request.id }
       });
 
-      if (error) throw error;
+      if (error || data?.error) throw error || new Error(data.error);
 
-      await supabase
-        .from('registration_requests')
-        .update({
-          status: 'approved',
-          reviewed_at: new Date().toISOString(),
-          reviewed_by: user?.id
-        })
-        .eq('id', request.id);
-
-      // Non-blocking email
+      // Non-blocking email with temporary password
       sendNotificationEmail(
-        request.email,
-        request.full_name,
+        data.email,
+        data.fullName,
         'approved',
         ROLE_LABELS[request.requested_role]
       );
 
       toast({
         title: 'User Approved',
-        description: `${request.full_name} has been granted access.`,
+        description: `${data.fullName} has been granted access. Temporary password: ${data.tempPassword}`,
+        duration: 15000, // Show longer for password visibility
       });
 
       fetchRequests();
