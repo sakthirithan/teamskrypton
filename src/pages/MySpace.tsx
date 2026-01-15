@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -13,6 +13,10 @@ import { AlertTab } from '@/components/alerts/AlertTab';
 import { LeadershipDashboard } from '@/components/dashboard/LeadershipDashboard';
 import { TeamOverviewWidget } from '@/components/dashboard/TeamOverviewWidget';
 import { DeletionRequestsPanel } from '@/components/admin/DeletionRequestsPanel';
+import { TeamMemberDashboard } from '@/components/dashboard/TeamMemberDashboard';
+import { StrategistDashboard } from '@/components/dashboard/StrategistDashboard';
+import { TeamManagerDashboard } from '@/components/dashboard/TeamManagerDashboard';
+import { CaptainDashboard } from '@/components/dashboard/CaptainDashboard';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { CheckCircle, Clock, BarChart3, ExternalLink, Trash2, RotateCcw, Download } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
@@ -34,6 +38,7 @@ interface Task {
   assigner_name: string | null;
   assigner_role: string | null;
   assigned_to: string | null;
+  created_at: string;
 }
 
 
@@ -49,11 +54,13 @@ const MySpace = () => {
   const navigate = useNavigate();
   const [inProgressTasks, setInProgressTasks] = useState<Task[]>([]);
   const [completedTasks, setCompletedTasks] = useState<Task[]>([]);
+  const [myTasks, setMyTasks] = useState<Task[]>([]); // All user's tasks
   const [allTasks, setAllTasks] = useState<Task[]>([]); // For leadership dashboard
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]); // For leadership widgets
   const [taskDocs, setTaskDocs] = useState<Map<string, string>>(new Map());
   const [stats, setStats] = useState({ accepted: 0, completed: 0, missed: 0, avgTime: 0 });
-  const [, setIsFetching] = useState(true);
+  const [approvals, setApprovals] = useState<any[]>([]);
+  const [recentActions, setRecentActions] = useState<any[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [deleteConfirmTask, setDeleteConfirmTask] = useState<Task | null>(null);
   const [showExportDialog, setShowExportDialog] = useState(false);
@@ -103,6 +110,9 @@ const MySpace = () => {
     if (userTasks) {
       const now = new Date();
       
+      // Store all user tasks
+      setMyTasks(userTasks);
+      
       // In Progress (working status)
       const inProgress = userTasks.filter(t => t.status === 'working');
       setInProgressTasks(inProgress);
@@ -126,10 +136,12 @@ const MySpace = () => {
 
     // Leadership-only data: fetch all tasks and team members
     if (isLeadership) {
-      const [allTasksRes, profilesRes, rolesRes] = await Promise.all([
+      const [allTasksRes, profilesRes, rolesRes, approvalsRes, actionsRes] = await Promise.all([
         supabase.from('tasks').select('*').order('created_at', { ascending: false }),
         supabase.from('profiles').select('user_id, full_name'),
-        supabase.from('user_roles').select('user_id, role')
+        supabase.from('user_roles').select('user_id, role'),
+        supabase.from('approvals').select('*').eq('status', 'pending'),
+        supabase.from('workflow_log').select('*').order('created_at', { ascending: false }).limit(20)
       ]);
 
       if (allTasksRes.data) {
@@ -144,10 +156,17 @@ const MySpace = () => {
           role: roleMap.get(p.user_id) || null
         }));
         setTeamMembers(members);
+        
+        // Enrich actions with names
+        const profileMap = new Map(profilesRes.data.map(p => [p.user_id, p.full_name]));
+        setRecentActions((actionsRes.data || []).map(a => ({
+          ...a,
+          user_name: profileMap.get(a.user_id) || 'Unknown'
+        })));
       }
+      
+      setApprovals(approvalsRes.data || []);
     }
-
-    setIsFetching(false);
   }, [user, isLeadership]);
 
   useEffect(() => {
@@ -365,6 +384,22 @@ const MySpace = () => {
 
           {/* Main Content */}
           <div className="lg:col-span-3 space-y-6">
+            {/* Role-Specific Dashboard - UNIQUE per role */}
+            {isCaptainOrVice ? (
+              <CaptainDashboard 
+                tasks={allTasks} 
+                members={teamMembers} 
+                approvals={approvals} 
+                recentActions={recentActions} 
+              />
+            ) : role === 'team_manager' ? (
+              <TeamManagerDashboard tasks={allTasks} members={teamMembers} />
+            ) : role === 'strategist' ? (
+              <StrategistDashboard tasks={allTasks} members={teamMembers} />
+            ) : (
+              <TeamMemberDashboard tasks={myTasks} userId={user.id} />
+            )}
+
             {/* Leadership Dashboard - TL/VC Only */}
             {isCaptainOrVice && (
               <LeadershipDashboard 
