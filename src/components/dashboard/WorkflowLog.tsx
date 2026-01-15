@@ -269,14 +269,16 @@ export function WorkflowLog() {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between font-display">
+      <CardHeader className="px-3 sm:px-6 py-3 sm:py-6">
+        <CardTitle className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-display">
           <div className="flex items-center gap-2">
-            <FileText className="w-5 h-5" />
-            Krypton Log
+            <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="text-base sm:text-lg">Krypton Log</span>
             <RefreshButton onClick={handleManualRefresh} isRefreshing={isRefreshing} />
           </div>
-          <div className="flex items-center gap-2">
+          
+          {/* Controls - Stack on mobile */}
+          <div className="flex flex-wrap items-center gap-2">
             {/* Export Button - Leadership only */}
             {isLeadership && (
               <Button 
@@ -286,9 +288,10 @@ export function WorkflowLog() {
                   setExportError(null);
                   setShowExportDialog(true);
                 }}
+                className="min-h-[36px]"
               >
-                <Download className="w-4 h-4 mr-2" />
-                Export
+                <Download className="w-4 h-4 mr-1.5" />
+                <span className="hidden sm:inline">Export</span>
               </Button>
             )}
 
@@ -299,13 +302,13 @@ export function WorkflowLog() {
               onValueChange={(value) => value && setStatusFilter(value as StatusFilter)}
               className="border rounded-md"
             >
-              <ToggleGroupItem value="all" size="sm" className="text-xs px-3">
+              <ToggleGroupItem value="all" size="sm" className="text-[10px] sm:text-xs px-2 sm:px-3 min-h-[36px]">
                 All
               </ToggleGroupItem>
-              <ToggleGroupItem value="completed" size="sm" className="text-xs px-3">
-                Completed
+              <ToggleGroupItem value="completed" size="sm" className="text-[10px] sm:text-xs px-2 sm:px-3 min-h-[36px]">
+                Done
               </ToggleGroupItem>
-              <ToggleGroupItem value="pending" size="sm" className="text-xs px-3">
+              <ToggleGroupItem value="pending" size="sm" className="text-[10px] sm:text-xs px-2 sm:px-3 min-h-[36px]">
                 Pending
               </ToggleGroupItem>
             </ToggleGroup>
@@ -314,14 +317,16 @@ export function WorkflowLog() {
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className={cn(
-                  "justify-start text-left font-normal",
+                  "justify-start text-left font-normal min-h-[36px]",
                   !selectedDate && "text-muted-foreground"
                 )}>
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {selectedDate ? format(selectedDate, 'MMM dd, yyyy') : 'Filter by date'}
+                  <CalendarIcon className="h-4 w-4" />
+                  <span className="hidden sm:inline ml-2">
+                    {selectedDate ? format(selectedDate, 'MMM dd') : 'Date'}
+                  </span>
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="end">
+              <PopoverContent className="w-auto p-0 z-50 bg-background" align="end">
                 <Calendar
                   mode="single"
                   selected={selectedDate}
@@ -333,7 +338,7 @@ export function WorkflowLog() {
                     <Button 
                       variant="ghost" 
                       size="sm" 
-                      className="w-full"
+                      className="w-full min-h-[44px]"
                       onClick={() => setSelectedDate(undefined)}
                     >
                       Clear filter
@@ -345,89 +350,91 @@ export function WorkflowLog() {
           </div>
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
         {filteredLogs.length === 0 ? (
-          <p className="text-center text-muted-foreground py-8">
+          <p className="text-center text-muted-foreground py-8 text-sm">
             {selectedDate || statusFilter !== 'all' 
               ? 'No tasks match the current filters' 
               : 'No tasks in log yet'}
           </p>
         ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Task</TableHead>
-                  <TableHead>User</TableHead>
-                  <TableHead>Assigned By</TableHead>
-                  <TableHead>Start</TableHead>
-                  <TableHead>End</TableHead>
-                  <TableHead>Duration</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Docs</TableHead>
-                  {isCaptainOrVice && <TableHead>Actions</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredLogs.map((log) => (
-                  <TableRow key={log.id}>
-                    <TableCell>
-                      {log.completed_at 
-                        ? format(new Date(log.completed_at), 'MMM dd') 
-                        : log.status === 'pending' ? 'Pending' : '-'}
-                    </TableCell>
-                    <TableCell className="font-medium max-w-[200px] truncate">{log.title}</TableCell>
-                    <TableCell>{log.completed_by_name || '-'}</TableCell>
-                    <TableCell>
-                      {log.assigner_name ? (
-                        <span>
-                          {log.assigner_name}
-                          {log.assigner_role && (
-                            <span className="text-xs text-muted-foreground ml-1">
-                              ({log.assigner_role})
-                            </span>
-                          )}
-                        </span>
-                      ) : '-'}
-                    </TableCell>
-                    <TableCell>{log.accepted_at ? format(new Date(log.accepted_at), 'HH:mm') : '-'}</TableCell>
-                    <TableCell>{log.completed_at ? format(new Date(log.completed_at), 'HH:mm') : '-'}</TableCell>
-                    <TableCell>{log.duration_minutes ? `${log.duration_minutes}m` : '-'}</TableCell>
-                    <TableCell>{getStatusBadge(log.status)}</TableCell>
-                    <TableCell>
-                      {log.github_url ? (
-                        <a 
-                          href={log.github_url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline flex items-center gap-1"
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                          Docs
-                        </a>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    {isCaptainOrVice && (
-                      <TableCell>
-                        <Button 
-                          size="sm" 
-                          variant="ghost"
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0"
-                          onClick={() => setDeleteConfirmLog(log)}
-                          title="Reset/Delete Task"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </TableCell>
+          <>
+            {/* Mobile Card View */}
+            <div className="sm:hidden space-y-3">
+              {filteredLogs.slice(0, 10).map((log) => (
+                <div key={log.id} className="p-3 rounded-lg border bg-card">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <h4 className="font-medium text-sm truncate flex-1">{log.title}</h4>
+                    {getStatusBadge(log.status)}
+                  </div>
+                  <div className="grid grid-cols-2 gap-1 text-xs text-muted-foreground">
+                    <p><span className="font-medium">User:</span> {log.completed_by_name || '-'}</p>
+                    <p><span className="font-medium">Date:</span> {log.completed_at ? format(new Date(log.completed_at), 'MMM dd') : 'Pending'}</p>
+                    <p><span className="font-medium">Duration:</span> {log.duration_minutes ? `${log.duration_minutes}m` : '-'}</p>
+                    {log.github_url && (
+                      <a href={log.github_url} target="_blank" rel="noopener noreferrer" className="text-primary flex items-center gap-1">
+                        <ExternalLink className="w-3 h-3" /> Docs
+                      </a>
                     )}
+                  </div>
+                  {isCaptainOrVice && (
+                    <div className="mt-2 pt-2 border-t">
+                      <Button size="sm" variant="ghost" className="text-destructive min-h-[40px] w-full" onClick={() => setDeleteConfirmLog(log)}>
+                        <Trash2 className="w-4 h-4 mr-2" /> Actions
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {filteredLogs.length > 10 && (
+                <p className="text-xs text-center text-muted-foreground">Showing 10 of {filteredLogs.length} entries</p>
+              )}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden sm:block overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Task</TableHead>
+                    <TableHead>User</TableHead>
+                    <TableHead>Duration</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Docs</TableHead>
+                    {isCaptainOrVice && <TableHead>Actions</TableHead>}
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {filteredLogs.map((log) => (
+                    <TableRow key={log.id}>
+                      <TableCell className="text-sm">
+                        {log.completed_at ? format(new Date(log.completed_at), 'MMM dd') : 'Pending'}
+                      </TableCell>
+                      <TableCell className="font-medium max-w-[200px] truncate text-sm">{log.title}</TableCell>
+                      <TableCell className="text-sm">{log.completed_by_name || '-'}</TableCell>
+                      <TableCell className="text-sm">{log.duration_minutes ? `${log.duration_minutes}m` : '-'}</TableCell>
+                      <TableCell>{getStatusBadge(log.status)}</TableCell>
+                      <TableCell>
+                        {log.github_url ? (
+                          <a href={log.github_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1">
+                            <ExternalLink className="w-3 h-3" /> Docs
+                          </a>
+                        ) : '-'}
+                      </TableCell>
+                      {isCaptainOrVice && (
+                        <TableCell>
+                          <Button size="sm" variant="ghost" className="text-destructive h-8 w-8 p-0 min-h-[44px] min-w-[44px]" onClick={() => setDeleteConfirmLog(log)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </>
         )}
 
         {/* Delete/Reset Confirmation Dialog */}
