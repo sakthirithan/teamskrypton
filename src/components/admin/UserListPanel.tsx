@@ -8,9 +8,11 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { ROLE_LABELS, KryptonRole, STATUS_LABELS, TaskStatus } from '@/lib/constants';
 import { validatePhoneNumber, formatPhoneDisplay } from '@/lib/phoneValidation';
+import { format } from 'date-fns';
 import {
   Users,
   Trash2,
@@ -26,7 +28,9 @@ import {
   Send,
   Zap,
   Shield,
-  EyeOff
+  EyeOff,
+  UserPlus,
+  Check
 } from 'lucide-react';
 import {
   Dialog,
@@ -48,6 +52,17 @@ interface UserData {
   role: KryptonRole | null;
 }
 
+interface RegistrationRequest {
+  id: string;
+  full_name: string;
+  email: string;
+  department: string;
+  requested_role: KryptonRole;
+  status: 'pending' | 'approved' | 'rejected';
+  created_at: string;
+  password_hash: string;
+}
+
 interface UserListPanelProps {
   onClose?: () => void;
 }
@@ -61,6 +76,11 @@ export function UserListPanel({ onClose }: UserListPanelProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('members');
+
+  // Registration requests state
+  const [requests, setRequests] = useState<RegistrationRequest[]>([]);
+  const [requestsLoading, setRequestsLoading] = useState(true);
 
   // Dialog states
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
@@ -117,9 +137,160 @@ export function UserListPanel({ onClose }: UserListPanelProps) {
     }
   }, [toast]);
 
+  // Fetch registration requests
+  const fetchRequests = useCallback(async () => {
+    setRequestsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('registration_requests')
+        .select('*')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      setRequests((data || []) as RegistrationRequest[]);
+    } catch (error) {
+      console.error('Failed to fetch registration requests:', error);
+    } finally {
+      setRequestsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchUsers();
-  }, [fetchUsers]);
+    fetchRequests();
+  }, [fetchUsers, fetchRequests]);
+
+  // Registration approval handlers
+  const sendNotificationEmail = async (
+    email: string,
+    fullName: string,
+    type: 'approved' | 'rejected',
+    role?: string
+  ) => {
+    try {
+      await supabase.functions.invoke('send-notification', {
+        body: { to: email, type, fullName, role }
+      });
+    } catch (error) {
+      console.error('Notification email failed:', error);
+    }
+  };
+
+  const handleApproveRequest = async (request: RegistrationRequest) => {
+    if (processingId) return;
+    setProcessingId(request.id);
+
+    try {
+      const { error } = await supabase.auth.signUp({
+        email: request.email,
+        password: request.password_hash,
+        options: {
+          data: {
+            full_name: request.full_name,
+            department: request.department,
+            role: request.requested_role,
+          },
+          emailRedirectTo: `${window.location.origin}/`
+        }
+      });
+
+      if (error) throw error;
+
+      await supabase
+        .from('registration_requests')
+        .update({
+          status: 'approved',
+          reviewed_at: new Date().toISOString(),
+          reviewed_by: user?.id
+        })
+        .eq('id', request.id);
+
+      // Non-blocking email
+      sendNotificationEmail(
+        request.email,
+        request.full_name,
+        'approved',
+        ROLE_LABELS[request.requested_role]
+      );
+
+      toast({
+        title: 'User Approved',
+        description: `${request.full_name} has been granted access.`,
+      });
+
+      fetchRequests();
+      fetchUsers();
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Approval Failed',
+        description: error.message || 'Failed to approve user',
+      });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleRejectRequest = async (request: RegistrationRequest) => {
+    if (processingId) return;
+    setProcessingId(request.id);
+
+    try {
+      await supabase
+        .from('registration_requests')
+        .update({
+          status: 'rejected',
+          reviewed_at: new Date().toISOString(),
+          reviewed_by: user?.id
+        })
+        .eq('id', request.id);
+
+      sendNotificationEmail(request.email, request.full_name, 'rejected');
+
+      toast({
+        title: 'Request Rejected',
+        description: 'The registration request has been rejected.',
+      });
+
+      fetchRequests();
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Failed to reject request',
+      });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleDeleteRequest = async (request: RegistrationRequest) => {
+    if (processingId) return;
+    setProcessingId(request.id);
+
+    try {
+      await supabase
+        .from('registration_requests')
+        .delete()
+        .eq('id', request.id);
+
+      toast({
+        title: 'Request Deleted',
+        description: 'The pending registration has been removed.',
+      });
+
+      fetchRequests();
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Failed to delete request',
+      });
+    } finally {
+      setProcessingId(null);
+    }
+  };
 
   const filteredUsers = users.filter(u => 
     u.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -328,144 +499,255 @@ export function UserListPanel({ onClose }: UserListPanelProps) {
         <CardHeader className="pb-3 px-0 pt-0">
           <CardTitle className="flex items-center gap-2 font-display text-lg">
             <Users className="w-5 h-5" />
-            Team Members
-            <Badge variant="secondary" className="ml-2">{users.length}</Badge>
+            User Management
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 px-0">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by name, email, or department..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-            />
-          </div>
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="members" className="flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                Team Members
+                <Badge variant="secondary" className="ml-1 text-xs">{users.length}</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="approvals" className="flex items-center gap-2">
+                <UserPlus className="w-4 h-4" />
+                Pending Approvals
+                {requests.length > 0 && (
+                  <Badge variant="destructive" className="ml-1 text-xs">{requests.length}</Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
 
-          {/* User List */}
-          <ScrollArea className="h-[400px]">
-            <div className="space-y-2 pr-2">
-              {filteredUsers.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">No users found</p>
-              ) : (
-                filteredUsers.map(u => (
-                  <div key={u.id} className="p-3 rounded-lg border bg-card/50 hover:bg-muted/50 transition-colors">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="font-semibold">{u.full_name}</h4>
-                          {u.role && (
-                            <span className={`role-badge text-[10px] px-2 py-0.5 ${
-                              u.role === 'team_captain' ? 'role-captain' :
-                              u.role === 'vice_captain' ? 'role-vice-captain' :
-                              u.role === 'strategist' ? 'role-strategist' :
-                              u.role === 'team_manager' ? 'role-manager' : 'role-member'
-                            }`}>
-                              {ROLE_LABELS[u.role]}
-                            </span>
-                          )}
-                          {getStatusBadge(u.current_status)}
-                        </div>
-                        
-                        <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
-                          <p className="flex items-center gap-1">
-                            <Mail className="w-3 h-3" />
-                            {u.email}
-                          </p>
-                          
-                          {/* Phone - Editable */}
-                          <div className="flex items-center gap-1">
-                            <Phone className="w-3 h-3" />
-                            {editingPhoneId === u.id ? (
+            {/* Team Members Tab */}
+            <TabsContent value="members" className="space-y-4 mt-4">
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name, email, or department..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+
+              {/* User List */}
+              <ScrollArea className="h-[400px]">
+                <div className="space-y-2 pr-2">
+                  {filteredUsers.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8">No users found</p>
+                  ) : (
+                    filteredUsers.map(u => (
+                      <div key={u.id} className="p-3 rounded-lg border bg-card/50 hover:bg-muted/50 transition-colors">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4 className="font-semibold">{u.full_name}</h4>
+                              {u.role && (
+                                <span className={`role-badge text-[10px] px-2 py-0.5 ${
+                                  u.role === 'team_captain' ? 'role-captain' :
+                                  u.role === 'vice_captain' ? 'role-vice-captain' :
+                                  u.role === 'strategist' ? 'role-strategist' :
+                                  u.role === 'team_manager' ? 'role-manager' : 'role-member'
+                                }`}>
+                                  {ROLE_LABELS[u.role]}
+                                </span>
+                              )}
+                              {getStatusBadge(u.current_status)}
+                            </div>
+                            
+                            <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                              <p className="flex items-center gap-1">
+                                <Mail className="w-3 h-3" />
+                                {u.email}
+                              </p>
+                              
+                              {/* Phone - Editable */}
                               <div className="flex items-center gap-1">
-                                <Input
-                                  value={phoneValue}
-                                  onChange={(e) => setPhoneValue(e.target.value)}
-                                  placeholder="+91 XXXXX XXXXX"
-                                  className="h-6 w-32 text-xs px-2"
-                                />
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-6 w-6 p-0"
-                                  onClick={() => handleUpdatePhone(u.user_id, u.id)}
-                                  disabled={processingId === u.id}
-                                >
-                                  <CheckCircle className="w-3 h-3 text-green-600" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-6 w-6 p-0"
-                                  onClick={() => {
-                                    setEditingPhoneId(null);
-                                    setPhoneValue('');
-                                  }}
-                                >
-                                  <X className="w-3 h-3 text-muted-foreground" />
-                                </Button>
+                                <Phone className="w-3 h-3" />
+                                {editingPhoneId === u.id ? (
+                                  <div className="flex items-center gap-1">
+                                    <Input
+                                      value={phoneValue}
+                                      onChange={(e) => setPhoneValue(e.target.value)}
+                                      placeholder="+91 XXXXX XXXXX"
+                                      className="h-6 w-32 text-xs px-2"
+                                    />
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-6 w-6 p-0"
+                                      onClick={() => handleUpdatePhone(u.user_id, u.id)}
+                                      disabled={processingId === u.id}
+                                    >
+                                      <CheckCircle className="w-3 h-3 text-green-600" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-6 w-6 p-0"
+                                      onClick={() => {
+                                        setEditingPhoneId(null);
+                                        setPhoneValue('');
+                                      }}
+                                    >
+                                      <X className="w-3 h-3 text-muted-foreground" />
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      setEditingPhoneId(u.id);
+                                      setPhoneValue(u.phone_number || '');
+                                    }}
+                                    className="hover:text-foreground transition-colors"
+                                  >
+                                    {formatPhoneDisplay(u.phone_number)}
+                                  </button>
+                                )}
                               </div>
-                            ) : (
-                              <button
-                                onClick={() => {
-                                  setEditingPhoneId(u.id);
-                                  setPhoneValue(u.phone_number || '');
-                                }}
-                                className="hover:text-foreground transition-colors"
-                              >
-                                {formatPhoneDisplay(u.phone_number)}
-                              </button>
-                            )}
+                            </div>
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleViewProfile(u.user_id)}
+                              title="View Dashboard"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setSelectedUser(u);
+                                setDialogType('password');
+                              }}
+                              disabled={u.user_id === user?.id}
+                              title="Reset Password"
+                            >
+                              <Key className="w-4 h-4" />
+                            </Button>
+                            
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setSelectedUser(u);
+                                setDialogType('delete');
+                              }}
+                              disabled={u.user_id === user?.id}
+                              className="hover:text-destructive"
+                              title="Delete User"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
                           </div>
                         </div>
                       </div>
+                    ))
+                  )}
+                </div>
+              </ScrollArea>
+            </TabsContent>
 
-                      {/* Actions */}
-                      <div className="flex items-center gap-1">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleViewProfile(u.user_id)}
-                          title="View Dashboard"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => {
-                            setSelectedUser(u);
-                            setDialogType('password');
-                          }}
-                          disabled={u.user_id === user?.id}
-                          title="Reset Password"
-                        >
-                          <Key className="w-4 h-4" />
-                        </Button>
-                        
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => {
-                            setSelectedUser(u);
-                            setDialogType('delete');
-                          }}
-                          disabled={u.user_id === user?.id}
-                          className="hover:text-destructive"
-                          title="Delete User"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+            {/* Pending Approvals Tab */}
+            <TabsContent value="approvals" className="mt-4">
+              {requestsLoading ? (
+                <div className="text-center text-muted-foreground py-8">
+                  <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
+                  Loading requests...
+                </div>
+              ) : requests.length === 0 ? (
+                <div className="text-center py-8">
+                  <UserPlus className="w-10 h-10 mx-auto text-muted-foreground/50 mb-3" />
+                  <p className="text-muted-foreground">No pending registration requests</p>
+                  <p className="text-xs text-muted-foreground mt-1">New registration requests will appear here</p>
+                </div>
+              ) : (
+                <ScrollArea className="h-[400px]">
+                  <div className="space-y-3 pr-2">
+                    {requests.map((request) => (
+                      <div key={request.id} className="p-4 rounded-lg border bg-card/50">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 space-y-1">
+                            <h4 className="font-semibold">{request.full_name}</h4>
+                            <p className="text-sm text-muted-foreground flex items-center gap-1">
+                              <Mail className="w-3 h-3" />
+                              {request.email}
+                            </p>
+                            <div className="flex items-center gap-2 text-xs">
+                              <span className="px-2 py-0.5 rounded bg-secondary text-secondary-foreground">
+                                {request.department}
+                              </span>
+                              <span className="px-2 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                                {ROLE_LABELS[request.requested_role]}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-2">
+                              Requested: {format(new Date(request.created_at), 'MMM dd, yyyy HH:mm')}
+                            </p>
+                          </div>
+
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDeleteRequest(request)}
+                              disabled={processingId === request.id}
+                              title="Delete Request"
+                            >
+                              {processingId === request.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="w-4 h-4" />
+                              )}
+                            </Button>
+
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleRejectRequest(request)}
+                              disabled={processingId === request.id}
+                              className="text-destructive hover:text-destructive"
+                              title="Reject"
+                            >
+                              {processingId === request.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <X className="w-4 h-4" />
+                              )}
+                            </Button>
+
+                            <Button
+                              size="sm"
+                              onClick={() => handleApproveRequest(request)}
+                              disabled={processingId === request.id}
+                              title="Approve"
+                            >
+                              {processingId === request.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <Check className="w-4 h-4 mr-1" />
+                                  Approve
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    ))}
                   </div>
-                ))
+                </ScrollArea>
               )}
-            </div>
-          </ScrollArea>
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
 
