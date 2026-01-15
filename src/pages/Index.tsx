@@ -34,17 +34,20 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="container mx-auto px-6 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Today's Task Panel - ALWAYS FIRST */}
+      <main className="container mx-auto px-3 sm:px-6 py-4 sm:py-6">
+        {/* Mobile-first: Stack everything, Today's Task first */}
+        <div className="space-y-4 sm:space-y-6 lg:grid lg:grid-cols-3 lg:gap-6 lg:space-y-0">
+          {/* Main content - Full width on mobile, 2 cols on desktop */}
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+            {/* Today's Task Panel - ALWAYS FIRST on all devices */}
             <TaskPanel />
+            
+            {/* Workflow Log - Collapsible on mobile */}
             <WorkflowLog />
           </div>
           
-          {/* Sidebar */}
-          <div className="space-y-6">
+          {/* Sidebar - Below main content on mobile */}
+          <div className="space-y-4 sm:space-y-6">
             {/* Command Center for TL/VC only */}
             {isCaptainOrVice && <LeadershipActionPanel />}
             
