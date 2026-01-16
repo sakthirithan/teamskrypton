@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -21,20 +20,15 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import {
-  ROLES,
-  ROLE_LABELS,
-  KryptonRole,
-  DIRECT_ACCESS_EMAILS,
-} from '@/lib/constants';
-import { Loader2, CheckCircle, Clock } from 'lucide-react';
+import { ROLES, ROLE_LABELS, KryptonRole } from '@/lib/constants';
+import { Loader2, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const registerSchema = z
   .object({
-    fullName: z.string().min(2).max(100),
-    email: z.string().email(),
-    department: z.string().min(2).max(100),
+    fullName: z.string().min(2, 'Full name must be at least 2 characters'),
+    email: z.string().email('Invalid email address'),
+    department: z.string().min(2, 'Department is required'),
     role: z.enum([
       'team_captain',
       'vice_captain',
@@ -42,7 +36,7 @@ const registerSchema = z
       'team_manager',
       'team_member',
     ]),
-    password: z.string().min(6),
+    password: z.string().min(6, 'Password must be at least 6 characters'),
     confirmPassword: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -58,8 +52,7 @@ interface RegisterFormProps {
 
 export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  const [isDirectAccess, setIsDirectAccess] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const { toast } = useToast();
 
   const {
@@ -77,104 +70,71 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
   const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true);
 
-    const hasDirectAccess = DIRECT_ACCESS_EMAILS.includes(
-      data.email.toLowerCase()
-    );
-
     try {
-      // 1️⃣ Create Auth User
+      /**
+       * STEP 1 — Create AUTH user
+       */
       const { data: authData, error: authError } =
         await supabase.auth.signUp({
           email: data.email,
           password: data.password,
         });
 
-      if (authError) throw authError;
+      if (authError || !authData.user) {
+        throw authError || new Error('Auth user creation failed');
+      }
 
-      const userId = authData.user?.id;
-      if (!userId) throw new Error('User creation failed');
-
-      // 2️⃣ ALWAYS create profile (CRITICAL FIX)
-      const { error: profileError } = await supabase
-        .from('profiles')
+      /**
+       * STEP 2 — Create registration request
+       * IMPORTANT: status must match DB ENUM exactly
+       */
+      const { error: requestError } = await supabase
+        .from('registration_requests')
         .insert({
-          id: userId,
+          user_id: authData.user.id,
           full_name: data.fullName,
           email: data.email,
           department: data.department,
-          role: hasDirectAccess ? data.role : null,
-          status: hasDirectAccess ? 'ACTIVE' : 'PENDING_APPROVAL',
-          phone_number: null,
+          requested_role: data.role,
+          status: 'PENDING', // ✅ MUST MATCH DB ENUM
         });
 
-      if (profileError) throw profileError;
-
-      // 3️⃣ Handle approval flow
-      if (hasDirectAccess) {
-        setIsDirectAccess(true);
-        setIsSubmitted(true);
-        toast({
-          title: 'Account Created!',
-          description: 'You can now log in with your credentials.',
-        });
-      } else {
-        const { error: requestError } = await supabase
-          .from('registration_requests')
-          .insert({
-            user_id: userId,
-            full_name: data.fullName,
-            email: data.email,
-            department: data.department,
-            requested_role: data.role,
-            status: 'pending',
-          });
-
-        if (requestError) throw requestError;
-
-        setIsSubmitted(true);
-        toast({
-          title: 'Request Submitted!',
-          description:
-            'Your registration is pending approval from Team Captain or Vice Captain.',
-        });
+      /**
+       * STEP 3 — ROLLBACK if request insert fails
+       */
+      if (requestError) {
+        await supabase.auth.admin.deleteUser(authData.user.id);
+        throw requestError;
       }
+
+      toast({
+        title: 'Request Submitted',
+        description:
+          'Your registration is pending approval from Team Captain or Vice Captain.',
+      });
+
+      setSubmitted(true);
     } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Registration Failed',
-        description: error.message || 'Something went wrong.',
+        description:
+          error?.message || 'Unable to submit registration request.',
       });
     } finally {
       setIsLoading(false);
     }
   };
 
-  if (isSubmitted) {
+  if (submitted) {
     return (
       <Card className="w-full max-w-md mx-auto">
-        <CardContent className="pt-8 pb-8 text-center">
-          {isDirectAccess ? (
-            <>
-              <CheckCircle className="w-16 h-16 mx-auto text-green-500 mb-4" />
-              <h3 className="text-xl font-semibold mb-2">
-                Account Created!
-              </h3>
-              <p className="text-muted-foreground mb-6">
-                You can now log in with your credentials.
-              </p>
-            </>
-          ) : (
-            <>
-              <Clock className="w-16 h-16 mx-auto text-amber-500 mb-4" />
-              <h3 className="text-xl font-semibold mb-2">
-                Request Submitted!
-              </h3>
-              <p className="text-muted-foreground mb-6">
-                Your registration is pending approval from Team Captain or Vice
-                Captain.
-              </p>
-            </>
-          )}
+        <CardContent className="py-10 text-center">
+          <Clock className="w-16 h-16 mx-auto text-amber-500 mb-4" />
+          <h3 className="text-xl font-semibold mb-2">Approval Pending</h3>
+          <p className="text-muted-foreground mb-6">
+            Your account is awaiting approval by Team Captain or Vice Captain.
+          </p>
           <Button onClick={onSwitchToLogin} className="w-full">
             Go to Login
           </Button>
@@ -190,7 +150,7 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
           Create Account
         </CardTitle>
         <CardDescription>
-          Join Krypton Space
+          Register to join Krypton Space
         </CardDescription>
       </CardHeader>
 
@@ -199,25 +159,38 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
           <div>
             <Label>Full Name</Label>
             <Input {...register('fullName')} />
+            {errors.fullName && (
+              <p className="text-sm text-destructive">
+                {errors.fullName.message}
+              </p>
+            )}
           </div>
 
           <div>
             <Label>Email</Label>
             <Input type="email" {...register('email')} />
+            {errors.email && (
+              <p className="text-sm text-destructive">
+                {errors.email.message}
+              </p>
+            )}
           </div>
 
           <div>
             <Label>Department</Label>
             <Input {...register('department')} />
+            {errors.department && (
+              <p className="text-sm text-destructive">
+                {errors.department.message}
+              </p>
+            )}
           </div>
 
           <div>
             <Label>Role</Label>
             <Select
               value={selectedRole}
-              onValueChange={(v) =>
-                setValue('role', v as KryptonRole)
-              }
+              onValueChange={(v) => setValue('role', v as KryptonRole)}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select role" />
@@ -230,6 +203,11 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
                 ))}
               </SelectContent>
             </Select>
+            {errors.role && (
+              <p className="text-sm text-destructive">
+                {errors.role.message}
+              </p>
+            )}
           </div>
 
           <div>
@@ -240,21 +218,26 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
           <div>
             <Label>Confirm Password</Label>
             <Input type="password" {...register('confirmPassword')} />
+            {errors.confirmPassword && (
+              <p className="text-sm text-destructive">
+                {errors.confirmPassword.message}
+              </p>
+            )}
           </div>
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
+          <Button className="w-full" disabled={isLoading}>
             {isLoading && (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
             )}
             Request Access
           </Button>
 
           <p className="text-center text-sm text-muted-foreground">
-            Already have an account?{' '}
+            Already registered?{' '}
             <button
               type="button"
               onClick={onSwitchToLogin}
-              className="text-primary font-medium"
+              className="text-primary underline"
             >
               Sign in
             </button>
