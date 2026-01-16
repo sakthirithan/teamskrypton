@@ -184,7 +184,7 @@ export function KryptonIdCard({
             <span className="font-medium truncate max-w-[150px]">{profile.email}</span>
           </div>
           
-          {/* Phone Number - Visible to ALL, Editable by TL/VC only */}
+          {/* Phone Number - Editable by TL/VC */}
           <div className="flex justify-between items-center">
             <span className="text-muted-foreground flex items-center gap-1">
               <Phone className="w-3 h-3" /> Phone
@@ -196,8 +196,6 @@ export function KryptonIdCard({
                   onChange={(e) => setPhoneValue(e.target.value)}
                   className="h-6 w-24 text-xs px-1"
                   placeholder="Phone"
-                  type="tel"
-                  inputMode="numeric"
                 />
                 <Button 
                   size="sm" 
@@ -211,14 +209,14 @@ export function KryptonIdCard({
               </div>
             ) : (
               <span className="font-medium flex items-center gap-1">
-                {profile.phone_number || 'Not set'}
+                {profile.phone_number || '-'}
                 {canEditPhone && onUpdatePhone && (
                   <button 
                     onClick={(e) => {
                       e.stopPropagation();
                       setIsEditingPhone(true);
                     }}
-                    className="p-1 hover:bg-muted rounded min-h-[44px] min-w-[44px] flex items-center justify-center"
+                    className="p-1 hover:bg-muted rounded"
                     title="Edit phone number"
                   >
                     <Pencil className="w-3 h-3 text-muted-foreground" />

@@ -17,9 +17,3 @@ verify_jwt = false
 
 [functions.handle-deletion-response]
 verify_jwt = false
-
-[functions.hash-password]
-verify_jwt = false
-
-[functions.create-user-account]
-verify_jwt = false

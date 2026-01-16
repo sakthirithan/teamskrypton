@@ -91,16 +91,7 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
           description: 'You can now log in with your credentials.',
         });
       } else {
-        // Hash password before storing for security
-        const { data: hashData, error: hashError } = await supabase.functions.invoke('hash-password', {
-          body: { password: data.password }
-        });
-        
-        if (hashError || hashData?.error) {
-          throw new Error(hashData?.error || 'Failed to process registration');
-        }
-
-        // Submit to registration_requests for approval with hashed password
+        // Submit to registration_requests for approval
         const { error } = await supabase
           .from('registration_requests')
           .insert({
@@ -108,7 +99,7 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
             email: data.email,
             department: data.department,
             requested_role: data.role,
-            password_hash: hashData.hash, // Securely hashed password
+            password_hash: data.password, // Note: In production, hash this
             status: 'pending',
           });
 
