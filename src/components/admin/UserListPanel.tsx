@@ -60,7 +60,7 @@ interface RegistrationRequest {
   requested_role: KryptonRole;
   status: 'pending' | 'approved' | 'rejected';
   created_at: string;
-  user_id: string | null;
+  password_hash: string;
 }
 
 interface UserListPanelProps {
@@ -84,12 +84,17 @@ export function UserListPanel({ onClose }: UserListPanelProps) {
 
   // Dialog states
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
-  const [dialogType, setDialogType] = useState<'delete' | 'password' | null>(null);
+  const [dialogType, setDialogType] = useState<'delete' | 'password' | 'approve' | null>(null);
   
   // Password reset state
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  
+  // Approval state
+  const [selectedRequest, setSelectedRequest] = useState<RegistrationRequest | null>(null);
+  const [approvalPassword, setApprovalPassword] = useState('');
+  const [showApprovalPassword, setShowApprovalPassword] = useState(false);
   
   // Delete state - enhanced for governance flow
   const [deleteReason, setDeleteReason] = useState('');
@@ -177,15 +182,35 @@ export function UserListPanel({ onClose }: UserListPanelProps) {
     }
   };
 
-  // Direct approval - no password needed
-  const handleApproveRequest = async (request: RegistrationRequest) => {
-    if (processingId) return;
-    setProcessingId(request.id);
+  // Open approval dialog instead of direct approval
+  const openApprovalDialog = (request: RegistrationRequest) => {
+    setSelectedRequest(request);
+    setApprovalPassword('');
+    setShowApprovalPassword(false);
+    setDialogType('approve');
+  };
+
+  const handleApproveRequest = async () => {
+    if (!selectedRequest || processingId) return;
+    
+    if (!approvalPassword || approvalPassword.length < 6) {
+      toast({
+        variant: 'destructive',
+        title: 'Password Required',
+        description: 'Enter the password the user provided during registration (minimum 6 characters).'
+      });
+      return;
+    }
+    
+    setProcessingId(selectedRequest.id);
 
     try {
-      // Server-side approval - creates role for the user
+      // Use secure server-side user creation with user's own password
       const { data, error } = await supabase.functions.invoke('create-user-account', {
-        body: { requestId: request.id }
+        body: { 
+          requestId: selectedRequest.id,
+          userPassword: approvalPassword
+        }
       });
 
       if (error || data?.error) throw error || new Error(data.error);
@@ -195,7 +220,7 @@ export function UserListPanel({ onClose }: UserListPanelProps) {
         data.email,
         data.fullName,
         'approved',
-        ROLE_LABELS[request.requested_role]
+        ROLE_LABELS[selectedRequest.requested_role]
       );
 
       toast({
@@ -203,6 +228,9 @@ export function UserListPanel({ onClose }: UserListPanelProps) {
         description: `${data.fullName} can now log in with their registered password.`,
       });
 
+      setDialogType(null);
+      setSelectedRequest(null);
+      setApprovalPassword('');
       fetchRequests();
       fetchUsers();
     } catch (error: any) {
@@ -710,7 +738,7 @@ export function UserListPanel({ onClose }: UserListPanelProps) {
 
                             <Button
                               size="sm"
-                              onClick={() => handleApproveRequest(request)}
+                              onClick={() => openApprovalDialog(request)}
                               disabled={processingId === request.id}
                               title="Approve"
                             >
@@ -965,6 +993,99 @@ export function UserListPanel({ onClose }: UserListPanelProps) {
                 </Button>
               </div>
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Approval Dialog - Enter user's registered password */}
+      <Dialog open={dialogType === 'approve'} onOpenChange={(open) => {
+        if (!open) {
+          setDialogType(null);
+          setSelectedRequest(null);
+          setApprovalPassword('');
+          setShowApprovalPassword(false);
+        }
+      }}>
+        <DialogContent className="w-[95vw] max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="w-5 h-5 text-primary" />
+              Approve Registration
+            </DialogTitle>
+            <DialogDescription>
+              Enter the password the user provided during registration to create their account.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="p-3 rounded-lg border bg-primary/5 border-primary/30">
+              <p className="font-medium">{selectedRequest?.full_name}</p>
+              <p className="text-sm text-muted-foreground">{selectedRequest?.email}</p>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="px-2 py-0.5 text-xs rounded bg-secondary text-secondary-foreground">
+                  {selectedRequest?.department}
+                </span>
+                <span className="px-2 py-0.5 text-xs rounded bg-primary/10 text-primary font-medium">
+                  {selectedRequest?.requested_role && ROLE_LABELS[selectedRequest.requested_role]}
+                </span>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>User's Registered Password</Label>
+              <div className="relative">
+                <Input
+                  type={showApprovalPassword ? 'text' : 'password'}
+                  value={approvalPassword}
+                  onChange={(e) => setApprovalPassword(e.target.value)}
+                  placeholder="Enter the password user provided"
+                  className="min-h-[44px]"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0"
+                  onClick={() => setShowApprovalPassword(!showApprovalPassword)}
+                >
+                  {showApprovalPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                This must be the exact password the user entered during registration. They will use this password to log in.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-lg border border-amber-500/30 bg-amber-500/10 text-sm">
+              <p className="text-amber-700 dark:text-amber-400 text-xs">
+                ⚠️ The user should communicate their password through a secure channel before approval.
+              </p>
+            </div>
+            
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setDialogType(null);
+                  setSelectedRequest(null);
+                  setApprovalPassword('');
+                }}
+                className="flex-1 min-h-[44px]"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleApproveRequest}
+                disabled={!approvalPassword || approvalPassword.length < 6 || processingId === selectedRequest?.id}
+                className="flex-1 min-h-[44px]"
+              >
+                {processingId === selectedRequest?.id ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <Check className="w-4 h-4 mr-2" />
+                )}
+                Approve & Create Account
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

@@ -156,7 +156,6 @@ export type Database = {
           reviewed_at: string | null
           reviewed_by: string | null
           status: Database["public"]["Enums"]["registration_status"] | null
-          user_id: string | null
         }
         Insert: {
           created_at?: string
@@ -169,7 +168,6 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["registration_status"] | null
-          user_id?: string | null
         }
         Update: {
           created_at?: string
@@ -182,7 +180,6 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["registration_status"] | null
-          user_id?: string | null
         }
         Relationships: []
       }
