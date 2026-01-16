@@ -55,35 +55,35 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
     const hasDirectAccess = DIRECT_ACCESS_EMAILS.includes(data.email.toLowerCase());
     
     try {
-      if (hasDirectAccess) {
-        // Direct signup for special emails
-        const { error } = await supabase.auth.signUp({
-          email: data.email,
-          password: data.password,
-          options: {
-            data: {
-              full_name: data.fullName,
-              department: data.department,
-              role: data.role,
-            },
-            emailRedirectTo: `${window.location.origin}/`
-          }
-        });
-
-        if (error) {
-          if (error.message.includes('already registered')) {
-            toast({
-              variant: 'destructive',
-              title: 'Registration Failed',
-              description: 'An account with this email already exists.',
-            });
-          } else {
-            throw error;
-          }
-          return;
+      // Create auth user for everyone (password stored securely by Supabase)
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
+        options: {
+          data: {
+            full_name: data.fullName,
+            department: data.department,
+            role: hasDirectAccess ? data.role : undefined, // Only set role metadata for direct access
+          },
+          emailRedirectTo: `${window.location.origin}/`
         }
+      });
 
-        // Mark as direct access user
+      if (authError) {
+        if (authError.message.includes('already registered')) {
+          toast({
+            variant: 'destructive',
+            title: 'Registration Failed',
+            description: 'An account with this email already exists.',
+          });
+        } else {
+          throw authError;
+        }
+        return;
+      }
+
+      if (hasDirectAccess) {
+        // Direct access users are fully set up by the trigger
         setIsDirectAccess(true);
         setIsSubmitted(true);
         toast({
@@ -91,36 +91,31 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
           description: 'You can now log in with your credentials.',
         });
       } else {
-        // Hash password before storing for security
-        const { data: hashData, error: hashError } = await supabase.functions.invoke('hash-password', {
-          body: { password: data.password }
-        });
-        
-        if (hashError || hashData?.error) {
-          throw new Error(hashData?.error || 'Failed to process registration');
-        }
-
-        // Submit to registration_requests for approval with hashed password
-        const { error } = await supabase
+        // For regular users, create a registration request linked to the auth user
+        // The auth user exists but has no role yet, so they can't access the app
+        const { error: requestError } = await supabase
           .from('registration_requests')
           .insert({
             full_name: data.fullName,
             email: data.email,
             department: data.department,
             requested_role: data.role,
-            password_hash: hashData.hash, // Securely hashed password
+            user_id: authData.user?.id, // Link to the created auth user
+            password_hash: '', // No longer used - password is in auth.users
             status: 'pending',
           });
 
-        if (error) {
-          if (error.message.includes('duplicate')) {
+        if (requestError) {
+          // If registration request fails, we should clean up but user can still be approved manually
+          console.error('Registration request error:', requestError);
+          if (requestError.message.includes('duplicate')) {
             toast({
               variant: 'destructive',
               title: 'Request Already Exists',
               description: 'A registration request with this email already exists.',
             });
           } else {
-            throw error;
+            throw requestError;
           }
           return;
         }

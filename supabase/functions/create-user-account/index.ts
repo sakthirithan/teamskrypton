@@ -7,22 +7,16 @@ const corsHeaders = {
 };
 
 /**
- * Create User Account - Approves a registration request
+ * Approve User Account
  * 
- * AUTHENTICATION RULES:
- * - User sets their OWN password during registration
- * - Password is stored as hash in registration_requests
- * - On approval, we need to recreate the password from the hash
- * - Since we can't reverse the hash, we use a secure flow:
- *   1. User registered with their password (hashed and stored)
- *   2. On approval, TL/VC sets a password that matches what user provided
- *   3. The system uses the stored hash verification
+ * Flow:
+ * 1. User registers → auth account created immediately with their password
+ * 2. Registration request stored (pending)
+ * 3. TL/VC approves → this function creates the role, enabling login
  * 
- * NOTE: Due to security constraints, we prompt TL/VC to enter the password
- * the user provided (communicated out-of-band) OR we use a reset flow.
+ * No temporary passwords. User logs in with their registered password.
  */
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -31,7 +25,6 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     
-    // Get auth header and validate caller
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(
@@ -40,13 +33,12 @@ serve(async (req) => {
       );
     }
 
-    // Create clients
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
     const supabaseUser = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
       global: { headers: { Authorization: authHeader } }
     });
 
-    // Validate caller is leadership
+    // Validate caller is TL/VC
     const { data: { user: caller } } = await supabaseUser.auth.getUser();
     if (!caller) {
       return new Response(
@@ -68,18 +60,11 @@ serve(async (req) => {
       );
     }
 
-    const { requestId, userPassword } = await req.json();
+    const { requestId } = await req.json();
 
     if (!requestId) {
       return new Response(
         JSON.stringify({ error: 'Request ID is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (!userPassword || userPassword.length < 6) {
-      return new Response(
-        JSON.stringify({ error: 'User password is required (minimum 6 characters). Enter the password the user provided during registration.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -99,24 +84,31 @@ serve(async (req) => {
       );
     }
 
-    // Create the user account using admin API with the user's own password
-    const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-      email: request.email,
-      password: userPassword, // User's actual password provided by TL/VC
-      email_confirm: true,
-      user_metadata: {
-        full_name: request.full_name,
-        department: request.department,
-        role: request.requested_role,
-      }
-    });
-
-    if (createError) {
-      console.error('User creation error:', createError);
+    // Check if user_id exists (user was created during registration)
+    if (!request.user_id) {
       return new Response(
-        JSON.stringify({ error: createError.message }),
+        JSON.stringify({ error: 'User account not found. User may need to re-register.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Create the user role (this enables login)
+    const { error: roleError } = await supabaseAdmin
+      .from('user_roles')
+      .insert({
+        user_id: request.user_id,
+        role: request.requested_role
+      });
+
+    if (roleError) {
+      console.error('Role creation error:', roleError);
+      // Check if role already exists
+      if (roleError.code !== '23505') { // Not a duplicate key error
+        return new Response(
+          JSON.stringify({ error: 'Failed to assign role: ' + roleError.message }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Update registration request status
@@ -134,7 +126,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'User account created successfully with their registered password',
+        message: 'User approved successfully',
         email: request.email,
         fullName: request.full_name
       }),
