@@ -1,26 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-/**
- * Create User Account - Approves a registration request
- * 
- * AUTHENTICATION RULES:
- * - User sets their OWN password during registration
- * - Password is stored as hash in registration_requests
- * - On approval, we need to recreate the password from the hash
- * - Since we can't reverse the hash, we use a secure flow:
- *   1. User registered with their password (hashed and stored)
- *   2. On approval, TL/VC sets a password that matches what user provided
- *   3. The system uses the stored hash verification
- * 
- * NOTE: Due to security constraints, we prompt TL/VC to enter the password
- * the user provided (communicated out-of-band) OR we use a reset flow.
- */
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -68,18 +53,11 @@ serve(async (req) => {
       );
     }
 
-    const { requestId, userPassword } = await req.json();
+    const { requestId } = await req.json();
 
     if (!requestId) {
       return new Response(
         JSON.stringify({ error: 'Request ID is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (!userPassword || userPassword.length < 6) {
-      return new Response(
-        JSON.stringify({ error: 'User password is required (minimum 6 characters). Enter the password the user provided during registration.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -99,10 +77,13 @@ serve(async (req) => {
       );
     }
 
-    // Create the user account using admin API with the user's own password
+    // Generate a secure temporary password
+    const tempPassword = crypto.randomUUID().slice(0, 16) + 'Aa1!';
+
+    // Create the user account using admin API
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email: request.email,
-      password: userPassword, // User's actual password provided by TL/VC
+      password: tempPassword,
       email_confirm: true,
       user_metadata: {
         full_name: request.full_name,
@@ -131,10 +112,12 @@ serve(async (req) => {
 
     console.log(`User ${request.email} approved by ${caller.email}`);
 
+    // Return the temporary password for display (user should change it on first login)
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'User account created successfully with their registered password',
+        message: 'User account created successfully',
+        tempPassword,
         email: request.email,
         fullName: request.full_name
       }),
