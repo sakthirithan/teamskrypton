@@ -269,14 +269,15 @@ export function WorkflowLog() {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between font-display">
-          <div className="flex items-center gap-2">
-            <FileText className="w-5 h-5" />
-            Krypton Log
-            <RefreshButton onClick={handleManualRefresh} isRefreshing={isRefreshing} />
-          </div>
-          <div className="flex items-center gap-2">
+      <CardHeader className="pb-3 sm:pb-6">
+        <CardTitle className="flex flex-col gap-3 font-display">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileText className="w-5 h-5" />
+              <span className="text-base sm:text-lg">Krypton Log</span>
+              <RefreshButton onClick={handleManualRefresh} isRefreshing={isRefreshing} />
+            </div>
+            
             {/* Export Button - Leadership only */}
             {isLeadership && (
               <Button 
@@ -286,26 +287,30 @@ export function WorkflowLog() {
                   setExportError(null);
                   setShowExportDialog(true);
                 }}
+                className="h-9 touch-target"
               >
-                <Download className="w-4 h-4 mr-2" />
-                Export
+                <Download className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Export</span>
               </Button>
             )}
-
+          </div>
+          
+          {/* Filters - Scrollable on mobile */}
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0 pb-1">
             {/* Status Filter */}
             <ToggleGroup 
               type="single" 
               value={statusFilter} 
               onValueChange={(value) => value && setStatusFilter(value as StatusFilter)}
-              className="border rounded-md"
+              className="border rounded-md flex-shrink-0"
             >
-              <ToggleGroupItem value="all" size="sm" className="text-xs px-3">
+              <ToggleGroupItem value="all" size="sm" className="text-xs px-2 sm:px-3 touch-target whitespace-nowrap">
                 All
               </ToggleGroupItem>
-              <ToggleGroupItem value="completed" size="sm" className="text-xs px-3">
+              <ToggleGroupItem value="completed" size="sm" className="text-xs px-2 sm:px-3 touch-target whitespace-nowrap">
                 Completed
               </ToggleGroupItem>
-              <ToggleGroupItem value="pending" size="sm" className="text-xs px-3">
+              <ToggleGroupItem value="pending" size="sm" className="text-xs px-2 sm:px-3 touch-target whitespace-nowrap">
                 Pending
               </ToggleGroupItem>
             </ToggleGroup>
@@ -314,11 +319,11 @@ export function WorkflowLog() {
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className={cn(
-                  "justify-start text-left font-normal",
+                  "justify-start text-left font-normal flex-shrink-0 touch-target",
                   !selectedDate && "text-muted-foreground"
                 )}>
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {selectedDate ? format(selectedDate, 'MMM dd, yyyy') : 'Filter by date'}
+                  <CalendarIcon className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">{selectedDate ? format(selectedDate, 'MMM dd') : 'Date'}</span>
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="end">
@@ -333,7 +338,7 @@ export function WorkflowLog() {
                     <Button 
                       variant="ghost" 
                       size="sm" 
-                      className="w-full"
+                      className="w-full touch-target"
                       onClick={() => setSelectedDate(undefined)}
                     >
                       Clear filter
@@ -345,15 +350,63 @@ export function WorkflowLog() {
           </div>
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-3 sm:px-6">
         {filteredLogs.length === 0 ? (
-          <p className="text-center text-muted-foreground py-8">
+          <p className="text-center text-muted-foreground py-6 sm:py-8 text-sm">
             {selectedDate || statusFilter !== 'all' 
               ? 'No tasks match the current filters' 
               : 'No tasks in log yet'}
           </p>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+            {/* Mobile Card View */}
+            <div className="sm:hidden space-y-3">
+              {filteredLogs.map((log) => (
+                <div key={log.id} className="p-3 rounded-lg border bg-card">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium text-sm truncate">{log.title}</h4>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {log.completed_by_name || 'Unknown'}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {getStatusBadge(log.status)}
+                      {isCaptainOrVice && (
+                        <Button 
+                          size="icon" 
+                          variant="ghost"
+                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => setDeleteConfirmLog(log)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mt-2 flex items-center gap-3 text-[10px] text-muted-foreground flex-wrap">
+                    <span>{log.completed_at ? format(new Date(log.completed_at), 'MMM dd') : 'Pending'}</span>
+                    {log.accepted_at && <span>Start: {format(new Date(log.accepted_at), 'HH:mm')}</span>}
+                    {log.completed_at && <span>End: {format(new Date(log.completed_at), 'HH:mm')}</span>}
+                    {log.duration_minutes && <span>{log.duration_minutes}m</span>}
+                    {log.github_url && (
+                      <a 
+                        href={log.github_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline flex items-center gap-0.5"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        Docs
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            {/* Desktop Table View */}
+            <div className="hidden sm:block overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -428,8 +481,9 @@ export function WorkflowLog() {
               </TableBody>
             </Table>
           </div>
+          </>
         )}
-
+        
         {/* Delete/Reset Confirmation Dialog */}
         <Dialog open={!!deleteConfirmLog} onOpenChange={(open) => !open && setDeleteConfirmLog(null)}>
           <DialogContent>

@@ -113,19 +113,19 @@ export function Header() {
   }, []);
 
   return (
-    <header className="krypton-gradient text-primary-foreground sticky top-0 z-50 shadow-lg">
-      <div className="container mx-auto px-6 py-4">
+    <header className="krypton-gradient text-primary-foreground sticky top-0 z-50 shadow-lg safe-area-top">
+      <div className="container mx-auto px-3 sm:px-6 py-2 sm:py-4">
         <div className="flex items-center justify-between">
           {/* Logo and Title */}
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2 sm:gap-6">
             <div 
               className="flex flex-col cursor-pointer group"
               onClick={() => navigate('/')}
             >
-              <h1 className="text-2xl font-display font-bold tracking-tight transition-all duration-200 group-hover:tracking-wide">
+              <h1 className="text-lg sm:text-2xl font-display font-bold tracking-tight transition-all duration-200 group-hover:tracking-wide">
                 Teams Krypton
               </h1>
-              <p className="text-sm opacity-80 transition-opacity duration-200 group-hover:opacity-100">
+              <p className="text-xs sm:text-sm opacity-80 transition-opacity duration-200 group-hover:opacity-100 hidden sm:block">
                 Where Work Becomes Visible
               </p>
             </div>
@@ -152,28 +152,28 @@ export function Header() {
             </nav>
           </div>
 
-          {/* Date and Time */}
+          {/* Date and Time - Hidden on mobile */}
           <div className="hidden lg:flex flex-col items-center px-4 py-2 rounded-lg bg-primary-foreground/5 backdrop-blur-sm">
             <span className="text-sm opacity-80">{formatDate(currentTime)}</span>
             <span className="text-xl font-mono font-semibold tabular-nums">{formatTime(currentTime)}</span>
           </div>
 
           {/* User Info & Mobile Menu */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             {/* User Profile Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <div className="hidden sm:flex items-center gap-3 cursor-pointer hover:opacity-90 transition-all duration-200 p-2 rounded-lg hover:bg-primary-foreground/10">
-                  <div className="flex flex-col items-end">
-                    <span className="font-medium">{profile?.full_name || 'User'}</span>
+                <div className="flex items-center gap-2 sm:gap-3 cursor-pointer hover:opacity-90 transition-all duration-200 p-1.5 sm:p-2 rounded-lg hover:bg-primary-foreground/10 touch-target">
+                  <div className="hidden sm:flex flex-col items-end">
+                    <span className="font-medium text-sm">{profile?.full_name || 'User'}</span>
                     {role && (
-                      <span className={getRoleBadgeClass(role)}>
+                      <span className={`${getRoleBadgeClass(role)} text-[10px] sm:text-xs`}>
                         {ROLE_LABELS[role]}
                       </span>
                     )}
                   </div>
-                  <div className="w-10 h-10 rounded-full bg-primary-foreground/20 flex items-center justify-center ring-2 ring-primary-foreground/30 transition-all duration-200 hover:ring-primary-foreground/50">
-                    <User className="w-5 h-5" />
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-primary-foreground/20 flex items-center justify-center ring-2 ring-primary-foreground/30 transition-all duration-200 hover:ring-primary-foreground/50">
+                    <User className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
                 </div>
               </DropdownMenuTrigger>
@@ -218,14 +218,14 @@ export function Header() {
                   <LogOut className="w-4 h-4 mr-2" />
                   Sign Out
                 </DropdownMenuItem>
-              </DropdownMenuContent>
+            </DropdownMenuContent>
             </DropdownMenu>
 
             {/* Mobile Menu Toggle */}
             <Button
               variant="ghost"
               size="icon"
-              className="md:hidden text-primary-foreground hover:bg-primary-foreground/10"
+              className="md:hidden text-primary-foreground hover:bg-primary-foreground/10 touch-target"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -233,9 +233,24 @@ export function Header() {
           </div>
         </div>
 
-        {/* Mobile Navigation */}
+        {/* Mobile Navigation - Slide-in drawer style */}
         {mobileMenuOpen && (
-          <nav className="md:hidden mt-4 pt-4 border-t border-primary-foreground/20 flex flex-col gap-2 animate-fade-in">
+          <nav className="md:hidden mt-3 pt-3 border-t border-primary-foreground/20 flex flex-col gap-1 animate-fade-in safe-area-bottom">
+            {/* User info for mobile */}
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-primary-foreground/10 mb-2">
+              <div className="w-10 h-10 rounded-full bg-primary-foreground/20 flex items-center justify-center">
+                <User className="w-5 h-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium truncate">{profile?.full_name || 'User'}</p>
+                {role && (
+                  <span className={`${getRoleBadgeClass(role)} text-[10px]`}>
+                    {ROLE_LABELS[role]}
+                  </span>
+                )}
+              </div>
+            </div>
+            
             {navLinks.map((link, index) => (
               <Button
                 key={link.path}
@@ -244,15 +259,30 @@ export function Header() {
                   navigate(link.path);
                   setMobileMenuOpen(false);
                 }}
-                className={`justify-start text-primary-foreground hover:bg-primary-foreground/10 transition-all duration-200 ${
+                className={`justify-start text-primary-foreground hover:bg-primary-foreground/10 h-12 touch-target ${
                   isActive(link.path) ? 'bg-primary-foreground/20' : ''
                 }`}
                 style={{ animationDelay: `${index * 50}ms` }}
               >
-                <link.icon className="w-4 h-4 mr-2" />
+                <link.icon className="w-5 h-5 mr-3" />
                 {link.label}
               </Button>
             ))}
+            
+            {/* User List for TL/VC on mobile */}
+            {isCaptainOrVice && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setUserListOpen(true);
+                  setMobileMenuOpen(false);
+                }}
+                className="justify-start text-primary-foreground hover:bg-primary-foreground/10 h-12 touch-target"
+              >
+                <UserCog className="w-5 h-5 mr-3" />
+                User List
+              </Button>
+            )}
             
             <div className="border-t border-primary-foreground/20 pt-2 mt-2 space-y-1">
               {/* Install App for mobile */}
@@ -262,18 +292,18 @@ export function Header() {
                   handleInstallAPK();
                   setMobileMenuOpen(false);
                 }}
-                className="justify-start text-primary-foreground hover:bg-primary-foreground/10 w-full transition-all duration-200"
+                className="justify-start text-primary-foreground hover:bg-primary-foreground/10 w-full h-12 touch-target"
               >
-                <Download className="w-4 h-4 mr-2" />
+                <Download className="w-5 h-5 mr-3" />
                 Install App
               </Button>
               
               <Button
                 variant="ghost"
                 onClick={handleSignOut}
-                className="justify-start text-red-300 hover:bg-red-500/20 w-full transition-all duration-200"
+                className="justify-start text-red-300 hover:bg-red-500/20 w-full h-12 touch-target"
               >
-                <LogOut className="w-4 h-4 mr-2" />
+                <LogOut className="w-5 h-5 mr-3" />
                 Sign Out
               </Button>
             </div>
@@ -281,17 +311,17 @@ export function Header() {
         )}
       </div>
 
-      {/* User List Dialog - TL/VC Only */}
+      {/* User List Dialog - TL/VC Only - Mobile optimized */}
       {isCaptainOrVice && (
         <Dialog open={userListOpen} onOpenChange={setUserListOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+          <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-hidden p-3 sm:p-6">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <UserCog className="w-5 h-5" />
+              <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <UserCog className="w-4 h-4 sm:w-5 sm:h-5" />
                 User Management
               </DialogTitle>
             </DialogHeader>
-            <div className="overflow-y-auto max-h-[calc(90vh-100px)]">
+            <div className="overflow-y-auto max-h-[calc(90vh-80px)] scrollbar-hide">
               <UserListPanel onClose={() => setUserListOpen(false)} />
             </div>
           </DialogContent>

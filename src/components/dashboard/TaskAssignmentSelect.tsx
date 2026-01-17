@@ -22,7 +22,7 @@ interface TaskAssignmentSelectProps {
 }
 
 export function TaskAssignmentSelect({ value, onChange, disabled }: TaskAssignmentSelectProps) {
-  const { isCaptainOrVice } = useAuth();
+  const { isCaptainOrVice, isLeadership } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
   const [isOpen, setIsOpen] = useState(false);
 
@@ -44,14 +44,12 @@ export function TaskAssignmentSelect({ value, onChange, disabled }: TaskAssignme
     fetchMembers();
   }, []);
 
-  // Get assignable members based on current user's role
+  // Get assignable members - All leadership (including Strategist/Team Manager) can assign to everyone
   const getAssignableMembers = () => {
-    if (isCaptainOrVice) {
-      return members;
-    } else {
-      // Strategist and Team Manager can only assign to team members
-      return members.filter(m => m.role === 'team_member');
+    if (isLeadership) {
+      return members; // All leadership can assign to all members
     }
+    return members.filter(m => m.role === 'team_member');
   };
 
   const assignableMembers = getAssignableMembers();
@@ -109,12 +107,12 @@ export function TaskAssignmentSelect({ value, onChange, disabled }: TaskAssignme
       <PopoverContent className="w-[300px] p-0" align="start">
         <div className="p-3 border-b space-y-2">
           <div className="flex flex-wrap gap-2">
-            {isCaptainOrVice && (
+            {isLeadership && (
               <Button 
                 variant="outline" 
                 size="sm" 
                 onClick={() => selectGroup('all')}
-                className="h-7 text-xs"
+                className="h-9 text-xs touch-target"
               >
                 <Users className="w-3 h-3 mr-1" />
                 All ({assignableMembers.length})
@@ -125,18 +123,18 @@ export function TaskAssignmentSelect({ value, onChange, disabled }: TaskAssignme
                 variant="outline" 
                 size="sm" 
                 onClick={() => selectGroup('team_members')}
-                className="h-7 text-xs"
+                className="h-9 text-xs touch-target"
               >
                 <UserCheck className="w-3 h-3 mr-1" />
-                Team Members ({teamMembers.length})
+                Team ({teamMembers.length})
               </Button>
             )}
-            {isCaptainOrVice && leads.length > 0 && (
+            {isLeadership && leads.length > 0 && (
               <Button 
                 variant="outline" 
                 size="sm" 
                 onClick={() => selectGroup('leads')}
-                className="h-7 text-xs"
+                className="h-9 text-xs touch-target"
               >
                 <Crown className="w-3 h-3 mr-1" />
                 Leads ({leads.length})

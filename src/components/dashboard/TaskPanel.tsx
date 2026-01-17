@@ -347,12 +347,12 @@ export function TaskPanel() {
   return (
     <>
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between font-display">
+        <CardHeader className="pb-3 sm:pb-6">
+          <CardTitle className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-display">
             <div className="flex items-center gap-2">
               <Clock className="w-5 h-5" />
-              Today's Tasks
-              {isLeadership && <Badge variant="secondary" className="ml-2 text-xs">All Tasks</Badge>}
+              <span className="text-base sm:text-lg">Today's Tasks</span>
+              {isLeadership && <Badge variant="secondary" className="ml-1 text-[10px] sm:text-xs">All Tasks</Badge>}
               {isConnected && (
                 <span title="Real-time connected">
                   <Wifi className="w-4 h-4 text-green-500" />
@@ -361,103 +361,106 @@ export function TaskPanel() {
               <RefreshButton onClick={handleManualRefresh} isRefreshing={isRefreshing} />
             </div>
             
-            {/* Status Filter */}
-            <ToggleGroup 
-              type="single" 
-              value={statusFilter} 
-              onValueChange={(value) => value && setStatusFilter(value as StatusFilter)}
-              className="border rounded-md"
-            >
-              <ToggleGroupItem value="all" size="sm" className="text-xs px-3">
-                All
-              </ToggleGroupItem>
-              <ToggleGroupItem value="idle" size="sm" className="text-xs px-3">
-                Idle
-              </ToggleGroupItem>
-              <ToggleGroupItem value="working" size="sm" className="text-xs px-3">
-                Working
-              </ToggleGroupItem>
-              <ToggleGroupItem value="pending" size="sm" className="text-xs px-3">
-                Pending
-              </ToggleGroupItem>
-            </ToggleGroup>
+            {/* Status Filter - Scrollable on mobile */}
+            <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
+              <ToggleGroup 
+                type="single" 
+                value={statusFilter} 
+                onValueChange={(value) => value && setStatusFilter(value as StatusFilter)}
+                className="border rounded-md flex-nowrap"
+              >
+                <ToggleGroupItem value="all" size="sm" className="text-xs px-3 whitespace-nowrap touch-target">
+                  All
+                </ToggleGroupItem>
+                <ToggleGroupItem value="idle" size="sm" className="text-xs px-3 whitespace-nowrap touch-target">
+                  Idle
+                </ToggleGroupItem>
+                <ToggleGroupItem value="working" size="sm" className="text-xs px-3 whitespace-nowrap touch-target">
+                  Working
+                </ToggleGroupItem>
+                <ToggleGroupItem value="pending" size="sm" className="text-xs px-3 whitespace-nowrap touch-target">
+                  Pending
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-3 sm:px-6">
           {filteredTasks.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
+            <p className="text-center text-muted-foreground py-6 sm:py-8 text-sm">
               {statusFilter !== 'all' ? 'No tasks match the current filter' : (isLeadership ? 'No active tasks' : 'No tasks assigned to you')}
             </p>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {filteredTasks.map((task) => {
                 const alerts = taskAlerts.get(task.id) || [];
                 const unreadAlerts = alerts.filter(a => !a.is_read);
                 
                 return (
-                  <div key={task.id} className="p-4 rounded-lg border bg-card hover:shadow-card transition-shadow">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-semibold">{task.title}</h4>
+                  <div key={task.id} className="p-3 sm:p-4 rounded-lg border bg-card hover:shadow-card transition-shadow">
+                    {/* Mobile: Stack layout, Desktop: Side by side */}
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="font-semibold text-sm sm:text-base">{task.title}</h4>
                           {unreadAlerts.length > 0 && (
-                            <Badge variant="destructive" className="text-xs">
+                            <Badge variant="destructive" className="text-[10px] sm:text-xs">
                               <Bell className="w-3 h-3 mr-1" />
                               {unreadAlerts.length}
                             </Badge>
                           )}
                         </div>
-                        {task.description && <p className="text-sm text-muted-foreground mt-1">{task.description}</p>}
+                        {task.description && <p className="text-xs sm:text-sm text-muted-foreground mt-1 line-clamp-2">{task.description}</p>}
                         
                         {/* Show alerts if any */}
                         {unreadAlerts.length > 0 && (
                           <div className="mt-2 p-2 rounded bg-destructive/10 border border-destructive/20">
-                            <p className="text-xs font-medium text-destructive mb-1">Leadership Alert:</p>
-                            <p className="text-sm">{unreadAlerts[0].message}</p>
+                            <p className="text-[10px] sm:text-xs font-medium text-destructive mb-1">Leadership Alert:</p>
+                            <p className="text-xs sm:text-sm">{unreadAlerts[0].message}</p>
                           </div>
                         )}
                         
-                        {/* Assigned To Info - visible for leadership */}
-                        {isLeadership && (
-                          <p className="text-xs text-muted-foreground mt-2">
-                            <span className="font-medium">Assigned To:</span> {getMemberName(task.assigned_to)}
+                        {/* Task metadata - Compact on mobile */}
+                        <div className="mt-2 space-y-0.5">
+                          {/* Assigned To Info - visible for leadership */}
+                          {isLeadership && (
+                            <p className="text-[10px] sm:text-xs text-muted-foreground">
+                              <span className="font-medium">To:</span> {getMemberName(task.assigned_to)}
+                            </p>
+                          )}
+                          
+                          {/* Assigner Info */}
+                          {task.assigner_name && (
+                            <p className="text-[10px] sm:text-xs text-muted-foreground">
+                              <span className="font-medium">By:</span> {task.assigner_name}
+                              {task.assigner_role && ` (${task.assigner_role})`}
+                            </p>
+                          )}
+
+                          {/* Deadline */}
+                          <p className="text-[10px] sm:text-xs text-muted-foreground">
+                            <span className="font-medium">Due:</span> {format(new Date(task.deadline), 'MMM dd, HH:mm')}
                           </p>
-                        )}
+
+                          {/* Start time for working tasks */}
+                          {task.status === 'working' && task.accepted_at && (
+                            <p className="text-[10px] sm:text-xs text-muted-foreground">
+                              <span className="font-medium">Started:</span> {format(new Date(task.accepted_at), 'HH:mm')}
+                            </p>
+                          )}
+                        </div>
                         
-                        {/* Assigner Info */}
-                        {task.assigner_name && (
-                          <p className="text-xs text-muted-foreground">
-                            <span className="font-medium">Assigned By:</span> {task.assigner_name}
-                            {task.assigner_role && ` (${task.assigner_role})`}
-                          </p>
-                        )}
-
-                        {/* Assigned Date */}
-                        <p className="text-xs text-muted-foreground">
-                          <span className="font-medium">Assigned:</span> {format(new Date(task.created_at), 'MMM dd, yyyy HH:mm')}
-                        </p>
-
-                        {/* Deadline */}
-                        <p className="text-xs text-muted-foreground">
-                          <span className="font-medium">Deadline:</span> {format(new Date(task.deadline), 'MMM dd, yyyy HH:mm')}
-                        </p>
-
-                        {/* Start time for working tasks */}
-                        {task.status === 'working' && task.accepted_at && (
-                          <p className="text-xs text-muted-foreground">
-                            <span className="font-medium">Started:</span> {format(new Date(task.accepted_at), 'HH:mm')}
-                          </p>
-                        )}
-                        
-                        <div className="flex items-center gap-3 mt-2 text-sm">
+                        <div className="flex items-center gap-2 sm:gap-3 mt-2 text-xs sm:text-sm flex-wrap">
                           <span className={getStatusClass(task.status)}>{task.status}</span>
-                          <span className="flex items-center gap-1 text-muted-foreground">
+                          <span className="flex items-center gap-1 text-muted-foreground text-[10px] sm:text-xs">
                             <AlertCircle className="w-3 h-3" />
                             {formatDistanceToNow(new Date(task.deadline), { addSuffix: true })}
                           </span>
                         </div>
                       </div>
-                      <div className="flex gap-2 flex-wrap justify-end">
+                      
+                      {/* Action buttons - Full width on mobile */}
+                      <div className="flex gap-2 flex-wrap sm:justify-end">
                         {/* Leadership can edit tasks */}
                         {isLeadership && (
                           <>
@@ -609,21 +612,21 @@ export function TaskPanel() {
                         
                         {/* Accept button - only for assigned user when idle */}
                         {task.status === 'idle' && isAssignedUser(task) && (
-                          <Button size="sm" onClick={() => handleAccept(task.id)}>
+                          <Button size="sm" onClick={() => handleAccept(task.id)} className="h-10 touch-target text-xs sm:text-sm">
                             <Play className="w-4 h-4 mr-1" /> Accept
                           </Button>
                         )}
                         
                         {/* Complete button - only for assigned user when working */}
                         {task.status === 'working' && isAssignedUser(task) && (
-                          <Button size="sm" variant="secondary" onClick={() => handleComplete(task.id, task.accepted_at)}>
+                          <Button size="sm" variant="secondary" onClick={() => handleComplete(task.id, task.accepted_at)} className="h-10 touch-target text-xs sm:text-sm">
                             <CheckCircle className="w-4 h-4 mr-1" /> Complete
                           </Button>
                         )}
 
                         {/* Pending status - no action buttons, only displays for user */}
                         {task.status === 'pending' && isAssignedUser(task) && (
-                          <Badge variant="outline" className="text-orange-600">
+                          <Badge variant="outline" className="text-orange-600 text-[10px] sm:text-xs">
                             Submit reason in Alerts
                           </Badge>
                         )}

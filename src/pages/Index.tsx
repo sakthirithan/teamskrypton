@@ -34,17 +34,18 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="container mx-auto px-6 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main content */}
-          <div className="lg:col-span-2 space-y-6">
+      <main className="container mx-auto px-3 sm:px-6 py-4 sm:py-6 safe-area-bottom">
+        {/* Mobile: Stack layout, Desktop: Grid layout */}
+        <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 sm:gap-6">
+          {/* Main content - Today's Task ALWAYS FIRST */}
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6 order-1">
             {/* Today's Task Panel - ALWAYS FIRST */}
             <TaskPanel />
             <WorkflowLog />
           </div>
           
-          {/* Sidebar */}
-          <div className="space-y-6">
+          {/* Sidebar - On mobile, shows after main content */}
+          <div className="space-y-4 sm:space-y-6 order-2">
             {/* Command Center for TL/VC only */}
             {isCaptainOrVice && <LeadershipActionPanel />}
             
