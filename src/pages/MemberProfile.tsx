@@ -22,6 +22,7 @@ interface MemberData {
     avatar_url: string | null;
     current_status: TaskStatus | null;
     created_at: string;
+    phone_number?: string | null;
   };
   role: KryptonRole | null;
 }
@@ -117,6 +118,7 @@ const MemberProfile = () => {
           avatar_url: profile.avatar_url,
           current_status: profile.current_status as TaskStatus | null,
           created_at: profile.created_at,
+          phone_number: profile.phone_number ?? null,
         },
         role: roleData?.role as KryptonRole | null,
       });
@@ -252,6 +254,7 @@ const MemberProfile = () => {
             <KryptonIdCard profile={member.profile} role={member.role} />
 
             {/* Productivity Summary */}
+
             <Card className="mt-6">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg font-display">
