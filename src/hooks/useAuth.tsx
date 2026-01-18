@@ -24,6 +24,7 @@ interface Profile {
   current_status: string;
   created_at: string;
   is_direct_access: boolean;
+  phone_number: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
