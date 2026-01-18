@@ -46,7 +46,6 @@ interface TeamMember {
   user_id: string;
   full_name: string;
   role: KryptonRole | null;
-  phone_number: string | null;
 }
 
 const MySpace = () => {
@@ -139,7 +138,7 @@ const MySpace = () => {
     if (isLeadership) {
       const [allTasksRes, profilesRes, rolesRes, approvalsRes, actionsRes] = await Promise.all([
         supabase.from('tasks').select('*').order('created_at', { ascending: false }),
-        supabase.from('profiles').select('*'),
+        supabase.from('profiles').select('user_id, full_name'),
         supabase.from('user_roles').select('user_id, role'),
         supabase.from('approvals').select('*').eq('status', 'pending'),
         supabase.from('workflow_log').select('*').order('created_at', { ascending: false }).limit(20)
@@ -154,8 +153,7 @@ const MySpace = () => {
         const members = profilesRes.data.map(p => ({
           user_id: p.user_id,
           full_name: p.full_name,
-          role: roleMap.get(p.user_id) || null,
-          phone_number: p.phone_number ?? null,
+          role: roleMap.get(p.user_id) || null
         }));
         setTeamMembers(members);
         
@@ -340,7 +338,6 @@ const MySpace = () => {
                   avatar_url: profile.avatar_url,
                   current_status: profile.current_status as TaskStatus | null,
                   created_at: profile.created_at,
-                  phone_number: profile.phone_number,
                 }}
                 role={role}
                 taskStats={taskStats}

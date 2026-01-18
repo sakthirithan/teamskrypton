@@ -14,7 +14,7 @@ export function PWAInstallPrompt() {
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
-    // Check if already dismissed in session
+    // Check if already dismissed in this session
     const wasDismissed = sessionStorage.getItem('pwa_prompt_dismissed');
     if (wasDismissed) {
       setDismissed(true);
@@ -24,7 +24,8 @@ export function PWAInstallPrompt() {
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
-      setShowPrompt(true);
+      // Show prompt after a short delay
+      setTimeout(() => setShowPrompt(true), 3000);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);

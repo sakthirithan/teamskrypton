@@ -228,7 +228,7 @@ export function KryptonIdCard({
           
           <div className="flex justify-between">
             <span className="text-muted-foreground">Joined</span>
-            <span className="font-medium">{format(new Date(profile.created_at), 'dd MMM yyyy')}</span>
+            <span className="font-medium">{format(new Date(profile.created_at), 'MMM yyyy')}</span>
           </div>
           
           {/* Derived Status - Toggleable for own profile */}

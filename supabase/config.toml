@@ -17,6 +17,3 @@ verify_jwt = false
 
 [functions.handle-deletion-response]
 verify_jwt = false
-
-[functions.approve-registration]
-verify_jwt = false

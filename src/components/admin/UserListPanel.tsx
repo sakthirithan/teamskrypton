@@ -182,16 +182,31 @@ export function UserListPanel({ onClose }: UserListPanelProps) {
     setProcessingId(request.id);
 
     try {
-      // Use edge function to create user with admin privileges
-      const { data, error } = await supabase.functions.invoke('approve-registration', {
-        body: { requestId: request.id }
+      const { error } = await supabase.auth.signUp({
+        email: request.email,
+        password: request.password_hash,
+        options: {
+          data: {
+            full_name: request.full_name,
+            department: request.department,
+            role: request.requested_role,
+          },
+          emailRedirectTo: `${window.location.origin}/`
+        }
       });
 
-      if (error || data?.error) {
-        throw new Error(data?.error || error?.message || 'Failed to approve registration');
-      }
+      if (error) throw error;
 
-      // Non-blocking email notification
+      await supabase
+        .from('registration_requests')
+        .update({
+          status: 'approved',
+          reviewed_at: new Date().toISOString(),
+          reviewed_by: user?.id
+        })
+        .eq('id', request.id);
+
+      // Non-blocking email
       sendNotificationEmail(
         request.email,
         request.full_name,
@@ -201,7 +216,7 @@ export function UserListPanel({ onClose }: UserListPanelProps) {
 
       toast({
         title: 'User Approved',
-        description: `${request.full_name} has been granted access and can now log in.`,
+        description: `${request.full_name} has been granted access.`,
       });
 
       fetchRequests();
