@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, forwardRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Download, X } from 'lucide-react';
@@ -8,11 +8,31 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
-export function PWAInstallPrompt() {
+export const PWAInstallPrompt = forwardRef<HTMLDivElement>((_, ref) => {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
+  useEffect(() => {
+    // Check if already dismissed in session
+    const wasDismissed = sessionStorage.getItem('pwa_prompt_dismissed');
+    if (wasDismissed) {
+      setDismissed(true);
+      return;
+    }
+
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
+      setShowPrompt(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
 
   const handleInstall = async () => {
     if (!deferredPrompt) return;
@@ -35,7 +55,7 @@ export function PWAInstallPrompt() {
   if (!showPrompt || dismissed || !deferredPrompt) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 animate-in slide-in-from-bottom-4 duration-300">
+    <div ref={ref} className="fixed bottom-4 right-4 z-50 animate-in slide-in-from-bottom-4 duration-300">
       <Card className="w-80 shadow-lg border-primary/20">
         <CardContent className="p-4">
           <div className="flex items-start justify-between gap-2">
@@ -67,4 +87,6 @@ export function PWAInstallPrompt() {
       </Card>
     </div>
   );
-}
+});
+
+PWAInstallPrompt.displayName = 'PWAInstallPrompt';
