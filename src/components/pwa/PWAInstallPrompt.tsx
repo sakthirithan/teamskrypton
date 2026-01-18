@@ -1,4 +1,4 @@
-import { useState, useEffect, forwardRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Download, X } from 'lucide-react';
@@ -8,7 +8,7 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
-export const PWAInstallPrompt = forwardRef<HTMLDivElement>((_, ref) => {
+export function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -55,7 +55,7 @@ export const PWAInstallPrompt = forwardRef<HTMLDivElement>((_, ref) => {
   if (!showPrompt || dismissed || !deferredPrompt) return null;
 
   return (
-    <div ref={ref} className="fixed bottom-4 right-4 z-50 animate-in slide-in-from-bottom-4 duration-300">
+    <div className="fixed bottom-4 right-4 z-50 animate-in slide-in-from-bottom-4 duration-300">
       <Card className="w-80 shadow-lg border-primary/20">
         <CardContent className="p-4">
           <div className="flex items-start justify-between gap-2">
@@ -87,6 +87,4 @@ export const PWAInstallPrompt = forwardRef<HTMLDivElement>((_, ref) => {
       </Card>
     </div>
   );
-});
-
-PWAInstallPrompt.displayName = 'PWAInstallPrompt';
+}

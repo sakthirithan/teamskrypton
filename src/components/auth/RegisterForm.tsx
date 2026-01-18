@@ -8,13 +8,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ROLES, ROLE_LABELS, KryptonRole, DIRECT_ACCESS_EMAILS } from '@/lib/constants';
+import { ROLES, ROLE_LABELS, KryptonRole, DIRECT_ACCESS_EMAILS, EMAIL_DOMAIN } from '@/lib/constants';
 import { Loader2, CheckCircle, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+const emailDomainPattern = new RegExp(`^[a-zA-Z0-9._%+-]+${EMAIL_DOMAIN.replace('.', '\\.')}$`);
+
 const registerSchema = z.object({
   fullName: z.string().min(2, 'Full name must be at least 2 characters').max(100),
-  email: z.string().email('Invalid email address'),
+  email: z.string().email('Invalid email address').refine(
+    (email) => emailDomainPattern.test(email),
+    `Email must end with ${EMAIL_DOMAIN}`
+  ),
   department: z.string().min(2, 'Department is required').max(100),
   role: z.enum(['team_captain', 'vice_captain', 'strategist', 'team_manager', 'team_member']),
   password: z.string().min(6, 'Password must be at least 6 characters'),
