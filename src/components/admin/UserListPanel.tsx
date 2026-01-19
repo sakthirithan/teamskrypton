@@ -159,6 +159,27 @@ export function UserListPanel({ onClose }: UserListPanelProps) {
   useEffect(() => {
     fetchUsers();
     fetchRequests();
+
+    // Real-time subscription for registration requests
+    const channel = supabase
+      .channel('registration-requests-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'registration_requests',
+        },
+        (payload) => {
+          console.log('Registration request change:', payload.eventType);
+          fetchRequests();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [fetchUsers, fetchRequests]);
 
   // Registration approval handlers
