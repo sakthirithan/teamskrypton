@@ -182,31 +182,15 @@ export function UserListPanel({ onClose }: UserListPanelProps) {
     setProcessingId(request.id);
 
     try {
-      const { error } = await supabase.auth.signUp({
-        email: request.email,
-        password: request.password_hash,
-        options: {
-          data: {
-            full_name: request.full_name,
-            department: request.department,
-            role: request.requested_role,
-          },
-          emailRedirectTo: `${window.location.origin}/`
-        }
+      // Call Edge Function for idempotent, atomic approval
+      const { data, error } = await supabase.functions.invoke('approve-registration', {
+        body: { requestId: request.id }
       });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-      await supabase
-        .from('registration_requests')
-        .update({
-          status: 'approved',
-          reviewed_at: new Date().toISOString(),
-          reviewed_by: user?.id
-        })
-        .eq('id', request.id);
-
-      // Non-blocking email
+      // Non-blocking email notification
       sendNotificationEmail(
         request.email,
         request.full_name,
@@ -221,11 +205,12 @@ export function UserListPanel({ onClose }: UserListPanelProps) {
 
       fetchRequests();
       fetchUsers();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to approve user';
       toast({
         variant: 'destructive',
         title: 'Approval Failed',
-        description: error.message || 'Failed to approve user',
+        description: errorMessage,
       });
     } finally {
       setProcessingId(null);
