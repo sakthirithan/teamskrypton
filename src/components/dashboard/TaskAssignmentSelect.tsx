@@ -22,7 +22,7 @@ interface TaskAssignmentSelectProps {
 }
 
 export function TaskAssignmentSelect({ value, onChange, disabled }: TaskAssignmentSelectProps) {
-  const { isCaptainOrVice, isLeadership } = useAuth();
+  const { user, isCaptainOrVice, isLeadership } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
   const [isOpen, setIsOpen] = useState(false);
 
@@ -39,17 +39,23 @@ export function TaskAssignmentSelect({ value, onChange, disabled }: TaskAssignme
           role: roleMap.get(p.user_id) || null
         }));
         setMembers(membersWithRoles);
+        
+        // Auto-select self for team members
+        if (!isLeadership && user) {
+          onChange([user.id]);
+        }
       }
     };
     fetchMembers();
-  }, []);
+  }, [isLeadership, user]);
 
-  // Get assignable members - All leadership (including Strategist/Team Manager) can assign to everyone
+  // Get assignable members - Leadership can assign to everyone, team members only to themselves
   const getAssignableMembers = () => {
     if (isLeadership) {
       return members; // All leadership can assign to all members
     }
-    return members.filter(m => m.role === 'team_member');
+    // Team members can only assign to themselves
+    return members.filter(m => m.user_id === user?.id);
   };
 
   const assignableMembers = getAssignableMembers();
@@ -90,6 +96,20 @@ export function TaskAssignmentSelect({ value, onChange, disabled }: TaskAssignme
     return `${value.length} members selected`;
   };
 
+  // For team members, show a simple read-only display
+  if (!isLeadership) {
+    const selfMember = members.find(m => m.user_id === user?.id);
+    return (
+      <div className="w-full p-3 border rounded-md bg-muted/50">
+        <div className="flex items-center gap-2">
+          <UserCheck className="w-4 h-4 text-muted-foreground" />
+          <span className="font-medium">{selfMember?.full_name || 'Yourself'}</span>
+          <span className="text-xs text-muted-foreground">(Self-assigned)</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
@@ -107,17 +127,15 @@ export function TaskAssignmentSelect({ value, onChange, disabled }: TaskAssignme
       <PopoverContent className="w-[300px] p-0" align="start">
         <div className="p-3 border-b space-y-2">
           <div className="flex flex-wrap gap-2">
-            {isLeadership && (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => selectGroup('all')}
-                className="h-9 text-xs touch-target"
-              >
-                <Users className="w-3 h-3 mr-1" />
-                All ({assignableMembers.length})
-              </Button>
-            )}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => selectGroup('all')}
+              className="h-9 text-xs touch-target"
+            >
+              <Users className="w-3 h-3 mr-1" />
+              All ({assignableMembers.length})
+            </Button>
             {teamMembers.length > 0 && (
               <Button 
                 variant="outline" 
@@ -129,7 +147,7 @@ export function TaskAssignmentSelect({ value, onChange, disabled }: TaskAssignme
                 Team ({teamMembers.length})
               </Button>
             )}
-            {isLeadership && leads.length > 0 && (
+            {leads.length > 0 && (
               <Button 
                 variant="outline" 
                 size="sm" 
