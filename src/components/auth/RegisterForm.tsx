@@ -123,8 +123,9 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
         setIsSubmitted(true);
         toast({
           title: 'Request Submitted',
-          description: 'Waiting for TL / VC approval.',
+          description: 'Your registration is awaiting TL or VC approval.',
         });
+
       }
     } catch (e: any) {
       toast({
@@ -156,7 +157,8 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
               <Clock className="w-16 h-16 mx-auto text-amber-500 mb-4" />
               <h3 className="text-xl font-semibold">Approval Pending</h3>
               <p className="text-muted-foreground mb-6">
-                Login enabled after TL / VC approval.
+                Your registration request is under review by the <strong>Team Captain</strong> or <strong>Vice Captain</strong>.
+                You’ll be able to log in <em>once approval is completed</em>.
               </p>
             </>
           )}

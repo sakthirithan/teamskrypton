@@ -84,7 +84,7 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
           variant: 'destructive',
           title: 'Access Pending',
           description:
-            'Your account is not yet approved by Team Captain / Vice Captain.',
+            'Your registration request is under review by the Team Captain or Vice Captain.You will be able to log in once approval is completed.',
         });
         return;
       }
