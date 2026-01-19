@@ -7,9 +7,17 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+
+/* ---------------- SCHEMA ---------------- */
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -21,6 +29,8 @@ type LoginFormData = z.infer<typeof loginSchema>;
 interface LoginFormProps {
   onSwitchToRegister: () => void;
 }
+
+/* ---------------- COMPONENT ---------------- */
 
 export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
   const [isLoading, setIsLoading] = useState(false);
@@ -35,24 +45,47 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
     resolver: zodResolver(loginSchema),
   });
 
+  /* ---------------- SUBMIT ---------------- */
+
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
+
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: data.email,
-        password: data.password,
-      });
+      const { data: authData, error } =
+        await supabase.auth.signInWithPassword({
+          email: data.email.toLowerCase(),
+          password: data.password,
+        });
 
       if (error) {
-        if (error.message.includes('Invalid login credentials')) {
-          toast({
-            variant: 'destructive',
-            title: 'Login Failed',
-            description: 'Invalid email or password.',
-          });
-        } else {
-          throw error;
-        }
+        toast({
+          variant: 'destructive',
+          title: 'Login Failed',
+          description: 'Invalid email or password.',
+        });
+        return;
+      }
+
+      /* ---------- SAFETY CHECK ---------- */
+      // User exists in auth, now verify profile exists (approved)
+      const userId = authData.user.id;
+
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('user_id', userId)
+        .single();
+
+      if (profileError || !profile) {
+        // Auth user exists but approval not completed
+        await supabase.auth.signOut();
+
+        toast({
+          variant: 'destructive',
+          title: 'Access Pending',
+          description:
+            'Your account is not yet approved by Team Captain / Vice Captain.',
+        });
         return;
       }
 
@@ -60,63 +93,80 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
         title: 'Welcome back!',
         description: 'You have successfully logged in.',
       });
+
       navigate('/');
     } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Login Failed',
-        description: error.message || 'Something went wrong. Please try again.',
+        description: error.message || 'Something went wrong.',
       });
     } finally {
       setIsLoading(false);
     }
   };
 
+  /* ---------------- UI ---------------- */
+
   return (
     <Card className="w-full max-w-md mx-auto animate-fade-in">
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-display">Welcome Back</CardTitle>
+        <CardTitle className="text-2xl font-display">
+          Welcome Back
+        </CardTitle>
         <CardDescription>
           Sign in to access Krypton Space
         </CardDescription>
       </CardHeader>
+
       <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="space-y-4"
+        >
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label>Email</Label>
             <Input
-              id="email"
               type="email"
               placeholder="your@email.com"
               {...register('email')}
               className={errors.email ? 'border-destructive' : ''}
             />
             {errors.email && (
-              <p className="text-sm text-destructive">{errors.email.message}</p>
+              <p className="text-sm text-destructive">
+                {errors.email.message}
+              </p>
             )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label>Password</Label>
             <Input
-              id="password"
               type="password"
               placeholder="Enter your password"
               {...register('password')}
               className={errors.password ? 'border-destructive' : ''}
             />
             {errors.password && (
-              <p className="text-sm text-destructive">{errors.password.message}</p>
+              <p className="text-sm text-destructive">
+                {errors.password.message}
+              </p>
             )}
           </div>
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={isLoading}
+          >
+            {isLoading && (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            )}
             Sign In
           </Button>
 
           <p className="text-center text-sm text-muted-foreground">
-            Don't have an account?{' '}
+            Don&apos;t have an account?{' '}
             <button
               type="button"
               onClick={onSwitchToRegister}

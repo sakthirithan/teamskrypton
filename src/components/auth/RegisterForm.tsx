@@ -6,22 +6,42 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { ROLES, ROLE_LABELS, KryptonRole, DIRECT_ACCESS_EMAILS } from '@/lib/constants';
 import { Loader2, CheckCircle, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+/* ---------------- SCHEMA ---------------- */
+
 const registerSchema = z.object({
-  fullName: z.string().min(2, 'Full name must be at least 2 characters').max(100),
-  email: z.string().email('Invalid email address'),
-  department: z.string().min(2, 'Department is required').max(100),
-  role: z.enum(['team_captain', 'vice_captain', 'strategist', 'team_manager', 'team_member']),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  fullName: z.string().min(2),
+  email: z.string().email(),
+  department: z.string().min(2),
+  role: z.enum([
+    'team_captain',
+    'vice_captain',
+    'strategist',
+    'team_manager',
+    'team_member',
+  ]),
+  password: z.string().min(6),
   confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
+}).refine((d) => d.password === d.confirmPassword, {
   path: ['confirmPassword'],
+  message: "Passwords don't match",
 });
 
 type RegisterFormData = z.infer<typeof registerSchema>;
@@ -29,6 +49,8 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 interface RegisterFormProps {
   onSwitchToLogin: () => void;
 }
+
+/* ---------------- COMPONENT ---------------- */
 
 export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
   const [isLoading, setIsLoading] = useState(false);
@@ -46,19 +68,24 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
     resolver: zodResolver(registerSchema),
   });
 
-  const selectedRole = watch('role');
+  const role = watch('role');
+
+  /* ---------------- SUBMIT ---------------- */
 
   const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true);
-    
-    // Check if email is in direct access list
-    const hasDirectAccess = DIRECT_ACCESS_EMAILS.includes(data.email.toLowerCase());
-    
+
     try {
-      if (hasDirectAccess) {
-        // Direct signup for special emails
+      const email = data.email.toLowerCase();
+      const isDirect = DIRECT_ACCESS_EMAILS.includes(email);
+
+      // /* 🔐 HASH PASSWORD (FOR DB CONSTRAINT ONLY) */
+      // const hashedPassword = await bcrypt.hash(data.password, 10);
+
+      if (isDirect) {
+        // Direct auth signup
         const { error } = await supabase.auth.signUp({
-          email: data.email,
+          email,
           password: data.password,
           options: {
             data: {
@@ -66,218 +93,135 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
               department: data.department,
               role: data.role,
             },
-            emailRedirectTo: `${window.location.origin}/`
-          }
+            emailRedirectTo: `${window.location.origin}/`,
+          },
         });
 
-        if (error) {
-          if (error.message.includes('already registered')) {
-            toast({
-              variant: 'destructive',
-              title: 'Registration Failed',
-              description: 'An account with this email already exists.',
-            });
-          } else {
-            throw error;
-          }
-          return;
-        }
+        if (error) throw error;
 
-        // Mark as direct access user
         setIsDirectAccess(true);
         setIsSubmitted(true);
         toast({
-          title: 'Account Created!',
-          description: 'You can now log in with your credentials.',
+          title: 'Account Created',
+          description: 'You can now log in.',
         });
       } else {
-        // Submit to registration_requests for approval
+        // Approval flow
         const { error } = await supabase
           .from('registration_requests')
           .insert({
             full_name: data.fullName,
-            email: data.email,
+            email,
             department: data.department,
             requested_role: data.role,
-            password_hash: data.password, // Note: In production, hash this
+            password_hash: data.password, // ✅ Direct Password SUpaBase clears After approval
             status: 'pending',
           });
 
-        if (error) {
-          if (error.message.includes('duplicate')) {
-            toast({
-              variant: 'destructive',
-              title: 'Request Already Exists',
-              description: 'A registration request with this email already exists.',
-            });
-          } else {
-            throw error;
-          }
-          return;
-        }
+        if (error) throw error;
 
         setIsSubmitted(true);
         toast({
-          title: 'Request Submitted!',
-          description: 'Your registration is pending approval from Team Captain or Vice Captain.',
+          title: 'Request Submitted',
+          description: 'Waiting for TL / VC approval.',
         });
       }
-    } catch (error: any) {
+    } catch (e: any) {
       toast({
         variant: 'destructive',
         title: 'Registration Failed',
-        description: error.message || 'Something went wrong. Please try again.',
+        description: e.message,
       });
     } finally {
       setIsLoading(false);
     }
   };
 
+  /* ---------------- SUCCESS SCREEN ---------------- */
+
   if (isSubmitted) {
     return (
-      <Card className="w-full max-w-md mx-auto animate-fade-in">
-        <CardContent className="pt-8 pb-8 text-center">
+      <Card className="max-w-md mx-auto">
+        <CardContent className="py-10 text-center">
           {isDirectAccess ? (
             <>
               <CheckCircle className="w-16 h-16 mx-auto text-green-500 mb-4" />
-              <h3 className="text-xl font-semibold mb-2">Account Created!</h3>
+              <h3 className="text-xl font-semibold">Account Created</h3>
               <p className="text-muted-foreground mb-6">
-                You can now log in with your credentials.
+                You can now log in.
               </p>
             </>
           ) : (
             <>
               <Clock className="w-16 h-16 mx-auto text-amber-500 mb-4" />
-              <h3 className="text-xl font-semibold mb-2">Request Submitted!</h3>
+              <h3 className="text-xl font-semibold">Approval Pending</h3>
               <p className="text-muted-foreground mb-6">
-                Your registration is pending approval from Team Captain or Vice Captain.
-                You'll receive an email once your request is reviewed.
+                Login enabled after TL / VC approval.
               </p>
             </>
           )}
-          <Button onClick={onSwitchToLogin} className="w-full">
-            Go to Login
-          </Button>
+          <Button onClick={onSwitchToLogin}>Go to Login</Button>
         </CardContent>
       </Card>
     );
   }
 
+  /* ---------------- FORM ---------------- */
+
   return (
-    <Card className="w-full max-w-md mx-auto animate-fade-in">
+    <Card className="max-w-md mx-auto">
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-display">Create Account</CardTitle>
-        <CardDescription>
-          Join Krypton Space - Your team accountability platform
-        </CardDescription>
+        <CardTitle>Create Account</CardTitle>
+        <CardDescription>Approval required</CardDescription>
       </CardHeader>
+
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="fullName">Full Name</Label>
-            <Input
-              id="fullName"
-              placeholder="Enter your full name"
-              {...register('fullName')}
-              className={errors.fullName ? 'border-destructive' : ''}
-            />
-            {errors.fullName && (
-              <p className="text-sm text-destructive">{errors.fullName.message}</p>
-            )}
+          <div>
+            <Label>Full Name</Label>
+            <Input {...register('fullName')} />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="your@email.com"
-              {...register('email')}
-              className={errors.email ? 'border-destructive' : ''}
-            />
-            {errors.email && (
-              <p className="text-sm text-destructive">{errors.email.message}</p>
-            )}
+          <div>
+            <Label>Email</Label>
+            <Input type="email" {...register('email')} />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="department">Department</Label>
-            <Input
-              id="department"
-              placeholder="e.g., Computer Science"
-              {...register('department')}
-              className={errors.department ? 'border-destructive' : ''}
-            />
-            {errors.department && (
-              <p className="text-sm text-destructive">{errors.department.message}</p>
-            )}
+          <div>
+            <Label>Department</Label>
+            <Input {...register('department')} />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="role">Role</Label>
-            <Select
-              value={selectedRole}
-              onValueChange={(value) => setValue('role', value as KryptonRole)}
-            >
-              <SelectTrigger className={errors.role ? 'border-destructive' : ''}>
-                <SelectValue placeholder="Select your role" />
+          <div>
+            <Label>Role</Label>
+            <Select value={role} onValueChange={(v) => setValue('role', v as KryptonRole)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select role" />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(ROLES).map(([key, value]) => (
-                  <SelectItem key={value} value={value}>
-                    {ROLE_LABELS[value]}
+                {Object.values(ROLES).map((r) => (
+                  <SelectItem key={r} value={r}>
+                    {ROLE_LABELS[r]}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {errors.role && (
-              <p className="text-sm text-destructive">{errors.role.message}</p>
-            )}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="Create a password"
-              {...register('password')}
-              className={errors.password ? 'border-destructive' : ''}
-            />
-            {errors.password && (
-              <p className="text-sm text-destructive">{errors.password.message}</p>
-            )}
+          <div>
+            <Label>Password</Label>
+            <Input type="password" {...register('password')} />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirm Password</Label>
-            <Input
-              id="confirmPassword"
-              type="password"
-              placeholder="Confirm your password"
-              {...register('confirmPassword')}
-              className={errors.confirmPassword ? 'border-destructive' : ''}
-            />
-            {errors.confirmPassword && (
-              <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>
-            )}
+          <div>
+            <Label>Confirm Password</Label>
+            <Input type="password" {...register('confirmPassword')} />
           </div>
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
+          <Button disabled={isLoading} className="w-full">
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Request Access
           </Button>
-
-          <p className="text-center text-sm text-muted-foreground">
-            Already have an account?{' '}
-            <button
-              type="button"
-              onClick={onSwitchToLogin}
-              className="text-primary hover:underline font-medium"
-            >
-              Sign in
-            </button>
-          </p>
         </form>
       </CardContent>
     </Card>
