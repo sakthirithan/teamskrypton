@@ -52,8 +52,8 @@ const Index = () => {
             {/* Alert Tab for leadership */}
             {isLeadership && <AlertTab />}
             
-            {/* Task CRUD for leadership */}
-            {isLeadership && <TaskCRUD />}
+            {/* Task CRUD for all authenticated users */}
+            <TaskCRUD />
           </div>
         </div>
       </main>
