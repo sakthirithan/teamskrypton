@@ -10,6 +10,14 @@ import { KryptonIdCard } from '@/components/team/KryptonIdCard';
 import { CheckCircle, BarChart3, ArrowLeft, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import { KryptonRole, TaskStatus } from '@/lib/constants';
+import { startOfDay, endOfDay, isWithinInterval } from 'date-fns';
+
+const formatDuration = (minutes?: number | null) => {
+  if (!minutes || minutes <= 0) return '-';
+  if (minutes < 60) return `${minutes} min`;
+  const hours = minutes / 60;
+  return `${hours % 1 === 0 ? hours : hours.toFixed(1)} hr`;
+};
 
 interface MemberData {
   profile: {
@@ -20,6 +28,7 @@ interface MemberData {
     avatar_url: string | null;
     current_status: TaskStatus | null;
     created_at: string;
+    phone_number: string | null;
   };
   role: KryptonRole | null;
 }
@@ -117,6 +126,7 @@ const MemberPublicProfile = () => {
             avatar_url: profile.avatar_url,
             current_status: profile.current_status as TaskStatus | null,
             created_at: profile.created_at,
+            phone_number: profile.phone_number,
           },
           role: roleData?.role as KryptonRole | null,
         });
@@ -233,7 +243,8 @@ const MemberPublicProfile = () => {
                         <TableRow key={task.id}>
                           <TableCell>{task.completed_at ? format(new Date(task.completed_at), 'MMM dd, yyyy') : '-'}</TableCell>
                           <TableCell className="font-medium">{task.title}</TableCell>
-                          <TableCell>{task.duration_minutes ? `${task.duration_minutes}m` : '-'}</TableCell>
+                          <TableCell>{formatDuration(task.duration_minutes)}</TableCell>
+
                           <TableCell>
                             {taskDocs.has(task.id) ? (
                               <a 

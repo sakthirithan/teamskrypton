@@ -17,6 +17,23 @@ import { useToast } from '@/hooks/use-toast';
 import { RefreshButton } from '@/components/ui/RefreshIconButton';
 import { validateExportDateRange, getTodayString } from '@/lib/exportValidation';
 import * as XLSX from 'xlsx';
+import { startOfDay, endOfDay, isWithinInterval } from 'date-fns';
+
+const formatDuration = (minutes?: number | null) => {
+  if (!minutes || minutes <= 0) return '-';
+  if (minutes < 60) return `${minutes} min`;
+  const hours = minutes / 60;
+  return `${hours % 1 === 0 ? hours : hours.toFixed(1)} hr`;
+};
+
+const isSameCalendarDay = (dateStr: string, day: Date) => {
+  const date = new Date(dateStr);
+  return isWithinInterval(date, {
+    start: startOfDay(day),
+    end: endOfDay(day),
+  });
+};
+
 
 interface LogEntry {
   id: string;
@@ -237,20 +254,21 @@ export function WorkflowLog() {
   };
 
   // Filter logs by selected date and status
+ const today = new Date();
+
   const filteredLogs = logs.filter(log => {
-    // Date filter
-    const dateMatch = selectedDate 
-      ? (log.completed_at && isSameDay(new Date(log.completed_at), selectedDate)) ||
-        (log.status === 'pending' && !log.completed_at)
-      : true;
+  // Only completed tasks participate in date filtering
+  if (log.status !== 'completed' || !log.completed_at) return false;
 
-    // Status filter
-    const statusMatch = statusFilter === 'all' 
-      ? true 
-      : log.status === statusFilter;
+  const targetDate = selectedDate ?? today;
 
-    return dateMatch && statusMatch;
-  });
+  const dateMatch = isSameCalendarDay(log.completed_at, targetDate);
+
+  const statusMatch =
+    statusFilter === 'all' ? true : log.status === statusFilter;
+
+  return dateMatch && statusMatch;
+});
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -354,7 +372,7 @@ export function WorkflowLog() {
         {filteredLogs.length === 0 ? (
           <p className="text-center text-muted-foreground py-6 sm:py-8 text-sm">
             {selectedDate || statusFilter !== 'all' 
-              ? 'No tasks match the current filters' 
+              ? 'No tasks completed on this day'
               : 'No tasks in log yet'}
           </p>
         ) : (
@@ -388,7 +406,7 @@ export function WorkflowLog() {
                     <span>{log.completed_at ? format(new Date(log.completed_at), 'MMM dd') : 'Pending'}</span>
                     {log.accepted_at && <span>Start: {format(new Date(log.accepted_at), 'HH:mm')}</span>}
                     {log.completed_at && <span>End: {format(new Date(log.completed_at), 'HH:mm')}</span>}
-                    {log.duration_minutes && <span>{log.duration_minutes}m</span>}
+                    <span>{formatDuration(log.duration_minutes)}</span>
                     {log.github_url && (
                       <a 
                         href={log.github_url} 
@@ -446,7 +464,7 @@ export function WorkflowLog() {
                     </TableCell>
                     <TableCell>{log.accepted_at ? format(new Date(log.accepted_at), 'HH:mm') : '-'}</TableCell>
                     <TableCell>{log.completed_at ? format(new Date(log.completed_at), 'HH:mm') : '-'}</TableCell>
-                    <TableCell>{log.duration_minutes ? `${log.duration_minutes}m` : '-'}</TableCell>
+                    <TableCell>{formatDuration(log.duration_minutes)}</TableCell>
                     <TableCell>{getStatusBadge(log.status)}</TableCell>
                     <TableCell>
                       {log.github_url ? (

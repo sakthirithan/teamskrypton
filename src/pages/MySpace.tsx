@@ -25,6 +25,18 @@ import { useToast } from '@/hooks/use-toast';
 import { RefreshButton } from '@/components/ui/RefreshIconButton';
 import { validateExportDateRange } from '@/lib/exportValidation';
 import * as XLSX from 'xlsx';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { CalendarIcon } from 'lucide-react';
+import { isSameDay } from 'date-fns';
+
+
+const formatDuration = (minutes?: number | null) => {
+  if (!minutes || minutes <= 0) return '-';
+  if (minutes < 60) return `${minutes} min`;
+  const hours = minutes / 60;
+  return `${hours % 1 === 0 ? hours : hours.toFixed(1)} hr`;
+};
 
 interface Task {
   id: string;
@@ -46,7 +58,12 @@ interface TeamMember {
   user_id: string;
   full_name: string;
   role: KryptonRole | null;
+  phone_number: string | null;
 }
+
+type ProfileWithPhone = {
+  phone_number?: string | null;
+};
 
 const MySpace = () => {
   const { user, profile, role, isLoading, isCaptainOrVice, isLeadership } = useAuth();
@@ -69,6 +86,8 @@ const MySpace = () => {
   const [, setExportError] = useState<string | null>(null);
   const [manualStatusOverride, setManualStatusOverride] = useState(false);
   const lastRefreshRef = useRef<number>(0);
+  const [selectedLogDate, setSelectedLogDate] = useState<Date | undefined>(undefined);
+
 
   const handleManualRefresh = useCallback(async () => {
     const now = Date.now();
@@ -138,7 +157,7 @@ const MySpace = () => {
     if (isLeadership) {
       const [allTasksRes, profilesRes, rolesRes, approvalsRes, actionsRes] = await Promise.all([
         supabase.from('tasks').select('*').order('created_at', { ascending: false }),
-        supabase.from('profiles').select('user_id, full_name'),
+        supabase.from('profiles').select('user_id, full_name, phone_number'),
         supabase.from('user_roles').select('user_id, role'),
         supabase.from('approvals').select('*').eq('status', 'pending'),
         supabase.from('workflow_log').select('*').order('created_at', { ascending: false }).limit(20)
@@ -153,7 +172,8 @@ const MySpace = () => {
         const members = profilesRes.data.map(p => ({
           user_id: p.user_id,
           full_name: p.full_name,
-          role: roleMap.get(p.user_id) || null
+          role: roleMap.get(p.user_id) || null,
+          phone_number: p.phone_number ?? null
         }));
         setTeamMembers(members);
         
@@ -321,6 +341,18 @@ const MySpace = () => {
     inProgress: inProgressTasks.length > 0
   };
 
+
+  const filteredCompletedTasks = completedTasks.filter(task => {
+    if (!task.completed_at) return false;
+
+    if (!selectedLogDate) return true;
+
+    const completedDate = new Date(task.completed_at);
+    if (isNaN(completedDate.getTime())) return false;
+
+    return isSameDay(completedDate, selectedLogDate);
+  });
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -338,6 +370,9 @@ const MySpace = () => {
                   avatar_url: profile.avatar_url,
                   current_status: profile.current_status as TaskStatus | null,
                   created_at: profile.created_at,
+                  phone_number: (profile as ProfileWithPhone)?.phone_number ?? null,
+
+
                 }}
                 role={role}
                 taskStats={taskStats}
@@ -376,7 +411,7 @@ const MySpace = () => {
                 </div>
                 <div className="flex justify-between border-t pt-4">
                   <span className="text-muted-foreground">Avg. Completion</span>
-                  <span className="font-semibold">{stats.avgTime}m</span>
+                  <span className="font-semibold">{formatDuration(stats.avgTime)}</span>
                 </div>
               </CardContent>
             </Card>
@@ -485,7 +520,7 @@ const MySpace = () => {
             {/* Personal Log */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center justify-between font-display">
+                {/* <CardTitle className="flex items-center justify-between font-display">
                   <div className="flex items-center gap-2">
                     <CheckCircle className="w-5 h-5 text-[hsl(var(--status-completed))]" />
                     Personal Log
@@ -498,12 +533,63 @@ const MySpace = () => {
                     <Download className="w-4 h-4 mr-2" />
                     Export
                   </Button>
+                </CardTitle> */}
+                <CardTitle className="flex items-center justify-between font-display">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-5 h-5 text-[hsl(var(--status-completed))]" />
+                    Personal Log
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {/* Date Picker */}
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <CalendarIcon className="w-4 h-4 mr-2" />
+                          {selectedLogDate ? format(selectedLogDate, 'MMM dd') : 'All Dates'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="p-0" align="end">
+                        <Calendar
+                          mode="single"
+                          selected={selectedLogDate}
+                          onSelect={setSelectedLogDate}
+                          initialFocus
+                        />
+                        {selectedLogDate && (
+                          <div className="p-2 border-t">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="w-full"
+                              onClick={() => setSelectedLogDate(undefined)}
+                            >
+                              Clear filter
+                            </Button>
+                          </div>
+                        )}
+                      </PopoverContent>
+                    </Popover>
+
+                    {/* Export */}
+                    <Button variant="outline" size="sm" onClick={() => setShowExportDialog(true)}>
+                      <Download className="w-4 h-4 mr-2" />
+                      Export
+                    </Button>
+                  </div>
                 </CardTitle>
+
               </CardHeader>
               <CardContent>
                 {completedTasks.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-4">No completed tasks yet</p>
-                ) : (
+                  <p className="text-center text-muted-foreground py-4">
+                    No completed tasks yet.
+                  </p>
+                  ) : filteredCompletedTasks.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-4">
+                      No completed tasks on this date.
+                    </p>
+                  ) : (
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -518,7 +604,7 @@ const MySpace = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {completedTasks.slice(0, 20).map((task) => (
+                      {filteredCompletedTasks.slice(0, 20).map((task) => (
                         <TableRow key={task.id}>
                           <TableCell>{task.completed_at ? format(new Date(task.completed_at), 'MMM dd') : '-'}</TableCell>
                           <TableCell className="font-medium">{task.title}</TableCell>
@@ -536,7 +622,8 @@ const MySpace = () => {
                           </TableCell>
                           <TableCell>{task.accepted_at ? format(new Date(task.accepted_at), 'HH:mm') : '-'}</TableCell>
                           <TableCell>{task.completed_at ? format(new Date(task.completed_at), 'HH:mm') : '-'}</TableCell>
-                          <TableCell>{task.duration_minutes ? `${task.duration_minutes}m` : '-'}</TableCell>
+                          <TableCell>{formatDuration(task.duration_minutes)}</TableCell>
+
                           <TableCell>
                             {taskDocs.has(task.id) ? (
                               <a 

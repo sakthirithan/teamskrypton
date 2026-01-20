@@ -12,6 +12,13 @@ import {
   Activity
 } from 'lucide-react';
 
+const formatDuration = (minutes?: number | null) => {
+  if (!minutes || minutes <= 0) return '-';
+  if (minutes < 60) return `${minutes} min`;
+  const hours = minutes / 60;
+  return `${hours % 1 === 0 ? hours : hours.toFixed(1)} hr`;
+};
+
 interface Task {
   id: string;
   status: string;
@@ -116,7 +123,7 @@ export const LeadershipDashboard = memo(function LeadershipDashboard({
     },
     {
       label: 'Avg. Completion',
-      value: `${stats.avgDuration}m`,
+      value: `${formatDuration(stats.avgDuration)}`,
       icon: <Clock className="h-4 w-4" />,
       color: 'text-muted-foreground'
     }

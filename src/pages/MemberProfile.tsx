@@ -12,6 +12,19 @@ import { format } from 'date-fns';
 import { KryptonRole, TaskStatus } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
 import { RefreshButton } from '@/components/ui/RefreshIconButton';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { CalendarIcon } from 'lucide-react';
+import { isSameDay } from 'date-fns';
+import { Download, Trash2 } from 'lucide-react';
+
+
+const formatDuration = (minutes?: number | null) => {
+  if (!minutes || minutes <= 0) return '-';
+  if (minutes < 60) return `${minutes} min`;
+  const hours = minutes / 60;
+  return `${hours % 1 === 0 ? hours : hours.toFixed(1)} hr`;
+};
 
 interface MemberData {
   profile: {
@@ -22,6 +35,7 @@ interface MemberData {
     avatar_url: string | null;
     current_status: TaskStatus | null;
     created_at: string;
+    phone_number: string | null;
   };
   role: KryptonRole | null;
 }
@@ -50,7 +64,7 @@ interface Approval {
 
 const MemberProfile = () => {
   const { userId } = useParams<{ userId: string }>();
-  const { user, isLoading, isLeadership } = useAuth();
+  const { user, isLoading, isLeadership, isCaptainOrVice } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [member, setMember] = useState<MemberData | null>(null);
@@ -63,6 +77,12 @@ const MemberProfile = () => {
   const [isFetching, setIsFetching] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const lastRefreshRef = useRef<number>(0);
+  const [selectedLogDate, setSelectedLogDate] = useState<Date | undefined>(undefined);
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [deleteConfirmTask, setDeleteConfirmTask] = useState<Task | null>(null);
+
+
+
 
   const fetchMember = useCallback(async () => {
     if (!userId) return;
@@ -117,6 +137,7 @@ const MemberProfile = () => {
           avatar_url: profile.avatar_url,
           current_status: profile.current_status as TaskStatus | null,
           created_at: profile.created_at,
+          phone_number: profile.phone_number,
         },
         role: roleData?.role as KryptonRole | null,
       });
@@ -234,6 +255,19 @@ const MemberProfile = () => {
 
   const totalAlerts = pendingTasks.length + approvals.length;
 
+  const filteredCompletedTasks = completedTasks.filter(task => {
+  if (!task.completed_at) return false;
+
+  if (selectedLogDate === undefined) return true;
+
+  return isSameDay(
+    new Date(task.completed_at),
+    new Date(selectedLogDate)
+  );
+});
+
+
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -274,7 +308,7 @@ const MemberProfile = () => {
                 </div>
                 <div className="flex justify-between border-t pt-4">
                   <span className="text-muted-foreground">Avg. Completion</span>
-                  <span className="font-semibold">{stats.avgTime}m</span>
+                  <span className="font-semibold">{formatDuration(stats.avgTime)}</span>
                 </div>
               </CardContent>
             </Card>
@@ -393,15 +427,62 @@ const MemberProfile = () => {
             {/* Personal Log */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 font-display">
-                  <CheckCircle className="w-5 h-5 text-[hsl(var(--status-completed))]" />
-                  Personal Log
+                <CardTitle className="flex items-center justify-between font-display">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-5 h-5 text-[hsl(var(--status-completed))]" />
+                    Personal Log
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {/* Date Picker */}
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <CalendarIcon className="w-4 h-4 mr-2" />
+                          {selectedLogDate ? format(selectedLogDate, 'MMM dd') : 'All Dates'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="p-0" align="end">
+                        <Calendar
+                          mode="single"
+                          selected={selectedLogDate}
+                          onSelect={setSelectedLogDate}
+                          initialFocus
+                        />
+                        {selectedLogDate && (
+                          <div className="p-2 border-t">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="w-full"
+                              onClick={() => setSelectedLogDate(undefined)}
+                            >
+                              Clear filter
+                            </Button>
+                          </div>
+                        )}
+                      </PopoverContent>
+                    </Popover>
+
+                    {/* Export */}
+                    <Button variant="outline" size="sm" onClick={() => setShowExportDialog(true)}>
+                      <Download className="w-4 h-4 mr-2" />
+                      Export
+                    </Button>
+                  </div>
                 </CardTitle>
+
               </CardHeader>
               <CardContent>
                 {completedTasks.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-4">No completed tasks yet</p>
-                ) : (
+                  <p className="text-center text-muted-foreground py-4">
+                    No completed tasks yet.
+                  </p>
+                  ) : filteredCompletedTasks.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-4">
+                      No completed tasks on this date.
+                    </p>
+                  ) : (
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -412,10 +493,11 @@ const MemberProfile = () => {
                         <TableHead>End</TableHead>
                         <TableHead>Duration</TableHead>
                         <TableHead>Docs</TableHead>
+                        {isCaptainOrVice && <TableHead>Actions</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {completedTasks.slice(0, 20).map((task) => (
+                      {filteredCompletedTasks.slice(0, 20).map((task) => (
                         <TableRow key={task.id}>
                           <TableCell>{task.completed_at ? format(new Date(task.completed_at), 'MMM dd') : '-'}</TableCell>
                           <TableCell className="font-medium">{task.title}</TableCell>
@@ -433,7 +515,8 @@ const MemberProfile = () => {
                           </TableCell>
                           <TableCell>{task.accepted_at ? format(new Date(task.accepted_at), 'HH:mm') : '-'}</TableCell>
                           <TableCell>{task.completed_at ? format(new Date(task.completed_at), 'HH:mm') : '-'}</TableCell>
-                          <TableCell>{task.duration_minutes ? `${task.duration_minutes}m` : '-'}</TableCell>
+                          <TableCell>{formatDuration(task.duration_minutes)}</TableCell>
+
                           <TableCell>
                             {taskDocs.has(task.id) ? (
                               <a 
@@ -449,6 +532,19 @@ const MemberProfile = () => {
                               <span className="text-muted-foreground">-</span>
                             )}
                           </TableCell>
+                          {isCaptainOrVice && (
+                            <TableCell>
+                              <Button 
+                                size="sm" 
+                                variant="ghost"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0"
+                                onClick={() => setDeleteConfirmTask(task)}
+                                title="Reset/Delete Task"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))}
                     </TableBody>

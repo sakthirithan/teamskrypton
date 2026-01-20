@@ -102,15 +102,15 @@ export function Header() {
 
   const isActive = (path: string) => location.pathname === path;
 
-  // Store install prompt for later use
-  useEffect(() => {
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      (window as any).deferredPrompt = e;
-    };
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-  }, []);
+  // // Store install prompt for later use
+  // useEffect(() => {
+  //   const handleBeforeInstallPrompt = (e: Event) => {
+  //     e.preventDefault();
+  //     (window as any).deferredPrompt = e;
+  //   };
+  //   window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  //   return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  // }, []);
 
   return (
     <header className="krypton-gradient text-primary-foreground sticky top-0 z-50 shadow-lg safe-area-top">
