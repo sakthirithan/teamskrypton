@@ -50,6 +50,8 @@ interface LogEntry {
 }
 
 type StatusFilter = 'all' | 'completed' | 'pending';
+type LogMode = 'day' | 'all';
+
 
 export function WorkflowLog() {
   const { user, isLeadership, isCaptainOrVice } = useAuth();
@@ -58,13 +60,14 @@ export function WorkflowLog() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('completed');
   const [deleteConfirmLog, setDeleteConfirmLog] = useState<LogEntry | null>(null);
   const [fromDate, setFromDate] = useState<string>('');
   const [toDate, setToDate] = useState<string>('');
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const lastRefreshRef = useRef<number>(0);
+  const [logMode, setLogMode] = useState<LogMode>('day');
 
   const handleManualRefresh = useCallback(async () => {
     const now = Date.now();
@@ -253,22 +256,43 @@ export function WorkflowLog() {
     setToDate('');
   };
 
-  // Filter logs by selected date and status
- const today = new Date();
+  const today = new Date();
 
   const filteredLogs = logs.filter(log => {
-  // Only completed tasks participate in date filtering
-  if (log.status !== 'completed' || !log.completed_at) return false;
-
   const targetDate = selectedDate ?? today;
 
-  const dateMatch = isSameCalendarDay(log.completed_at, targetDate);
+    // 🟣 ALL DATES MODE
+    if (logMode === 'all') {
+      // ❌ Never show pending in "All"
+      if (statusFilter === 'all' || statusFilter === 'completed') {
+        return log.status === 'completed';
+      }
 
-  const statusMatch =
-    statusFilter === 'all' ? true : log.status === statusFilter;
+      // ✅ Show pending only when Pending tab selected
+      return log.status === 'pending';
+    }
 
-  return dateMatch && statusMatch;
-});
+
+    // 🔵 DAY MODE
+
+    // ⏳ Pending tasks → treated as TODAY only
+    if (log.status === 'pending') {
+      if (statusFilter === 'completed') return false;
+      if (statusFilter !== 'all' && statusFilter !== 'pending') return false;
+
+      // Pending only shown when viewing TODAY
+      return isSameCalendarDay(today.toISOString(), targetDate);
+    }
+
+    // ✅ Completed tasks
+    if (!log.completed_at) return false;
+    if (!isSameCalendarDay(log.completed_at, targetDate)) return false;
+
+    if (statusFilter !== 'all' && log.status !== statusFilter) return false;
+
+    return true;
+  });
+
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -341,7 +365,12 @@ export function WorkflowLog() {
                   !selectedDate && "text-muted-foreground"
                 )}>
                   <CalendarIcon className="h-4 w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">{selectedDate ? format(selectedDate, 'MMM dd') : 'Date'}</span>
+                  <span className="hidden sm:inline">{logMode === 'all'
+                    ? 'All Dates'
+                    : selectedDate
+                      ? format(selectedDate, 'MMM dd')
+                      : 'Today'}
+                  </span>
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="end">
@@ -351,6 +380,33 @@ export function WorkflowLog() {
                   onSelect={setSelectedDate}
                   initialFocus
                 />
+                <div className="p-2 border-t space-y-2">
+                  <Button
+                    variant={logMode === 'all' ? 'default' : 'outline'}
+                    size="sm"
+                    className="w-full"
+                    onClick={() => {
+                      setLogMode('all');
+                      setSelectedDate(undefined);
+                    }}
+                  >
+                    All Dates (Completed + Pending)
+                  </Button>
+
+                  {logMode === 'all' && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => {
+                        setLogMode('day');
+                      }}
+                    >
+                      Back to Day View
+                    </Button>
+                  )}
+                </div>
+
                 {selectedDate && (
                   <div className="p-2 border-t">
                     <Button 
@@ -371,10 +427,13 @@ export function WorkflowLog() {
       <CardContent className="px-3 sm:px-6">
         {filteredLogs.length === 0 ? (
           <p className="text-center text-muted-foreground py-6 sm:py-8 text-sm">
-            {selectedDate || statusFilter !== 'all' 
-              ? 'No tasks completed on this day'
-              : 'No tasks in log yet'}
+            {logMode === 'all'
+              ? 'No tasks found'
+              : selectedDate
+                ? 'No tasks found for this day'
+                : 'No tasks found for today'}
           </p>
+
         ) : (
           <>
             {/* Mobile Card View */}
@@ -444,9 +503,13 @@ export function WorkflowLog() {
                 {filteredLogs.map((log) => (
                   <TableRow key={log.id}>
                     <TableCell>
-                      {log.completed_at 
-                        ? format(new Date(log.completed_at), 'MMM dd') 
-                        : log.status === 'pending' ? 'Pending' : '-'}
+                      {log.status === 'completed' && log.completed_at
+                        ? format(new Date(log.completed_at), 'MMM dd')
+                        : log.status === 'pending'
+                          ? log.accepted_at
+                            ? format(new Date(log.accepted_at), 'MMM dd')
+                            : format(new Date(), 'MMM dd')
+                          : '-'}
                     </TableCell>
                     <TableCell className="font-medium max-w-[200px] truncate">{log.title}</TableCell>
                     <TableCell>{log.completed_by_name || '-'}</TableCell>
