@@ -2,23 +2,54 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { RegisterForm } from '@/components/auth/RegisterForm';
+import { ModeSelectionDialog } from '@/components/auth/ModeSelectionDialog';
 import { useAuth } from '@/hooks/useAuth';
+import { useAppMode } from '@/hooks/useAppMode';
+import { AppMode } from '@/lib/groupingConstants';
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
+  const [showModeSelection, setShowModeSelection] = useState(false);
   const { user, isLoading } = useAuth();
+  const { isModeSelected, setMode, isGroupingMode } = useAppMode();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (!isLoading && user) {
-      navigate('/');
+      // User is logged in
+      if (!isModeSelected) {
+        // Show mode selection dialog
+        setShowModeSelection(true);
+      } else {
+        // Mode already selected, navigate to appropriate home
+        navigate(isGroupingMode ? '/grouping/home' : '/');
+      }
     }
-  }, [user, isLoading, navigate]);
+  }, [user, isLoading, isModeSelected, isGroupingMode, navigate]);
+
+  const handleModeSelect = (mode: AppMode) => {
+    setMode(mode);
+    setShowModeSelection(false);
+    // Navigate based on selected mode
+    navigate(mode === 'grouping' ? '/grouping/home' : '/');
+  };
 
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // Show mode selection dialog when user is logged in but hasn't selected mode
+  if (showModeSelection && user) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <ModeSelectionDialog 
+          open={true} 
+          onSelectMode={handleModeSelect}
+        />
       </div>
     );
   }

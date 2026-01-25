@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Users, User, Target, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Users, User, Target, TrendingUp, TrendingDown, Minus, History } from 'lucide-react';
 import { useGroupingSessions } from '@/hooks/useGroupingSessions';
 import { useGroupingTargets } from '@/hooks/useGroupingTargets';
 import { usePSDailyEntries } from '@/hooks/usePSDailyEntries';
@@ -22,9 +24,18 @@ interface Profile {
 
 export function GroupingPanel() {
   const { user, isLeadership } = useAuth();
-  const { activeSession } = useGroupingSessions();
-  const { targets, myTargets } = useGroupingTargets(activeSession?.id);
-  const { entries, getTotalPoints } = usePSDailyEntries(activeSession?.id);
+  const { sessions, activeSession } = useGroupingSessions();
+  
+  // Allow viewing historical sessions
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const viewingSession = selectedSessionId 
+    ? sessions.find(s => s.id === selectedSessionId) || activeSession
+    : activeSession;
+  
+  const isViewingHistory = viewingSession && viewingSession.status === 'closed';
+  
+  const { targets, myTargets } = useGroupingTargets(viewingSession?.id);
+  const { entries, getTotalPoints } = usePSDailyEntries(viewingSession?.id);
 
   // Fetch team members
   const { data: teamMembers = [] } = useQuery({
@@ -45,24 +56,26 @@ export function GroupingPanel() {
     return teamMembers.find(m => m.user_id === userId)?.full_name || 'Unknown';
   };
 
-  // Calculate user's achieved points from entries
+  // Calculate user's achieved points from COMPLETED entries only
   const getUserAchievedPoints = (userId: string | null) => {
     if (!userId) {
-      // Group target - sum all entries
-      return entries.reduce((sum, e) => sum + e.reward_points, 0);
+      // Group target - sum all completed entries
+      return entries
+        .filter(e => e.status === 'completed')
+        .reduce((sum, e) => sum + e.reward_points, 0);
     }
     return entries
-      .filter(e => e.user_id === userId)
+      .filter(e => e.user_id === userId && e.status === 'completed')
       .reduce((sum, e) => sum + e.reward_points, 0);
   };
 
   const displayTargets = isLeadership ? targets : myTargets;
 
-  const totalDays = activeSession 
-    ? calculateSessionDays(activeSession.start_date, activeSession.end_date)
+  const totalDays = viewingSession 
+    ? calculateSessionDays(viewingSession.start_date, viewingSession.end_date)
     : 0;
-  const daysRemaining = activeSession 
-    ? calculateDaysRemaining(activeSession.end_date)
+  const daysRemaining = viewingSession 
+    ? calculateDaysRemaining(viewingSession.end_date)
     : 0;
 
   const getStatusBadge = (achieved: number, target: number) => {
@@ -83,7 +96,7 @@ export function GroupingPanel() {
     );
   };
 
-  if (!activeSession) {
+  if (!viewingSession && !activeSession) {
     return (
       <Card>
         <CardHeader>
@@ -106,17 +119,55 @@ export function GroupingPanel() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center justify-between">
+        <CardTitle className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <span className="flex items-center gap-2">
             <Target className="w-5 h-5" />
-            Session #{activeSession.session_number}: {activeSession.name}
+            {viewingSession && (
+              <>Session #{viewingSession.session_number}: {viewingSession.name}</>
+            )}
           </span>
-          <Badge variant="secondary">
-            {daysRemaining} days left
-          </Badge>
+          <div className="flex items-center gap-2">
+            {/* Session History Selector - Visible to ALL */}
+            {sessions.length > 1 && (
+              <Select
+                value={selectedSessionId || activeSession?.id || ''}
+                onValueChange={(value) => setSelectedSessionId(value || null)}
+              >
+                <SelectTrigger className="w-[180px] h-8 text-xs">
+                  <History className="w-3 h-3 mr-1" />
+                  <SelectValue placeholder="View session..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {sessions.map((session) => (
+                    <SelectItem key={session.id} value={session.id}>
+                      #{session.session_number} - {session.name}
+                      {session.status === 'active' && ' (Active)'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            
+            {isViewingHistory ? (
+              <Badge variant="secondary">
+                Closed
+              </Badge>
+            ) : (
+              <Badge variant="secondary">
+                {daysRemaining} days left
+              </Badge>
+            )}
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent>
+        {isViewingHistory && (
+          <div className="mb-4 p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground">
+            <History className="w-4 h-4 inline mr-2" />
+            Viewing historical session. Data is read-only.
+          </div>
+        )}
+        
         {displayTargets.length === 0 ? (
           <div className="text-center py-6 text-muted-foreground">
             <p>No targets assigned yet.</p>

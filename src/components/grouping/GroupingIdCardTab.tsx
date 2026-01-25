@@ -1,6 +1,6 @@
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Target, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Target, TrendingUp, TrendingDown, Minus, Clock, CheckCircle } from 'lucide-react';
 import { useGroupingSessions } from '@/hooks/useGroupingSessions';
 import { useGroupingTargets } from '@/hooks/useGroupingTargets';
 import { usePSDailyEntries } from '@/hooks/usePSDailyEntries';
@@ -18,7 +18,7 @@ interface GroupingIdCardTabProps {
 export function GroupingIdCardTab({ userId }: GroupingIdCardTabProps) {
   const { activeSession } = useGroupingSessions();
   const { targets } = useGroupingTargets(activeSession?.id);
-  const { entries } = usePSDailyEntries(activeSession?.id, userId);
+  const { entries, getTotalPoints, getPendingCount } = usePSDailyEntries(activeSession?.id, userId);
 
   if (!activeSession) {
     return (
@@ -30,7 +30,15 @@ export function GroupingIdCardTab({ userId }: GroupingIdCardTabProps) {
   }
 
   const userTarget = targets.find(t => t.target_scope === 'individual' && t.user_id === userId);
-  const achievedPoints = entries.reduce((sum, e) => sum + e.reward_points, 0);
+  
+  // Only COMPLETED entries count toward target
+  const achievedPoints = getTotalPoints(userId);
+  const pendingCount = getPendingCount(userId);
+  
+  // Pending points (for info only)
+  const pendingPoints = entries
+    .filter(e => e.status === 'pending')
+    .reduce((sum, e) => sum + e.reward_points, 0);
   
   const totalDays = calculateSessionDays(activeSession.start_date, activeSession.end_date);
   const daysRemaining = calculateDaysRemaining(activeSession.end_date);
@@ -60,11 +68,25 @@ export function GroupingIdCardTab({ userId }: GroupingIdCardTabProps) {
         <span className="font-medium">{targetPoints} pts</span>
       </div>
 
-      {/* Achieved */}
+      {/* Completed Points */}
       <div className="flex justify-between items-center text-sm">
-        <span className="text-muted-foreground">Achieved</span>
-        <span className="font-medium text-primary">{achievedPoints} pts</span>
+        <span className="text-muted-foreground flex items-center gap-1">
+          <CheckCircle className="w-3 h-3 text-green-500" />
+          Completed
+        </span>
+        <span className="font-medium text-green-600">{achievedPoints} pts</span>
       </div>
+
+      {/* Pending Points */}
+      {pendingCount > 0 && (
+        <div className="flex justify-between items-center text-sm">
+          <span className="text-muted-foreground flex items-center gap-1">
+            <Clock className="w-3 h-3 text-yellow-500" />
+            Pending
+          </span>
+          <span className="font-medium text-yellow-600">{pendingPoints} pts ({pendingCount})</span>
+        </div>
+      )}
 
       {/* Progress Bar */}
       <div className="space-y-1">
