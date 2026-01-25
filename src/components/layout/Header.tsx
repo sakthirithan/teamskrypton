@@ -94,12 +94,6 @@ export function Header() {
     }
   };
 
-  const navLinks = [
-    { path: '/', label: 'Home', icon: Home },
-    { path: '/team', label: 'Team', icon: Users },
-    { path: '/my-space', label: 'My Space', icon: LayoutDashboard },
-  ];
-
   const isActive = (path: string) => location.pathname === path;
 
   // // Store install prompt for later use
@@ -160,6 +154,9 @@ export function Header() {
 
           {/* User Info & Mobile Menu */}
           <div className="flex items-center gap-2 sm:gap-4">
+            {/* Mode Switch */}
+            <ModeSwitch />
+            
             {/* User Profile Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
