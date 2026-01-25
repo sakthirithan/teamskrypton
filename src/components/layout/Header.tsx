@@ -16,7 +16,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { UserListPanel } from '@/components/admin/UserListPanel';
-import { ModeSwitch } from '@/components/mode/ModeSwitch';
+import { Badge } from '@/components/ui/badge';
 
 function getRoleBadgeClass(role: KryptonRole | null): string {
   switch (role) {
@@ -37,7 +37,7 @@ function getRoleBadgeClass(role: KryptonRole | null): string {
 
 export function Header() {
   const { user, profile, role, signOut, isCaptainOrVice } = useAuth();
-  const { isGroupingMode } = useAppMode();
+  const { isGroupingMode, clearMode } = useAppMode();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -84,6 +84,7 @@ export function Header() {
   };
 
   const handleSignOut = async () => {
+    clearMode(); // Reset mode selection on logout
     await signOut();
     navigate('/auth');
   };
@@ -170,8 +171,23 @@ export function Header() {
 
           {/* User Info & Mobile Menu */}
           <div className="flex items-center gap-2 sm:gap-4">
-            {/* Mode Switch */}
-            <ModeSwitch />
+            {/* Mode Indicator Badge (read-only, shows current mode) */}
+            <Badge 
+              variant="outline" 
+              className="hidden sm:flex items-center gap-1.5 bg-primary-foreground/10 text-primary-foreground border-primary-foreground/30"
+            >
+              {isGroupingMode ? (
+                <>
+                  <Target className="w-3 h-3" />
+                  Grouping
+                </>
+              ) : (
+                <>
+                  <LayoutDashboard className="w-3 h-3" />
+                  PBL
+                </>
+              )}
+            </Badge>
             
             {/* User Profile Dropdown */}
             <DropdownMenu>

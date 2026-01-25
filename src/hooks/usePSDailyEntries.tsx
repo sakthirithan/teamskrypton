@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 
+export type PSEntryStatus = 'pending' | 'completed';
+
 export interface PSDailyEntry {
   id: string;
   s_no: number;
@@ -13,6 +15,9 @@ export interface PSDailyEntry {
   reward_points: number;
   attempt_count: number;
   entered_by: string;
+  status: PSEntryStatus;
+  completed_at: string | null;
+  completed_by: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -78,6 +83,7 @@ export function usePSDailyEntries(sessionId?: string, userId?: string) {
           reward_points: entry.reward_points,
           attempt_count: entry.attempt_count ?? 1,
           entered_by: user!.id,
+          status: 'pending', // Always start as pending
         })
         .select()
         .single();
@@ -87,8 +93,7 @@ export function usePSDailyEntries(sessionId?: string, userId?: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ps-daily-entries'] });
-      queryClient.invalidateQueries({ queryKey: ['grouping-targets'] });
-      toast({ title: 'Entry Added', description: 'PS daily entry has been recorded.' });
+      toast({ title: 'Entry Added', description: 'PS daily entry saved as pending.' });
     },
     onError: (error: Error) => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -117,6 +122,60 @@ export function usePSDailyEntries(sessionId?: string, userId?: string) {
     },
   });
 
+  // Mark entry as completed
+  const completeEntry = useMutation({
+    mutationFn: async (entryId: string) => {
+      const { data, error } = await supabase
+        .from('ps_daily_entries')
+        .update({
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+          completed_by: user!.id,
+        })
+        .eq('id', entryId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ps-daily-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['grouping-targets'] });
+      toast({ title: 'Entry Completed', description: 'Points now count toward target.' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  // Revert entry to pending (leadership only)
+  const revertEntry = useMutation({
+    mutationFn: async (entryId: string) => {
+      const { data, error } = await supabase
+        .from('ps_daily_entries')
+        .update({
+          status: 'pending',
+          completed_at: null,
+          completed_by: null,
+        })
+        .eq('id', entryId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ps-daily-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['grouping-targets'] });
+      toast({ title: 'Entry Reverted', description: 'Entry moved back to pending.' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
   const deleteEntry = useMutation({
     mutationFn: async (entryId: string) => {
       const { error } = await supabase
@@ -136,12 +195,19 @@ export function usePSDailyEntries(sessionId?: string, userId?: string) {
     },
   });
 
-  // Calculate total points for a user in a session
+  // Calculate total points for a user in a session - ONLY COMPLETED ENTRIES
   const getTotalPoints = (forUserId?: string) => {
     const targetUserId = forUserId || user?.id;
     return (entriesQuery.data || [])
-      .filter(e => e.user_id === targetUserId)
+      .filter(e => e.user_id === targetUserId && e.status === 'completed')
       .reduce((sum, e) => sum + e.reward_points, 0);
+  };
+
+  // Get pending entries count
+  const getPendingCount = (forUserId?: string) => {
+    const targetUserId = forUserId || user?.id;
+    return (entriesQuery.data || [])
+      .filter(e => e.user_id === targetUserId && e.status === 'pending').length;
   };
 
   return {
@@ -150,8 +216,11 @@ export function usePSDailyEntries(sessionId?: string, userId?: string) {
     error: entriesQuery.error,
     createEntry,
     updateEntry,
+    completeEntry,
+    revertEntry,
     deleteEntry,
     getTotalPoints,
+    getPendingCount,
     refetch: entriesQuery.refetch,
   };
 }

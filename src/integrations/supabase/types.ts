@@ -239,6 +239,8 @@ export type Database = {
       ps_daily_entries: {
         Row: {
           attempt_count: number
+          completed_at: string | null
+          completed_by: string | null
           created_at: string
           entered_by: string
           entry_date: string
@@ -248,11 +250,14 @@ export type Database = {
           s_no: number
           session_id: string
           skill_name: string
+          status: string
           updated_at: string
           user_id: string
         }
         Insert: {
           attempt_count?: number
+          completed_at?: string | null
+          completed_by?: string | null
           created_at?: string
           entered_by: string
           entry_date: string
@@ -262,11 +267,14 @@ export type Database = {
           s_no: number
           session_id: string
           skill_name: string
+          status?: string
           updated_at?: string
           user_id: string
         }
         Update: {
           attempt_count?: number
+          completed_at?: string | null
+          completed_by?: string | null
           created_at?: string
           entered_by?: string
           entry_date?: string
@@ -276,6 +284,7 @@ export type Database = {
           s_no?: number
           session_id?: string
           skill_name?: string
+          status?: string
           updated_at?: string
           user_id?: string
         }

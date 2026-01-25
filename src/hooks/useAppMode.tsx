@@ -4,14 +4,16 @@ import { AppMode } from '@/lib/groupingConstants';
 interface AppModeContextType {
   mode: AppMode;
   setMode: (mode: AppMode) => void;
-  toggleMode: () => void;
   isPBLMode: boolean;
   isGroupingMode: boolean;
+  isModeSelected: boolean;
+  clearMode: () => void;
 }
 
 const AppModeContext = createContext<AppModeContextType | undefined>(undefined);
 
 const MODE_STORAGE_KEY = 'krypton_app_mode';
+const MODE_SELECTED_KEY = 'krypton_mode_selected';
 
 export function AppModeProvider({ children }: { children: ReactNode }) {
   const [mode, setModeState] = useState<AppMode>(() => {
@@ -23,6 +25,14 @@ export function AppModeProvider({ children }: { children: ReactNode }) {
     return 'pbl';
   });
 
+  const [isModeSelected, setIsModeSelected] = useState<boolean>(() => {
+    // Check if mode was already selected in this session
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem(MODE_SELECTED_KEY) === 'true';
+    }
+    return false;
+  });
+
   // Persist mode to session storage
   useEffect(() => {
     sessionStorage.setItem(MODE_STORAGE_KEY, mode);
@@ -30,18 +40,26 @@ export function AppModeProvider({ children }: { children: ReactNode }) {
 
   const setMode = useCallback((newMode: AppMode) => {
     setModeState(newMode);
+    setIsModeSelected(true);
+    sessionStorage.setItem(MODE_STORAGE_KEY, newMode);
+    sessionStorage.setItem(MODE_SELECTED_KEY, 'true');
   }, []);
 
-  const toggleMode = useCallback(() => {
-    setModeState(prev => prev === 'pbl' ? 'grouping' : 'pbl');
+  const clearMode = useCallback(() => {
+    // Called on logout to reset mode selection
+    setIsModeSelected(false);
+    setModeState('pbl');
+    sessionStorage.removeItem(MODE_STORAGE_KEY);
+    sessionStorage.removeItem(MODE_SELECTED_KEY);
   }, []);
 
   const value: AppModeContextType = {
     mode,
     setMode,
-    toggleMode,
     isPBLMode: mode === 'pbl',
     isGroupingMode: mode === 'grouping',
+    isModeSelected,
+    clearMode,
   };
 
   return (
