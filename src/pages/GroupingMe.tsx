@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Header } from '@/components/layout/Header';
@@ -19,7 +19,8 @@ import {
   Clock,
   CheckCircle,
   RotateCcw,
-  AlertCircle
+  AlertCircle,
+  Download
 } from 'lucide-react';
 import { useGroupingSessions } from '@/hooks/useGroupingSessions';
 import { useGroupingTargets } from '@/hooks/useGroupingTargets';
@@ -47,7 +48,10 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { RefreshButton } from '@/components/ui/RefreshIconButton';
+import { useToast } from '@/hooks/use-toast';
+import * as XLSX from 'xlsx';
 
 interface Profile {
   user_id: string;
@@ -58,6 +62,8 @@ const GroupingMe = () => {
   const { user, profile, isLoading, isLeadership } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   
   // Allow viewing another user's space (for leadership)
   const viewingUserId = searchParams.get('userId') || user?.id;
@@ -75,6 +81,15 @@ const GroupingMe = () => {
     getTotalPoints,
     getPendingCount 
   } = usePSDailyEntries(activeSession?.id, viewingUserId);
+
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await queryClient.invalidateQueries({ queryKey: ['ps-daily-entries'] });
+    await queryClient.invalidateQueries({ queryKey: ['grouping-targets'] });
+    setIsRefreshing(false);
+  }, [queryClient]);
 
   // Fetch the profile of the user being viewed
   const { data: viewedProfile } = useQuery({
@@ -201,6 +216,35 @@ const GroupingMe = () => {
       reward_points: entry.reward_points,
       attempt_count: entry.attempt_count,
     });
+  };
+
+  // Export PS entries
+  const handleExport = (exportFormat: 'csv' | 'xlsx') => {
+    if (entries.length === 0) {
+      toast({ variant: 'destructive', title: 'No Data', description: 'No entries to export.' });
+      return;
+    }
+
+    const exportData = entries.map(entry => ({
+      'S.No': entry.s_no,
+      'Date': format(new Date(entry.entry_date), 'yyyy-MM-dd'),
+      'Skill Name': entry.skill_name,
+      'Reward Points': entry.reward_points,
+      'Attempts': entry.attempt_count,
+      'Status': entry.status === 'completed' ? 'Completed' : 'Pending',
+      'Completed At': entry.completed_at ? format(new Date(entry.completed_at), 'yyyy-MM-dd HH:mm') : '-'
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'PS Entries');
+
+    const userName = displayProfile?.full_name?.replace(/\s+/g, '_') || 'user';
+    const sessionName = activeSession?.name?.replace(/\s+/g, '_') || 'session';
+    const filename = `PS_Entries_${userName}_${sessionName}.${exportFormat}`;
+    XLSX.writeFile(wb, filename);
+
+    toast({ title: 'Export Complete', description: `Downloaded ${filename}` });
   };
 
   // Pending entries sum (for display only)
@@ -370,16 +414,32 @@ const GroupingMe = () => {
               {/* PS Daily Entries */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <span>PS Daily Entries</span>
-                    {canEdit && (
-                      <Dialog open={isAddEntryOpen} onOpenChange={setIsAddEntryOpen}>
-                        <DialogTrigger asChild>
-                          <Button size="sm">
-                            <Plus className="w-4 h-4 mr-1" />
-                            Add Entry
+                  <CardTitle className="flex items-center justify-between flex-wrap gap-2">
+                    <span className="flex items-center gap-2">
+                      PS Daily Entries
+                      <RefreshButton onClick={handleRefresh} isRefreshing={isRefreshing} />
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {entries.length > 0 && (
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="outline" onClick={() => handleExport('csv')}>
+                            <Download className="w-3 h-3 mr-1" />
+                            CSV
                           </Button>
-                        </DialogTrigger>
+                          <Button size="sm" variant="outline" onClick={() => handleExport('xlsx')}>
+                            <Download className="w-3 h-3 mr-1" />
+                            Excel
+                          </Button>
+                        </div>
+                      )}
+                      {canEdit && (
+                        <Dialog open={isAddEntryOpen} onOpenChange={setIsAddEntryOpen}>
+                          <DialogTrigger asChild>
+                            <Button size="sm">
+                              <Plus className="w-4 h-4 mr-1" />
+                              Add Entry
+                            </Button>
+                          </DialogTrigger>
                         <DialogContent>
                           <DialogHeader>
                             <DialogTitle>Add PS Daily Entry</DialogTitle>
@@ -436,6 +496,7 @@ const GroupingMe = () => {
                         </DialogContent>
                       </Dialog>
                     )}
+                    </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>

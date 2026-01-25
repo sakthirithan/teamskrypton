@@ -1,3 +1,4 @@
+import { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, TrendingDown, Calendar, User } from 'lucide-react';
@@ -6,13 +7,14 @@ import { useGroupingTargets } from '@/hooks/useGroupingTargets';
 import { usePSDailyEntries } from '@/hooks/usePSDailyEntries';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { RefreshButton } from '@/components/ui/RefreshIconButton';
 import { 
   calculateTargetStatus, 
   calculateSessionDays, 
   calculateDaysRemaining 
 } from '@/lib/groupingConstants';
-import { format, subDays, isAfter } from 'date-fns';
+import { format, subDays } from 'date-fns';
 
 interface Profile {
   user_id: string;
@@ -21,9 +23,18 @@ interface Profile {
 
 export function GroupingAlertsPanel() {
   const { isLeadership } = useAuth();
+  const queryClient = useQueryClient();
   const { activeSession } = useGroupingSessions();
   const { targets } = useGroupingTargets(activeSession?.id);
   const { entries } = usePSDailyEntries(activeSession?.id);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await queryClient.invalidateQueries({ queryKey: ['grouping-targets'] });
+    await queryClient.invalidateQueries({ queryKey: ['ps-daily-entries'] });
+    setIsRefreshing(false);
+  }, [queryClient]);
 
   // Fetch team members
   const { data: teamMembers = [] } = useQuery({
@@ -97,6 +108,7 @@ export function GroupingAlertsPanel() {
         <CardTitle className="flex items-center gap-2 text-base">
           <AlertTriangle className="w-4 h-4" />
           Alerts & Risks
+          <RefreshButton onClick={handleRefresh} isRefreshing={isRefreshing} />
           {alerts.length > 0 && (
             <Badge variant="destructive" className="ml-auto">
               {alerts.length}

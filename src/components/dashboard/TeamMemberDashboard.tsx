@@ -1,9 +1,10 @@
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Target, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
+import { Target, CheckCircle, Clock, AlertTriangle, Award } from 'lucide-react';
 import { format, isToday, startOfDay, endOfDay } from 'date-fns';
+import { RefreshButton } from '@/components/ui/RefreshIconButton';
 
 interface Task {
   id: string;
@@ -18,11 +19,22 @@ interface Task {
 interface TeamMemberDashboardProps {
   tasks: Task[];
   userId: string;
+  onRefresh?: () => Promise<void>;
 }
 
 export const TeamMemberDashboard = memo(function TeamMemberDashboard({ 
-  tasks 
+  tasks,
+  onRefresh
 }: TeamMemberDashboardProps) {
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  const handleRefresh = useCallback(async () => {
+    if (!onRefresh) return;
+    setIsRefreshing(true);
+    await onRefresh();
+    setIsRefreshing(false);
+  }, [onRefresh]);
+
   const stats = useMemo(() => {
     const now = new Date();
     const todayStart = startOfDay(now);
@@ -44,7 +56,6 @@ export const TeamMemberDashboard = memo(function TeamMemberDashboard({
       return isToday(new Date(t.completed_at));
     }).length;
 
-    // Daily focus indicator
     let focusStatus: 'untouched' | 'in_progress' | 'completed' = 'untouched';
     if (completedToday > 0 && working === 0 && todayTasks.every(t => t.status === 'completed')) {
       focusStatus = 'completed';
@@ -57,9 +68,40 @@ export const TeamMemberDashboard = memo(function TeamMemberDashboard({
     return { assigned, completed, pending, working, idle, completedToday, focusStatus, completionRate, todayTasks: todayTasks.length };
   }, [tasks]);
 
+  // Streak calculation
+  const streak = useMemo(() => {
+    let currentStreak = 0;
+    const completedDates = tasks
+      .filter(t => t.completed_at)
+      .map(t => format(new Date(t.completed_at!), 'yyyy-MM-dd'))
+      .sort()
+      .reverse();
+    
+    const uniqueDates = [...new Set(completedDates)];
+    
+    for (let i = 0; i < Math.min(uniqueDates.length, 30); i++) {
+      const expectedDate = format(
+        new Date(new Date().setDate(new Date().getDate() - i)),
+        'yyyy-MM-dd'
+      );
+      const yesterdayDate = format(
+        new Date(new Date().setDate(new Date().getDate() - 1)),
+        'yyyy-MM-dd'
+      );
+      
+      if (uniqueDates.includes(expectedDate)) {
+        currentStreak++;
+      } else if (i === 0 && uniqueDates.includes(yesterdayDate)) {
+        continue;
+      } else {
+        break;
+      }
+    }
+    return currentStreak;
+  }, [tasks]);
+
   const timeline = useMemo(() => {
-    // Group tasks by day for execution timeline
-    const sortedTasks = [...tasks]
+    return [...tasks]
       .filter(t => t.accepted_at || t.completed_at)
       .sort((a, b) => {
         const dateA = new Date(a.completed_at || a.accepted_at || a.deadline);
@@ -67,8 +109,6 @@ export const TeamMemberDashboard = memo(function TeamMemberDashboard({
         return dateB.getTime() - dateA.getTime();
       })
       .slice(0, 10);
-
-    return sortedTasks;
   }, [tasks]);
 
   const focusConfig = {
@@ -87,6 +127,7 @@ export const TeamMemberDashboard = memo(function TeamMemberDashboard({
           <span className="flex items-center gap-2">
             <Target className="w-5 h-5 text-primary" />
             My Execution Dashboard
+            <RefreshButton onClick={handleRefresh} isRefreshing={isRefreshing} />
           </span>
           <Badge className={focus.color}>
             <FocusIcon className="w-3 h-3 mr-1" />
@@ -95,8 +136,8 @@ export const TeamMemberDashboard = memo(function TeamMemberDashboard({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Performance Summary */}
-        <div className="grid grid-cols-3 gap-3">
+        {/* Performance Summary with Streak */}
+        <div className="grid grid-cols-4 gap-3">
           <div className="p-3 rounded-lg bg-muted/50 text-center">
             <p className="text-2xl font-bold">{stats.assigned}</p>
             <p className="text-xs text-muted-foreground">Assigned</p>
@@ -108,6 +149,11 @@ export const TeamMemberDashboard = memo(function TeamMemberDashboard({
           <div className="p-3 rounded-lg bg-[hsl(var(--status-pending))]/10 text-center">
             <p className="text-2xl font-bold text-[hsl(var(--status-pending))]">{stats.pending}</p>
             <p className="text-xs text-muted-foreground">Pending</p>
+          </div>
+          <div className="p-3 rounded-lg bg-yellow-500/10 text-center">
+            <Award className="w-4 h-4 mx-auto mb-1 text-yellow-500" />
+            <p className="text-xl font-bold text-yellow-600">{streak}</p>
+            <p className="text-xs text-muted-foreground">Streak</p>
           </div>
         </div>
 
@@ -128,7 +174,7 @@ export const TeamMemberDashboard = memo(function TeamMemberDashboard({
               {stats.completedToday}/{stats.todayTasks} done
             </Badge>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {stats.working > 0 && (
               <Badge className="status-badge status-working">
                 <Clock className="w-3 h-3 mr-1" />

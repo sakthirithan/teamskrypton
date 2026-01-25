@@ -1,9 +1,11 @@
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Shield, Clock, AlertCircle, CheckCircle, Users, Activity } from 'lucide-react';
-import { format } from 'date-fns';
+import { Shield, Clock, AlertCircle, CheckCircle, Users, Activity, TrendingUp, BarChart3 } from 'lucide-react';
+import { format, differenceInHours } from 'date-fns';
+import { RefreshButton } from '@/components/ui/RefreshIconButton';
+import { Progress } from '@/components/ui/progress';
 
 interface Approval {
   id: string;
@@ -45,8 +47,17 @@ export const CaptainDashboard = memo(function CaptainDashboard({
   tasks, 
   members,
   approvals,
-  recentActions
-}: CaptainDashboardProps) {
+  recentActions,
+  onRefresh
+}: CaptainDashboardProps & { onRefresh?: () => Promise<void> }) {
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  const handleRefresh = useCallback(async () => {
+    if (!onRefresh) return;
+    setIsRefreshing(true);
+    await onRefresh();
+    setIsRefreshing(false);
+  }, [onRefresh]);
   // Escalation Monitor - unresolved pending tasks & approval bottlenecks
   const escalations = useMemo(() => {
     const pendingTasks = tasks.filter(t => t.status === 'pending');
@@ -83,12 +94,29 @@ export const CaptainDashboard = memo(function CaptainDashboard({
     return member?.full_name || 'Unknown';
   };
 
+  // Team Performance Rate
+  const performanceRate = useMemo(() => {
+    const completed = tasks.filter(t => t.status === 'completed').length;
+    const total = tasks.length;
+    return total > 0 ? Math.round((completed / total) * 100) : 0;
+  }, [tasks]);
+
+  // Overdue tasks count
+  const overdueTasks = useMemo(() => {
+    const now = new Date();
+    return tasks.filter(t => {
+      if (t.status === 'completed') return false;
+      return differenceInHours(new Date(t.deadline), now) < 0;
+    }).length;
+  }, [tasks]);
+
   return (
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-lg font-display">
           <Shield className="w-5 h-5 text-[hsl(var(--role-captain))]" />
           Authority Center
+          <RefreshButton onClick={handleRefresh} isRefreshing={isRefreshing} />
           {escalations.totalPending > 0 && (
             <Badge className="bg-[hsl(var(--status-pending))]/15 text-[hsl(var(--status-pending))] ml-2">
               {escalations.totalPending} Escalations
@@ -98,6 +126,45 @@ export const CaptainDashboard = memo(function CaptainDashboard({
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Quick Stats */}
+        <div className="grid grid-cols-5 gap-2">
+          <div className="p-2 rounded-lg bg-primary/10 text-center">
+            <Users className="w-4 h-4 mx-auto mb-1 text-primary" />
+            <p className="text-lg font-bold">{stats.totalMembers}</p>
+            <p className="text-[10px] text-muted-foreground uppercase">Team</p>
+          </div>
+          <div className="p-2 rounded-lg bg-[hsl(var(--status-working))]/10 text-center">
+            <Activity className="w-4 h-4 mx-auto mb-1 text-[hsl(var(--status-working))]" />
+            <p className="text-lg font-bold text-[hsl(var(--status-working))]">{stats.activeMembers}</p>
+            <p className="text-[10px] text-muted-foreground uppercase">Active</p>
+          </div>
+          <div className="p-2 rounded-lg bg-[hsl(var(--status-pending))]/10 text-center">
+            <AlertCircle className="w-4 h-4 mx-auto mb-1 text-[hsl(var(--status-pending))]" />
+            <p className="text-lg font-bold text-[hsl(var(--status-pending))]">{stats.pendingTasks}</p>
+            <p className="text-[10px] text-muted-foreground uppercase">Pending</p>
+          </div>
+          <div className="p-2 rounded-lg bg-[hsl(var(--status-completed))]/10 text-center">
+            <CheckCircle className="w-4 h-4 mx-auto mb-1 text-[hsl(var(--status-completed))]" />
+            <p className="text-lg font-bold text-[hsl(var(--status-completed))]">{stats.completedToday}</p>
+            <p className="text-[10px] text-muted-foreground uppercase">Done</p>
+          </div>
+          <div className="p-2 rounded-lg bg-destructive/10 text-center">
+            <Clock className="w-4 h-4 mx-auto mb-1 text-destructive" />
+            <p className="text-lg font-bold text-destructive">{overdueTasks}</p>
+            <p className="text-[10px] text-muted-foreground uppercase">Overdue</p>
+          </div>
+        </div>
+
+        {/* Team Performance */}
+        <div className="p-3 rounded-lg border bg-card">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium">Team Performance</span>
+            </div>
+            <span className="text-sm font-bold">{performanceRate}%</span>
+          </div>
+          <Progress value={performanceRate} className="h-2" />
+        </div>
         <div className="grid grid-cols-4 gap-2">
           <div className="p-2 rounded-lg bg-primary/10 text-center">
             <Users className="w-4 h-4 mx-auto mb-1 text-primary" />

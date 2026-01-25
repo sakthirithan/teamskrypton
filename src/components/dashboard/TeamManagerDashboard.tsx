@@ -1,9 +1,9 @@
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { LayoutGrid, Users, Activity, BarChart3 } from 'lucide-react';
-
+import { LayoutGrid, Users, Activity, BarChart3, TrendingUp, AlertTriangle } from 'lucide-react';
+import { RefreshButton } from '@/components/ui/RefreshIconButton';
 interface Task {
   id: string;
   title: string;
@@ -24,8 +24,17 @@ interface TeamManagerDashboardProps {
 
 export const TeamManagerDashboard = memo(function TeamManagerDashboard({ 
   tasks, 
-  members 
-}: TeamManagerDashboardProps) {
+  members,
+  onRefresh
+}: TeamManagerDashboardProps & { onRefresh?: () => Promise<void> }) {
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  const handleRefresh = useCallback(async () => {
+    if (!onRefresh) return;
+    setIsRefreshing(true);
+    await onRefresh();
+    setIsRefreshing(false);
+  }, [onRefresh]);
   // Execution Heatmap - working, idle, pending per member
   const heatmapData = useMemo(() => {
     const memberStats = new Map<string, { 
@@ -97,12 +106,21 @@ export const TeamManagerDashboard = memo(function TeamManagerDashboard({
     return { working, idle, pending, activeMembers, totalMembers: members.length };
   }, [tasks, members]);
 
+  // Quick assignment suggestions
+  const assignmentSuggestions = useMemo(() => {
+    return workloadBalance
+      .filter(m => m.isUnderloaded && m.activeTasks < 2)
+      .slice(0, 3)
+      .map(m => m.name);
+  }, [workloadBalance]);
+
   return (
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-lg font-display">
           <LayoutGrid className="w-5 h-5 text-[hsl(var(--role-manager))]" />
           Coordination Center
+          <RefreshButton onClick={handleRefresh} isRefreshing={isRefreshing} />
           <Badge variant="secondary" className="ml-2">
             <Users className="w-3 h-3 mr-1" />
             {stats.activeMembers}/{stats.totalMembers} Active
@@ -111,6 +129,37 @@ export const TeamManagerDashboard = memo(function TeamManagerDashboard({
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Quick Stats */}
+        <div className="grid grid-cols-4 gap-2">
+          <div className="p-2 rounded-lg bg-[hsl(var(--status-working))]/10 text-center">
+            <Activity className="w-4 h-4 mx-auto mb-1 text-[hsl(var(--status-working))]" />
+            <p className="text-lg font-bold text-[hsl(var(--status-working))]">{stats.working}</p>
+            <p className="text-[10px] text-muted-foreground uppercase">Working</p>
+          </div>
+          <div className="p-2 rounded-lg bg-muted/50 text-center">
+            <p className="text-lg font-bold">{stats.idle}</p>
+            <p className="text-[10px] text-muted-foreground uppercase">Idle</p>
+          </div>
+          <div className="p-2 rounded-lg bg-[hsl(var(--status-pending))]/10 text-center">
+            <AlertTriangle className="w-4 h-4 mx-auto mb-1 text-[hsl(var(--status-pending))]" />
+            <p className="text-lg font-bold text-[hsl(var(--status-pending))]">{stats.pending}</p>
+            <p className="text-[10px] text-muted-foreground uppercase">Pending</p>
+          </div>
+          <div className="p-2 rounded-lg bg-primary/10 text-center">
+            <TrendingUp className="w-4 h-4 mx-auto mb-1 text-primary" />
+            <p className="text-lg font-bold">{workloadBalance.filter(m => m.isOverloaded).length}</p>
+            <p className="text-[10px] text-muted-foreground uppercase">Overload</p>
+          </div>
+        </div>
+
+        {/* Quick Suggestions */}
+        {assignmentSuggestions.length > 0 && (
+          <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+            <p className="text-xs font-medium text-green-700 dark:text-green-400 mb-1">
+              Available for tasks:
+            </p>
+            <p className="text-sm">{assignmentSuggestions.join(', ')}</p>
+          </div>
+        )}
         <div className="grid grid-cols-3 gap-2">
           <div className="p-2 rounded-lg bg-[hsl(var(--status-working))]/10 text-center">
             <Activity className="w-4 h-4 mx-auto mb-1 text-[hsl(var(--status-working))]" />

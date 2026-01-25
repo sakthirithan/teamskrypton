@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,8 +11,9 @@ import { useGroupingSessions } from '@/hooks/useGroupingSessions';
 import { useGroupingTargets, GroupingTarget } from '@/hooks/useGroupingTargets';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { RefreshButton } from '@/components/ui/RefreshIconButton';
 
 interface Profile {
   user_id: string;
@@ -22,11 +23,13 @@ interface Profile {
 
 export function TargetActionPanel() {
   const { isCaptainOrVice, user } = useAuth();
+  const queryClient = useQueryClient();
   const { sessions, activeSession } = useGroupingSessions();
   const { targets, createTarget, updateTarget, deleteTarget } = useGroupingTargets(activeSession?.id);
   
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingTarget, setEditingTarget] = useState<GroupingTarget | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   const [formData, setFormData] = useState({
     session_id: '',
@@ -36,6 +39,12 @@ export function TargetActionPanel() {
     editable: false,
     notes: '',
   });
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await queryClient.invalidateQueries({ queryKey: ['grouping-targets'] });
+    setIsRefreshing(false);
+  }, [queryClient]);
 
   // Fetch team members for assignment
   const { data: teamMembers = [] } = useQuery({
@@ -135,6 +144,7 @@ export function TargetActionPanel() {
           <span className="flex items-center gap-2 text-base">
             <Target className="w-4 h-4" />
             Target Actions
+            <RefreshButton onClick={handleRefresh} isRefreshing={isRefreshing} />
           </span>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
