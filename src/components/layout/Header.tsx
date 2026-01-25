@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useAppMode } from '@/hooks/useAppMode';
 import { ROLE_LABELS, KryptonRole } from '@/lib/constants';
-import { LogOut, User, Users, Home, LayoutDashboard, Menu, X, Download, UserCog } from 'lucide-react';
+import { LogOut, User, Users, Home, LayoutDashboard, Menu, X, Download, UserCog, Target } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -15,6 +16,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { UserListPanel } from '@/components/admin/UserListPanel';
+import { ModeSwitch } from '@/components/mode/ModeSwitch';
 
 function getRoleBadgeClass(role: KryptonRole | null): string {
   switch (role) {
@@ -35,12 +37,26 @@ function getRoleBadgeClass(role: KryptonRole | null): string {
 
 export function Header() {
   const { user, profile, role, signOut, isCaptainOrVice } = useAuth();
+  const { isGroupingMode } = useAppMode();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userListOpen, setUserListOpen] = useState(false);
+
+  // Mode-aware navigation links
+  const navLinks = isGroupingMode
+    ? [
+        { path: '/grouping/home', label: 'Home', icon: Home },
+        { path: '/team', label: 'Team', icon: Users },
+        { path: '/grouping/me', label: 'My Space', icon: Target },
+      ]
+    : [
+        { path: '/', label: 'Home', icon: Home },
+        { path: '/team', label: 'Team', icon: Users },
+        { path: '/my-space', label: 'My Space', icon: LayoutDashboard },
+      ];
 
   useEffect(() => {
     const timer = setInterval(() => {
