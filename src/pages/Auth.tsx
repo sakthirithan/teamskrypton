@@ -14,18 +14,26 @@ const Auth = () => {
   const { isModeSelected, setMode, isGroupingMode } = useAppMode();
   const navigate = useNavigate();
 
+  // useEffect(() => {
+  //   if (!isLoading && user) {
+  //     // User is logged in
+  //     if (!isModeSelected) {
+  //       // Show mode selection dialog
+  //       setShowModeSelection(true);
+  //     } else {
+  //       // Mode already selected, navigate to appropriate home
+  //       navigate(isGroupingMode ? '/grouping/home' : '/');
+  //       // navigate('/grouping/home', { replace: true });
+  //     }
+  //   }
+  // }, [user, isLoading, isModeSelected, isGroupingMode, navigate]);
   useEffect(() => {
-    if (!isLoading && user) {
-      // User is logged in
-      if (!isModeSelected) {
-        // Show mode selection dialog
-        setShowModeSelection(true);
-      } else {
-        // Mode already selected, navigate to appropriate home
-        navigate(isGroupingMode ? '/grouping/home' : '/');
-      }
-    }
-  }, [user, isLoading, isModeSelected, isGroupingMode, navigate]);
+  if (!isLoading && user && !isModeSelected) {
+    setShowModeSelection(true);
+  }
+}, [user, isLoading, isModeSelected]);
+
+
 
   const handleModeSelect = (mode: AppMode) => {
     setMode(mode);

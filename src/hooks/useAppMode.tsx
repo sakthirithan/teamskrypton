@@ -1,4 +1,12 @@
-import { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  ReactNode,
+  useEffect,
+} from 'react';
+
 import { AppMode } from '@/lib/groupingConstants';
 
 interface AppModeContextType {
@@ -16,41 +24,41 @@ const MODE_STORAGE_KEY = 'krypton_app_mode';
 const MODE_SELECTED_KEY = 'krypton_mode_selected';
 
 export function AppModeProvider({ children }: { children: ReactNode }) {
+  // ✅ DEFAULT MODE = GROUPING
   const [mode, setModeState] = useState<AppMode>(() => {
-    // Initialize from session storage or default to PBL
     if (typeof window !== 'undefined') {
       const stored = sessionStorage.getItem(MODE_STORAGE_KEY);
-      if (stored === 'grouping') return 'grouping';
+      if (stored === 'pbl') return 'pbl';
     }
-    return 'pbl';
+    return 'grouping';
   });
 
-  const [isModeSelected, setIsModeSelected] = useState<boolean>(() => {
-    // Check if mode was already selected in this session
-    if (typeof window !== 'undefined') {
-      return sessionStorage.getItem(MODE_SELECTED_KEY) === 'true';
-    }
-    return false;
-  });
+  // ✅ MODE ALWAYS CONSIDERED SELECTED
+  const [isModeSelected] = useState<boolean>(true);
 
-  // Persist mode to session storage
+  // Persist mode
   useEffect(() => {
-    sessionStorage.setItem(MODE_STORAGE_KEY, mode);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(MODE_STORAGE_KEY, mode);
+      sessionStorage.setItem(MODE_SELECTED_KEY, 'true');
+    }
   }, [mode]);
 
   const setMode = useCallback((newMode: AppMode) => {
     setModeState(newMode);
-    setIsModeSelected(true);
-    sessionStorage.setItem(MODE_STORAGE_KEY, newMode);
-    sessionStorage.setItem(MODE_SELECTED_KEY, 'true');
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(MODE_STORAGE_KEY, newMode);
+      sessionStorage.setItem(MODE_SELECTED_KEY, 'true');
+    }
   }, []);
 
   const clearMode = useCallback(() => {
-    // Called on logout to reset mode selection
-    setIsModeSelected(false);
-    setModeState('pbl');
-    sessionStorage.removeItem(MODE_STORAGE_KEY);
-    sessionStorage.removeItem(MODE_SELECTED_KEY);
+    // On logout → reset cleanly to Grouping
+    setModeState('grouping');
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem(MODE_STORAGE_KEY);
+      sessionStorage.removeItem(MODE_SELECTED_KEY);
+    }
   }, []);
 
   const value: AppModeContextType = {
