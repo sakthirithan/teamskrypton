@@ -99,6 +99,82 @@ export type Database = {
           },
         ]
       }
+      grouping_note_replies: {
+        Row: {
+          content: string
+          created_at: string
+          created_by: string
+          id: string
+          is_test: boolean | null
+          note_id: string
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          created_by: string
+          id?: string
+          is_test?: boolean | null
+          note_id: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_test?: boolean | null
+          note_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grouping_note_replies_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "grouping_notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      grouping_notes: {
+        Row: {
+          content: string
+          created_at: string
+          created_by: string
+          expires_at: string
+          id: string
+          is_test: boolean | null
+          session_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          created_by: string
+          expires_at?: string
+          id?: string
+          is_test?: boolean | null
+          session_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          created_by?: string
+          expires_at?: string
+          id?: string
+          is_test?: boolean | null
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grouping_notes_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "grouping_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       grouping_sessions: {
         Row: {
           created_at: string

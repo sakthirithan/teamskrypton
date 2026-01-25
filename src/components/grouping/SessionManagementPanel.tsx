@@ -1,26 +1,43 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Plus, X, Edit2, Check, Clock } from 'lucide-react';
+import { Calendar, Plus, Clock, Trash2 } from 'lucide-react';
 import { useGroupingSessions } from '@/hooks/useGroupingSessions';
 import { useAuth } from '@/hooks/useAuth';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { RefreshButton } from '@/components/ui/RefreshIconButton';
 import { format } from 'date-fns';
 import { calculateSessionDays, calculateDaysRemaining } from '@/lib/groupingConstants';
+import { useQueryClient } from '@tanstack/react-query';
 
 export function SessionManagementPanel() {
   const { isCaptainOrVice } = useAuth();
-  const { sessions, activeSession, createSession, updateSession, closeSession } = useGroupingSessions();
+  const queryClient = useQueryClient();
+  const { 
+    sessions, 
+    activeSession, 
+    createSession, 
+    closeSession, 
+    deleteSession,
+    canDeleteSession 
+  } = useGroupingSessions();
   
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     start_date: format(new Date(), 'yyyy-MM-dd'),
     end_date: format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
   });
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await queryClient.invalidateQueries({ queryKey: ['grouping-sessions'] });
+    setIsRefreshing(false);
+  }, [queryClient]);
 
   const handleCreate = async () => {
     if (!formData.name || !formData.start_date || !formData.end_date) return;
@@ -40,6 +57,12 @@ export function SessionManagementPanel() {
     }
   };
 
+  const handleDeleteSession = async (sessionId: string) => {
+    if (confirm('⚠️ PERMANENT DELETE\n\nThis will permanently delete the session and ALL related data:\n- All targets\n- All PS daily entries\n- All notes and replies\n\nThis action CANNOT be undone. Continue?')) {
+      await deleteSession.mutateAsync(sessionId);
+    }
+  };
+
   if (!isCaptainOrVice) {
     return null;
   }
@@ -51,6 +74,7 @@ export function SessionManagementPanel() {
           <span className="flex items-center gap-2 text-base">
             <Calendar className="w-4 h-4" />
             Sessions
+            <RefreshButton onClick={handleRefresh} isRefreshing={isRefreshing} />
           </span>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
@@ -148,6 +172,18 @@ export function SessionManagementPanel() {
                     </>
                   ) : (
                     <Badge variant="secondary" className="text-xs">Closed</Badge>
+                  )}
+                  {/* Delete button - TL, VC, TM only */}
+                  {canDeleteSession && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6 text-destructive hover:bg-destructive/10"
+                      onClick={() => handleDeleteSession(session.id)}
+                      title="Delete session permanently"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
                   )}
                 </div>
               </div>

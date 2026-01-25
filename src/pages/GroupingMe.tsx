@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,11 +21,13 @@ import {
   CheckCircle,
   RotateCcw,
   AlertCircle,
-  Download
+  Download,
+  History
 } from 'lucide-react';
-import { useGroupingSessions } from '@/hooks/useGroupingSessions';
+import { useGroupingSessions, GroupingSession } from '@/hooks/useGroupingSessions';
 import { useGroupingTargets } from '@/hooks/useGroupingTargets';
 import { usePSDailyEntries, PSDailyEntry } from '@/hooks/usePSDailyEntries';
+import { MySpaceAlertsPanel } from '@/components/grouping/MySpaceAlertsPanel';
 import { 
   calculateSessionDays, 
   calculateDaysRemaining,
@@ -69,8 +72,15 @@ const GroupingMe = () => {
   const viewingUserId = searchParams.get('userId') || user?.id;
   const isViewingOther = viewingUserId !== user?.id;
   
-  const { activeSession } = useGroupingSessions();
-  const { myTargets } = useGroupingTargets(activeSession?.id);
+  const { sessions, activeSession } = useGroupingSessions();
+  
+  // Session switching - allow viewing historical sessions
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const viewingSession = selectedSessionId 
+    ? sessions.find(s => s.id === selectedSessionId) || activeSession
+    : activeSession;
+  
+  const { myTargets } = useGroupingTargets(viewingSession?.id);
   const { 
     entries, 
     createEntry, 
@@ -80,7 +90,7 @@ const GroupingMe = () => {
     deleteEntry, 
     getTotalPoints,
     getPendingCount 
-  } = usePSDailyEntries(activeSession?.id, viewingUserId);
+  } = usePSDailyEntries(viewingSession?.id, viewingUserId);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -88,6 +98,7 @@ const GroupingMe = () => {
     setIsRefreshing(true);
     await queryClient.invalidateQueries({ queryKey: ['ps-daily-entries'] });
     await queryClient.invalidateQueries({ queryKey: ['grouping-targets'] });
+    await queryClient.invalidateQueries({ queryKey: ['grouping-sessions'] });
     setIsRefreshing(false);
   }, [queryClient]);
 
@@ -146,25 +157,26 @@ const GroupingMe = () => {
   const myAchievedPoints = getTotalPoints(viewingUserId);
   const pendingCount = getPendingCount(viewingUserId);
   
-  const totalDays = activeSession 
-    ? calculateSessionDays(activeSession.start_date, activeSession.end_date)
+  const totalDays = viewingSession 
+    ? calculateSessionDays(viewingSession.start_date, viewingSession.end_date)
     : 0;
-  const daysRemaining = activeSession 
-    ? calculateDaysRemaining(activeSession.end_date)
+  const daysRemaining = viewingSession 
+    ? calculateDaysRemaining(viewingSession.end_date)
     : 0;
 
   // Check if session is closed (read-only)
-  const isSessionClosed = activeSession?.status === 'closed';
+  const isSessionClosed = viewingSession?.status === 'closed';
+  const isViewingHistory = selectedSessionId && viewingSession?.status === 'closed';
   const canEdit = !isSessionClosed && (!isViewingOther || isLeadership);
   const canChangeStatus = !isSessionClosed && (
     (!isViewingOther) || isLeadership
   );
 
   const handleAddEntry = async () => {
-    if (!activeSession || !entryForm.skill_name || !viewingUserId) return;
+    if (!viewingSession || !entryForm.skill_name || !viewingUserId) return;
 
     await createEntry.mutateAsync({
-      session_id: activeSession.id,
+      session_id: viewingSession.id,
       user_id: viewingUserId,
       entry_date: entryForm.entry_date,
       skill_name: entryForm.skill_name,
@@ -279,7 +291,7 @@ const GroupingMe = () => {
             </CardHeader>
           </Card>
 
-          {!activeSession ? (
+          {!viewingSession ? (
             <Card>
               <CardContent className="py-8 text-center text-muted-foreground">
                 <Target className="w-12 h-12 mx-auto mb-3 opacity-50" />
@@ -289,7 +301,51 @@ const GroupingMe = () => {
             </Card>
           ) : (
             <>
-              {isSessionClosed && (
+              {/* Session Selector */}
+              {sessions.length > 1 && (
+                <Card>
+                  <CardContent className="py-3">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <History className="w-4 h-4" />
+                        <span>View Session:</span>
+                      </div>
+                      <Select
+                        value={selectedSessionId || activeSession?.id || ''}
+                        onValueChange={(value) => setSelectedSessionId(value || null)}
+                      >
+                        <SelectTrigger className="w-[200px]">
+                          <SelectValue placeholder="Select session..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {sessions.map((session) => (
+                            <SelectItem key={session.id} value={session.id}>
+                              #{session.session_number} - {session.name}
+                              {session.status === 'active' && ' (Active)'}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Personal Alerts Panel */}
+              <MySpaceAlertsPanel userId={viewingUserId} />
+              {isViewingHistory && (
+                <div className="p-4 rounded-lg bg-muted/50 border flex items-center gap-3">
+                  <History className="w-5 h-5 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium">Viewing Historical Session</p>
+                    <p className="text-sm text-muted-foreground">
+                      Session #{viewingSession.session_number}: {viewingSession.name} - Data is read-only.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {isSessionClosed && !isViewingHistory && (
                 <div className="p-4 rounded-lg bg-muted/50 border flex items-center gap-3">
                   <AlertCircle className="w-5 h-5 text-muted-foreground" />
                   <div>
@@ -308,8 +364,8 @@ const GroupingMe = () => {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-muted-foreground">Current Session</p>
-                        <p className="text-2xl font-bold">#{activeSession.session_number}</p>
-                        <p className="text-sm text-muted-foreground">{activeSession.name}</p>
+                        <p className="text-2xl font-bold">#{viewingSession.session_number}</p>
+                        <p className="text-sm text-muted-foreground">{viewingSession.name}</p>
                       </div>
                       <Calendar className="w-8 h-8 text-primary opacity-50" />
                     </div>

@@ -4,8 +4,6 @@ import { format } from 'date-fns';
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { GroupingIdCardTab } from '@/components/grouping/GroupingIdCardTab';
 import { useAppMode } from '@/hooks/useAppMode';
 interface KryptonIdCardProps {
   profile: {
@@ -177,81 +175,73 @@ export function KryptonIdCard({
           )}
         </div>
 
-        {/* Tabbed Content - Grouping tab only in Grouping mode */}
+        {/* In Grouping mode - simplified view without tabs, direct click opens My Space */}
         {isGroupingMode ? (
-          <Tabs defaultValue="info" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-3">
-              <TabsTrigger value="info" className="text-xs">Info</TabsTrigger>
-              <TabsTrigger value="grouping" className="text-xs">
-                <Target className="w-3 h-3 mr-1" />
-                Grouping
-              </TabsTrigger>
-            </TabsList>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Department</span>
+              <span className="font-medium">{profile.department}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Email</span>
+              <span className="font-medium truncate max-w-[150px]">{profile.email}</span>
+            </div>
             
-            <TabsContent value="info" className="mt-0">
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Department</span>
-                  <span className="font-medium">{profile.department}</span>
+            {/* Phone Number */}
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground flex items-center gap-1">
+                <Phone className="w-3 h-3" /> Phone
+              </span>
+              {isEditingPhone ? (
+                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                  <Input 
+                    value={phoneValue}
+                    onChange={(e) => setPhoneValue(e.target.value)}
+                    className="h-6 w-24 text-xs px-1"
+                    placeholder="Phone"
+                  />
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    className="h-6 w-6 p-0"
+                    onClick={handleSavePhone}
+                    disabled={isSaving}
+                  >
+                    <CheckCircle className="w-3 h-3 text-green-600" />
+                  </Button>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Email</span>
-                  <span className="font-medium truncate max-w-[150px]">{profile.email}</span>
-                </div>
-                
-                {/* Phone Number */}
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground flex items-center gap-1">
-                    <Phone className="w-3 h-3" /> Phone
-                  </span>
-                  {isEditingPhone ? (
-                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                      <Input 
-                        value={phoneValue}
-                        onChange={(e) => setPhoneValue(e.target.value)}
-                        className="h-6 w-24 text-xs px-1"
-                        placeholder="Phone"
-                      />
-                      <Button 
-                        size="sm" 
-                        variant="ghost" 
-                        className="h-6 w-6 p-0"
-                        onClick={handleSavePhone}
-                        disabled={isSaving}
-                      >
-                        <CheckCircle className="w-3 h-3 text-green-600" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <span className="font-medium flex items-center gap-1">
-                      {profile.phone_number || '-'}
-                      {canEditPhone && onUpdatePhone && (
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setIsEditingPhone(true);
-                          }}
-                          className="p-1 hover:bg-muted rounded"
-                          title="Edit phone number"
-                        >
-                          <Pencil className="w-3 h-3 text-muted-foreground" />
-                        </button>
-                      )}
-                    </span>
+              ) : (
+                <span className="font-medium flex items-center gap-1">
+                  {profile.phone_number || '-'}
+                  {canEditPhone && onUpdatePhone && (
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsEditingPhone(true);
+                      }}
+                      className="p-1 hover:bg-muted rounded"
+                      title="Edit phone number"
+                    >
+                      <Pencil className="w-3 h-3 text-muted-foreground" />
+                    </button>
                   )}
-                </div>
-                
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Joined</span>
-                  <span className="font-medium">{format(new Date(profile.created_at), 'MMM yyyy')}</span>
-                </div>
-              </div>
-            </TabsContent>
+                </span>
+              )}
+            </div>
             
-            <TabsContent value="grouping" className="mt-0">
-              <GroupingIdCardTab userId={profile.user_id} />
-            </TabsContent>
-          </Tabs>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Joined</span>
+              <span className="font-medium">{format(new Date(profile.created_at), 'MMM yyyy')}</span>
+            </div>
+
+            {/* Grouping indicator */}
+            <div className="pt-2 border-t">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Target className="w-3 h-3" />
+                <span>Click to view Grouping Space</span>
+              </div>
+            </div>
+          </div>
         ) : (
           /* Default PBL mode - original details */
           <div className="space-y-2 text-sm">

@@ -48,10 +48,24 @@ Deno.serve(async (req) => {
       console.log(`Deleted ${deletedApprovals?.length || 0} expired approval notifications`);
     }
 
+    // Delete expired grouping notes (48 hour expiry)
+    const { data: deletedNotes, error: notesError } = await supabaseAdmin
+      .from('grouping_notes')
+      .delete()
+      .lt('expires_at', now)
+      .select('id');
+
+    if (notesError) {
+      console.error('Error deleting expired notes:', notesError);
+    } else {
+      console.log(`Deleted ${deletedNotes?.length || 0} expired grouping notes`);
+    }
+
     return new Response(JSON.stringify({ 
       success: true,
       deletedAlerts: deletedAlerts?.length || 0,
-      deletedApprovals: deletedApprovals?.length || 0
+      deletedApprovals: deletedApprovals?.length || 0,
+      deletedNotes: deletedNotes?.length || 0
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

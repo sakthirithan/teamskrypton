@@ -6,6 +6,9 @@ import { GroupingPanel } from '@/components/grouping/GroupingPanel';
 import { TargetActionPanel } from '@/components/grouping/TargetActionPanel';
 import { SessionManagementPanel } from '@/components/grouping/SessionManagementPanel';
 import { GroupingAlertsPanel } from '@/components/grouping/GroupingAlertsPanel';
+import { GroupingNotesPanel } from '@/components/grouping/GroupingNotesPanel';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Target, MessageSquare } from 'lucide-react';
 
 const GroupingHome = () => {
   const { user, isLoading, isLeadership, isCaptainOrVice } = useAuth();
@@ -33,9 +36,28 @@ const GroupingHome = () => {
       <main className="container mx-auto px-3 sm:px-6 py-4 sm:py-6 safe-area-bottom">
         {/* PBL-style layout: Left 2/3, Right 1/3 */}
         <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 sm:gap-6">
-          {/* Main content - Grouping Panel */}
+          {/* Main content area with tabs */}
           <div className="lg:col-span-2 space-y-4 sm:space-y-6 order-1">
-            <GroupingPanel />
+            <Tabs defaultValue="targets" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-4">
+                <TabsTrigger value="targets" className="flex items-center gap-2">
+                  <Target className="w-4 h-4" />
+                  Targets
+                </TabsTrigger>
+                <TabsTrigger value="notes" className="flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4" />
+                  Notes
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="targets" className="mt-0">
+                <GroupingPanel />
+              </TabsContent>
+              
+              <TabsContent value="notes" className="mt-0">
+                <GroupingNotesPanel />
+              </TabsContent>
+            </Tabs>
           </div>
           
           {/* Sidebar */}
@@ -43,10 +65,10 @@ const GroupingHome = () => {
             {/* Session Management for TL/VC only */}
             {isCaptainOrVice && <SessionManagementPanel />}
             
-            {/* Target Action Panel */}
+            {/* Target Action Panel - now visible to all leadership */}
             <TargetActionPanel />
             
-            {/* Alerts for leadership */}
+            {/* Alerts for leadership - visible to all for transparency */}
             {isLeadership && <GroupingAlertsPanel />}
           </div>
         </div>

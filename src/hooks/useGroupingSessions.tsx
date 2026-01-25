@@ -16,9 +16,12 @@ export interface GroupingSession {
 }
 
 export function useGroupingSessions() {
-  const { user } = useAuth();
+  const { user, isCaptainOrVice, role } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Permission check for session deletion (TL, VC, TM only - NOT Strategist)
+  const canDeleteSession = isCaptainOrVice || role === 'team_manager';
 
   const sessionsQuery = useQuery({
     queryKey: ['grouping-sessions'],
@@ -117,6 +120,33 @@ export function useGroupingSessions() {
     },
   });
 
+  // Hard delete session - TL, VC, TM only
+  const deleteSession = useMutation({
+    mutationFn: async (sessionId: string) => {
+      if (!canDeleteSession) {
+        throw new Error('You do not have permission to delete sessions');
+      }
+
+      // Delete session - CASCADE will handle targets, entries, notes
+      const { error } = await supabase
+        .from('grouping_sessions')
+        .delete()
+        .eq('id', sessionId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['grouping-sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['grouping-targets'] });
+      queryClient.invalidateQueries({ queryKey: ['ps-daily-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['grouping-notes'] });
+      toast({ title: 'Session Deleted', description: 'Session and all related data permanently deleted.' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
   return {
     sessions: sessionsQuery.data || [],
     activeSession,
@@ -125,6 +155,8 @@ export function useGroupingSessions() {
     createSession,
     updateSession,
     closeSession,
+    deleteSession,
+    canDeleteSession,
     refetch: sessionsQuery.refetch,
   };
 }
