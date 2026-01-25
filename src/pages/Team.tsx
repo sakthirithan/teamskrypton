@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useAppMode } from '@/hooks/useAppMode';
 import { Header } from '@/components/layout/Header';
 import { KryptonIdCard } from '@/components/team/KryptonIdCard';
 import { Button } from '@/components/ui/button';
@@ -37,6 +38,7 @@ interface TeamMember {
 
 const Team = () => {
   const { user, isLoading, isLeadership, isCaptainOrVice } = useAuth();
+  const { mode } = useAppMode();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [members, setMembers] = useState<TeamMember[]>([]);
@@ -292,6 +294,16 @@ const Team = () => {
                 canEditPhone={isCaptainOrVice}
                 onUpdatePhone={isCaptainOrVice ? (phone) => handleUpdatePhone(member.profile.user_id, phone) : undefined}
                 onClick={() => {
+                  // Grouping mode navigation
+                  if (mode === 'grouping') {
+                    if (member.profile.user_id === user.id) {
+                      navigate('/grouping/me');
+                    } else {
+                      navigate(`/grouping/me?userId=${member.profile.user_id}`);
+                    }
+                    return;
+                  }
+                  // PBL mode navigation (unchanged)
                   if (member.profile.user_id === user.id) {
                     navigate('/my-space');
                   } else if (isLeadership) {
@@ -302,7 +314,13 @@ const Team = () => {
                 }}
                 onViewProfile={
                   member.profile.user_id !== user.id
-                    ? () => navigate(isLeadership ? `/member/${member.profile.user_id}` : `/profile/${member.profile.user_id}`)
+                    ? () => {
+                        if (mode === 'grouping') {
+                          navigate(`/grouping/me?userId=${member.profile.user_id}`);
+                        } else {
+                          navigate(isLeadership ? `/member/${member.profile.user_id}` : `/profile/${member.profile.user_id}`);
+                        }
+                      }
                     : undefined
                 }
                 showProfileIcon={member.profile.user_id !== user.id}

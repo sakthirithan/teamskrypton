@@ -1,10 +1,12 @@
-import { User, Eye, Phone, Pencil, CheckCircle, Power } from 'lucide-react';
+import { User, Eye, Phone, Pencil, CheckCircle, Power, Target } from 'lucide-react';
 import { ROLE_LABELS, KryptonRole, TaskStatus } from '@/lib/constants';
 import { format } from 'date-fns';
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { GroupingIdCardTab } from '@/components/grouping/GroupingIdCardTab';
+import { useAppMode } from '@/hooks/useAppMode';
 interface KryptonIdCardProps {
   profile: {
     user_id: string;
@@ -75,12 +77,14 @@ export function KryptonIdCard({
   isOwnProfile,
   manualStatusOverride
 }: KryptonIdCardProps) {
+  const { mode } = useAppMode();
   const [isEditingPhone, setIsEditingPhone] = useState(false);
   const [phoneValue, setPhoneValue] = useState(profile.phone_number || '');
   const [isSaving, setIsSaving] = useState(false);
   const [isTogglingStatus, setIsTogglingStatus] = useState(false);
 
   const derivedStatus = getDerivedStatus(taskStats, manualStatusOverride);
+  const isGroupingMode = mode === 'grouping';
 
   const handleToggleStatus = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -173,88 +177,165 @@ export function KryptonIdCard({
           )}
         </div>
 
-        {/* Details */}
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Department</span>
-            <span className="font-medium">{profile.department}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Email</span>
-            <span className="font-medium truncate max-w-[150px]">{profile.email}</span>
-          </div>
-          
-          {/* Phone Number - Editable by TL/VC */}
-          <div className="flex justify-between items-center">
-            <span className="text-muted-foreground flex items-center gap-1">
-              <Phone className="w-3 h-3" /> Phone
-            </span>
-            {isEditingPhone ? (
-              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                <Input 
-                  value={phoneValue}
-                  onChange={(e) => setPhoneValue(e.target.value)}
-                  className="h-6 w-24 text-xs px-1"
-                  placeholder="Phone"
-                />
-                <Button 
-                  size="sm" 
-                  variant="ghost" 
-                  className="h-6 w-6 p-0"
-                  onClick={handleSavePhone}
-                  disabled={isSaving}
-                >
-                  <CheckCircle className="w-3 h-3 text-green-600" />
-                </Button>
+        {/* Tabbed Content - Grouping tab only in Grouping mode */}
+        {isGroupingMode ? (
+          <Tabs defaultValue="info" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-3">
+              <TabsTrigger value="info" className="text-xs">Info</TabsTrigger>
+              <TabsTrigger value="grouping" className="text-xs">
+                <Target className="w-3 h-3 mr-1" />
+                Grouping
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="info" className="mt-0">
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Department</span>
+                  <span className="font-medium">{profile.department}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Email</span>
+                  <span className="font-medium truncate max-w-[150px]">{profile.email}</span>
+                </div>
+                
+                {/* Phone Number */}
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground flex items-center gap-1">
+                    <Phone className="w-3 h-3" /> Phone
+                  </span>
+                  {isEditingPhone ? (
+                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                      <Input 
+                        value={phoneValue}
+                        onChange={(e) => setPhoneValue(e.target.value)}
+                        className="h-6 w-24 text-xs px-1"
+                        placeholder="Phone"
+                      />
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        className="h-6 w-6 p-0"
+                        onClick={handleSavePhone}
+                        disabled={isSaving}
+                      >
+                        <CheckCircle className="w-3 h-3 text-green-600" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <span className="font-medium flex items-center gap-1">
+                      {profile.phone_number || '-'}
+                      {canEditPhone && onUpdatePhone && (
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsEditingPhone(true);
+                          }}
+                          className="p-1 hover:bg-muted rounded"
+                          title="Edit phone number"
+                        >
+                          <Pencil className="w-3 h-3 text-muted-foreground" />
+                        </button>
+                      )}
+                    </span>
+                  )}
+                </div>
+                
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Joined</span>
+                  <span className="font-medium">{format(new Date(profile.created_at), 'MMM yyyy')}</span>
+                </div>
               </div>
-            ) : (
-              <span className="font-medium flex items-center gap-1">
-                {profile.phone_number || '-'}
-                {canEditPhone && onUpdatePhone && (
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsEditingPhone(true);
-                    }}
-                    className="p-1 hover:bg-muted rounded"
-                    title="Edit phone number"
+            </TabsContent>
+            
+            <TabsContent value="grouping" className="mt-0">
+              <GroupingIdCardTab userId={profile.user_id} />
+            </TabsContent>
+          </Tabs>
+        ) : (
+          /* Default PBL mode - original details */
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Department</span>
+              <span className="font-medium">{profile.department}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Email</span>
+              <span className="font-medium truncate max-w-[150px]">{profile.email}</span>
+            </div>
+            
+            {/* Phone Number - Editable by TL/VC */}
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground flex items-center gap-1">
+                <Phone className="w-3 h-3" /> Phone
+              </span>
+              {isEditingPhone ? (
+                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                  <Input 
+                    value={phoneValue}
+                    onChange={(e) => setPhoneValue(e.target.value)}
+                    className="h-6 w-24 text-xs px-1"
+                    placeholder="Phone"
+                  />
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    className="h-6 w-6 p-0"
+                    onClick={handleSavePhone}
+                    disabled={isSaving}
                   >
-                    <Pencil className="w-3 h-3 text-muted-foreground" />
-                  </button>
-                )}
-              </span>
-            )}
+                    <CheckCircle className="w-3 h-3 text-green-600" />
+                  </Button>
+                </div>
+              ) : (
+                <span className="font-medium flex items-center gap-1">
+                  {profile.phone_number || '-'}
+                  {canEditPhone && onUpdatePhone && (
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsEditingPhone(true);
+                      }}
+                      className="p-1 hover:bg-muted rounded"
+                      title="Edit phone number"
+                    >
+                      <Pencil className="w-3 h-3 text-muted-foreground" />
+                    </button>
+                  )}
+                </span>
+              )}
+            </div>
+            
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Joined</span>
+              <span className="font-medium">{format(new Date(profile.created_at), 'MMM yyyy')}</span>
+            </div>
+            
+            {/* Derived Status - Toggleable for own profile */}
+            <div className="flex justify-between items-center pt-2 border-t">
+              <span className="text-muted-foreground">Status</span>
+              {isOwnProfile && onToggleStatus ? (
+                <button
+                  onClick={handleToggleStatus}
+                  disabled={isTogglingStatus}
+                  className={`${derivedStatus.className} cursor-pointer hover:opacity-80 transition-opacity flex items-center gap-1`}
+                  title="Toggle presence status (display only)"
+                >
+                  {isTogglingStatus ? (
+                    <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Power className="w-3 h-3" />
+                  )}
+                  {derivedStatus.label}
+                </button>
+              ) : (
+                <span className={derivedStatus.className}>
+                  {derivedStatus.label}
+                </span>
+              )}
+            </div>
           </div>
-          
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Joined</span>
-            <span className="font-medium">{format(new Date(profile.created_at), 'MMM yyyy')}</span>
-          </div>
-          
-          {/* Derived Status - Toggleable for own profile */}
-          <div className="flex justify-between items-center pt-2 border-t">
-            <span className="text-muted-foreground">Status</span>
-            {isOwnProfile && onToggleStatus ? (
-              <button
-                onClick={handleToggleStatus}
-                disabled={isTogglingStatus}
-                className={`${derivedStatus.className} cursor-pointer hover:opacity-80 transition-opacity flex items-center gap-1`}
-                title="Toggle presence status (display only)"
-              >
-                {isTogglingStatus ? (
-                  <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <Power className="w-3 h-3" />
-                )}
-                {derivedStatus.label}
-              </button>
-            ) : (
-              <span className={derivedStatus.className}>
-                {derivedStatus.label}
-              </span>
-            )}
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Krypton ID Footer */}
