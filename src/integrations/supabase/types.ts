@@ -99,6 +99,98 @@ export type Database = {
           },
         ]
       }
+      grouping_sessions: {
+        Row: {
+          created_at: string
+          created_by: string
+          end_date: string
+          id: string
+          is_test: boolean | null
+          name: string
+          session_number: number
+          start_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          end_date: string
+          id?: string
+          is_test?: boolean | null
+          name: string
+          session_number: number
+          start_date: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          end_date?: string
+          id?: string
+          is_test?: boolean | null
+          name?: string
+          session_number?: number
+          start_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      grouping_targets: {
+        Row: {
+          achieved_points: number
+          created_at: string
+          created_by: string
+          editable: boolean
+          id: string
+          is_test: boolean | null
+          notes: string | null
+          session_id: string
+          target_points: number
+          target_scope: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          achieved_points?: number
+          created_at?: string
+          created_by: string
+          editable?: boolean
+          id?: string
+          is_test?: boolean | null
+          notes?: string | null
+          session_id: string
+          target_points?: number
+          target_scope: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          achieved_points?: number
+          created_at?: string
+          created_by?: string
+          editable?: boolean
+          id?: string
+          is_test?: boolean | null
+          notes?: string | null
+          session_id?: string
+          target_points?: number
+          target_scope?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grouping_targets_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "grouping_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -143,6 +235,59 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      ps_daily_entries: {
+        Row: {
+          attempt_count: number
+          created_at: string
+          entered_by: string
+          entry_date: string
+          id: string
+          is_test: boolean | null
+          reward_points: number
+          s_no: number
+          session_id: string
+          skill_name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempt_count?: number
+          created_at?: string
+          entered_by: string
+          entry_date: string
+          id?: string
+          is_test?: boolean | null
+          reward_points?: number
+          s_no: number
+          session_id: string
+          skill_name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempt_count?: number
+          created_at?: string
+          entered_by?: string
+          entry_date?: string
+          id?: string
+          is_test?: boolean | null
+          reward_points?: number
+          s_no?: number
+          session_id?: string
+          skill_name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ps_daily_entries_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "grouping_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       registration_requests: {
         Row: {
