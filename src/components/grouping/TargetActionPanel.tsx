@@ -22,10 +22,14 @@ interface Profile {
 }
 
 export function TargetActionPanel() {
-  const { isCaptainOrVice, user } = useAuth();
+  const { isCaptainOrVice, isLeadership, user } = useAuth();
   const queryClient = useQueryClient();
   const { sessions, activeSession } = useGroupingSessions();
   const { targets, createTarget, updateTarget, deleteTarget } = useGroupingTargets(activeSession?.id);
+  
+  // Target creation: TL, VC, Strategist, TM can create targets
+  // Team Members cannot unless editable flag is set on their target
+  const canCreateTarget = isLeadership;
   
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingTarget, setEditingTarget] = useState<GroupingTarget | null>(null);
@@ -119,7 +123,7 @@ export function TargetActionPanel() {
     });
   };
 
-  if (!isCaptainOrVice) {
+  if (!canCreateTarget) {
     return (
       <Card>
         <CardHeader className="pb-3">
