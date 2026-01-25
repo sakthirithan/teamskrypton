@@ -1,10 +1,10 @@
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Radar, AlertTriangle, TrendingDown, Clock, Target } from 'lucide-react';
-import { format, differenceInHours } from 'date-fns';
-
+import { Radar, AlertTriangle, TrendingDown, Clock, Target, Lightbulb, PieChart } from 'lucide-react';
+import { format, differenceInHours, differenceInDays } from 'date-fns';
+import { RefreshButton } from '@/components/ui/RefreshIconButton';
 interface Task {
   id: string;
   title: string;
@@ -28,8 +28,17 @@ interface StrategistDashboardProps {
 
 export const StrategistDashboard = memo(function StrategistDashboard({ 
   tasks, 
-  members 
-}: StrategistDashboardProps) {
+  members,
+  onRefresh
+}: StrategistDashboardProps & { onRefresh?: () => Promise<void> }) {
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  const handleRefresh = useCallback(async () => {
+    if (!onRefresh) return;
+    setIsRefreshing(true);
+    await onRefresh();
+    setIsRefreshing(false);
+  }, [onRefresh]);
   // Task Risk Radar - tasks nearing deadlines
   const riskTasks = useMemo(() => {
     const now = new Date();
@@ -77,6 +86,20 @@ export const StrategistDashboard = memo(function StrategistDashboard({
     return { total, pending, working, completed, atRisk };
   }, [tasks, riskTasks]);
 
+  // Trend analysis - completion rate last 7 days vs overall
+  const trendAnalysis = useMemo(() => {
+    const now = new Date();
+    const recentTasks = tasks.filter(t => {
+      if (!t.created_at) return false;
+      return differenceInDays(now, new Date(t.created_at)) <= 7;
+    });
+    const recentCompleted = recentTasks.filter(t => t.status === 'completed').length;
+    const recentRate = recentTasks.length > 0 ? (recentCompleted / recentTasks.length) * 100 : 0;
+    const overallRate = tasks.length > 0 ? (stats.completed / stats.total) * 100 : 0;
+    const trend = recentRate - overallRate;
+    return { recentRate: Math.round(recentRate), trend: Math.round(trend) };
+  }, [tasks, stats]);
+
   const getMemberName = (userId: string | null) => {
     if (!userId) return 'Unassigned';
     const member = members.find(m => m.user_id === userId);
@@ -89,6 +112,7 @@ export const StrategistDashboard = memo(function StrategistDashboard({
         <CardTitle className="flex items-center gap-2 text-lg font-display">
           <Radar className="w-5 h-5 text-[hsl(var(--role-strategist))]" />
           Strategic Overview
+          <RefreshButton onClick={handleRefresh} isRefreshing={isRefreshing} />
           {stats.atRisk > 0 && (
             <Badge className="bg-[hsl(var(--status-pending))]/15 text-[hsl(var(--status-pending))] ml-2">
               {stats.atRisk} At Risk
@@ -98,6 +122,44 @@ export const StrategistDashboard = memo(function StrategistDashboard({
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Quick Stats */}
+        <div className="grid grid-cols-4 gap-2">
+          <div className="p-2 rounded-lg bg-muted/50 text-center">
+            <p className="text-lg font-bold">{stats.total}</p>
+            <p className="text-[10px] text-muted-foreground uppercase">Total</p>
+          </div>
+          <div className="p-2 rounded-lg bg-[hsl(var(--status-working))]/10 text-center">
+            <p className="text-lg font-bold text-[hsl(var(--status-working))]">{stats.working}</p>
+            <p className="text-[10px] text-muted-foreground uppercase">Active</p>
+          </div>
+          <div className="p-2 rounded-lg bg-[hsl(var(--status-completed))]/10 text-center">
+            <p className="text-lg font-bold text-[hsl(var(--status-completed))]">{stats.completed}</p>
+            <p className="text-[10px] text-muted-foreground uppercase">Done</p>
+          </div>
+          <div className="p-2 rounded-lg bg-[hsl(var(--status-pending))]/10 text-center">
+            <p className="text-lg font-bold text-[hsl(var(--status-pending))]">{stats.pending}</p>
+            <p className="text-[10px] text-muted-foreground uppercase">Pending</p>
+          </div>
+        </div>
+
+        {/* Trend Insight */}
+        <div className="p-3 rounded-lg border bg-card">
+          <div className="flex items-center gap-2 mb-2">
+            <Lightbulb className="w-4 h-4 text-yellow-500" />
+            <span className="text-sm font-medium">7-Day Trend</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Completion Rate</span>
+            <div className="flex items-center gap-2">
+              <span className="font-bold">{trendAnalysis.recentRate}%</span>
+              <Badge variant="outline" className={
+                trendAnalysis.trend > 0 ? 'text-green-600 border-green-500/30' :
+                trendAnalysis.trend < 0 ? 'text-red-600 border-red-500/30' : ''
+              }>
+                {trendAnalysis.trend > 0 ? '+' : ''}{trendAnalysis.trend}%
+              </Badge>
+            </div>
+          </div>
+        </div>
         <div className="grid grid-cols-4 gap-2">
           <div className="p-2 rounded-lg bg-muted/50 text-center">
             <p className="text-lg font-bold">{stats.total}</p>

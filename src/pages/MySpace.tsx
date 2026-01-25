@@ -425,14 +425,15 @@ const MySpace = () => {
                 tasks={allTasks} 
                 members={teamMembers} 
                 approvals={approvals} 
-                recentActions={recentActions} 
+                recentActions={recentActions}
+                onRefresh={fetchData}
               />
             ) : role === 'team_manager' ? (
-              <TeamManagerDashboard tasks={allTasks} members={teamMembers} />
+              <TeamManagerDashboard tasks={allTasks} members={teamMembers} onRefresh={fetchData} />
             ) : role === 'strategist' ? (
-              <StrategistDashboard tasks={allTasks} members={teamMembers} />
+              <StrategistDashboard tasks={allTasks} members={teamMembers} onRefresh={fetchData} />
             ) : (
-              <TeamMemberDashboard tasks={myTasks} userId={user.id} />
+              <TeamMemberDashboard tasks={myTasks} userId={user.id} onRefresh={fetchData} />
             )}
 
             {/* Leadership Dashboard - TL/VC Only */}

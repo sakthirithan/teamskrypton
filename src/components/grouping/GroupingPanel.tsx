@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -9,7 +9,8 @@ import { useGroupingTargets } from '@/hooks/useGroupingTargets';
 import { usePSDailyEntries } from '@/hooks/usePSDailyEntries';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { RefreshButton } from '@/components/ui/RefreshIconButton';
 import { 
   calculateTargetStatus, 
   calculateSessionDays, 
@@ -24,7 +25,9 @@ interface Profile {
 
 export function GroupingPanel() {
   const { user, isLeadership } = useAuth();
+  const queryClient = useQueryClient();
   const { sessions, activeSession } = useGroupingSessions();
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Allow viewing historical sessions
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
@@ -36,6 +39,14 @@ export function GroupingPanel() {
   
   const { targets, myTargets } = useGroupingTargets(viewingSession?.id);
   const { entries, getTotalPoints } = usePSDailyEntries(viewingSession?.id);
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await queryClient.invalidateQueries({ queryKey: ['grouping-sessions'] });
+    await queryClient.invalidateQueries({ queryKey: ['grouping-targets'] });
+    await queryClient.invalidateQueries({ queryKey: ['ps-daily-entries'] });
+    setIsRefreshing(false);
+  }, [queryClient]);
 
   // Fetch team members
   const { data: teamMembers = [] } = useQuery({
@@ -125,6 +136,7 @@ export function GroupingPanel() {
             {viewingSession && (
               <>Session #{viewingSession.session_number}: {viewingSession.name}</>
             )}
+            <RefreshButton onClick={handleRefresh} isRefreshing={isRefreshing} />
           </span>
           <div className="flex items-center gap-2">
             {/* Session History Selector - Visible to ALL */}
