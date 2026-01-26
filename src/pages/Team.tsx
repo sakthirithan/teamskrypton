@@ -8,13 +8,14 @@ import { KryptonIdCard } from '@/components/team/KryptonIdCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { KryptonRole, TaskStatus, LEADERSHIP_ROLES } from '@/lib/constants';
-import { Users, Download, Search, AlertCircle } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { KryptonRole, TaskStatus, LEADERSHIP_ROLES, ROLE_LABELS } from '@/lib/constants';
+import { Users, Download, Search, AlertCircle, Target, FileSpreadsheet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { RefreshButton } from '@/components/ui/RefreshIconButton';
 import { validateExportDateRange, getTodayString } from '@/lib/exportValidation';
+import { calculateTargetStatus, calculateDaysRemaining, calculateSessionDays, TARGET_STATUS_LABELS } from '@/lib/groupingConstants';
 import * as XLSX from 'xlsx';
 
 interface TeamMember {
@@ -37,8 +38,8 @@ interface TeamMember {
 }
 
 const Team = () => {
-  const { user, isLoading, isLeadership, isCaptainOrVice } = useAuth();
-  const { mode } = useAppMode();
+  const { user, isLoading, isLeadership, isCaptainOrVice, role } = useAuth();
+  const { mode, isGroupingMode } = useAppMode();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [members, setMembers] = useState<TeamMember[]>([]);
@@ -49,6 +50,7 @@ const Team = () => {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [exportError, setExportError] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
   const lastRefreshRef = useRef<number>(0);
 
   const handleManualRefresh = useCallback(async () => {
@@ -81,7 +83,7 @@ const Team = () => {
       .from('user_roles')
       .select('user_id, role');
 
-    // Fetch task stats for each user
+    // Fetch task stats for each user (only for PBL mode display)
     const { data: tasks } = await supabase
       .from('tasks')
       .select('assigned_to, status')
@@ -151,74 +153,212 @@ const Team = () => {
     }
   };
 
-  // Export team directory with task history and validation
-  const handleExport = async (exportFormat: 'csv' | 'xlsx') => {
+  // =================== GROUPING MODE EXPORT ===================
+  const handleGroupingExport = async (exportFormat: 'csv' | 'xlsx') => {
+    setIsExporting(true);
+    setExportError(null);
+
+    try {
+      // 1. Get active session
+      const { data: sessions, error: sessionError } = await supabase
+        .from('grouping_sessions')
+        .select('*')
+        .eq('status', 'active')
+        .eq('is_test', false)
+        .order('session_number', { ascending: false })
+        .limit(1);
+
+      if (sessionError) throw sessionError;
+      
+      if (!sessions || sessions.length === 0) {
+        setExportError('No active session found. Please create an active session first.');
+        setIsExporting(false);
+        return;
+      }
+
+      const activeSession = sessions[0];
+
+      // 2. Fetch ALL targets for this session
+      const { data: targets, error: targetsError } = await supabase
+        .from('grouping_targets')
+        .select('*')
+        .eq('session_id', activeSession.id)
+        .eq('is_test', false);
+
+      if (targetsError) throw targetsError;
+
+      // 3. Fetch ALL PS entries for this session
+      const { data: psEntries, error: entriesError } = await supabase
+        .from('ps_daily_entries')
+        .select('*')
+        .eq('session_id', activeSession.id)
+        .eq('is_test', false);
+
+      if (entriesError) throw entriesError;
+
+      // 4. Build per-member data
+      const roleMap = new Map(members.map(m => [m.profile.user_id, m.role]));
+      const groupTarget = targets?.find(t => t.target_scope === 'group');
+      
+      // Calculate session metrics
+      const totalDays = calculateSessionDays(activeSession.start_date, activeSession.end_date);
+      const daysRemaining = calculateDaysRemaining(activeSession.end_date);
+
+      const exportData = members.map(member => {
+        const userId = member.profile.user_id;
+        
+        // Get individual target for this user
+        const individualTarget = targets?.find(t => t.target_scope === 'individual' && t.user_id === userId);
+        
+        // Filter entries for this user
+        const userEntries = psEntries?.filter(e => e.user_id === userId) || [];
+        const completedEntries = userEntries.filter(e => e.status === 'completed');
+        const pendingEntries = userEntries.filter(e => e.status === 'pending');
+        
+        // Calculate totals
+        const totalPoints = completedEntries.reduce((sum, e) => sum + e.reward_points, 0);
+        const totalAttempts = userEntries.reduce((sum, e) => sum + e.attempt_count, 0);
+        
+        // Last activity
+        const lastEntry = userEntries.sort((a, b) => 
+          new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+        )[0];
+
+        // Target status calculation
+        const targetPoints = individualTarget?.target_points || 0;
+        const targetStatus = targetPoints > 0 
+          ? calculateTargetStatus(totalPoints, targetPoints, daysRemaining, totalDays)
+          : 'on_track';
+
+        // Progress percentage
+        const progressPercent = targetPoints > 0 
+          ? Math.min(100, Math.round((totalPoints / targetPoints) * 100))
+          : 0;
+
+        return {
+          'Name': member.profile.full_name,
+          'Role': member.role ? ROLE_LABELS[member.role] : '-',
+          'Department': member.profile.department,
+          'Session ID': activeSession.id,
+          'Session Name': activeSession.name,
+          'Session Start': activeSession.start_date,
+          'Session End': activeSession.end_date,
+          'Days Remaining': daysRemaining,
+          // Group Target Info
+          'Group Target (Points)': groupTarget?.target_points || 0,
+          'Group Target Achieved': groupTarget?.achieved_points || 0,
+          // Individual Target Info
+          'Individual Target (Points)': individualTarget?.target_points || 0,
+          'Individual Achieved (Points)': totalPoints,
+          'Progress (%)': progressPercent,
+          'Target Status': TARGET_STATUS_LABELS[targetStatus],
+          // PS Entry Stats
+          'Total PS Entries': userEntries.length,
+          'Completed Entries': completedEntries.length,
+          'Pending Entries': pendingEntries.length,
+          'Total Reward Points': totalPoints,
+          'Total Attempts': totalAttempts,
+          'Last Activity': lastEntry ? format(new Date(lastEntry.updated_at), 'yyyy-MM-dd HH:mm') : '-',
+        };
+      });
+
+      // 5. Generate file
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Grouping Team Report');
+
+      const timestamp = format(new Date(), 'yyyy-MM-dd');
+      const sessionName = activeSession.name.replace(/[^a-zA-Z0-9]/g, '_');
+      const filename = `Grouping_Team_Report_Session_${sessionName}_${timestamp}.${exportFormat}`;
+      
+      XLSX.writeFile(wb, filename);
+      toast({ title: 'Export Complete', description: `Downloaded ${filename}` });
+      setShowExportDialog(false);
+
+    } catch (error: any) {
+      setExportError(error.message || 'Export failed');
+      toast({ variant: 'destructive', title: 'Export Failed', description: error.message });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // =================== PBL MODE EXPORT ===================
+  const handlePBLExport = async (exportFormat: 'csv' | 'xlsx') => {
     const validation = validateExportDateRange(fromDate, toDate);
     if (!validation.isValid) {
       setExportError(validation.error);
       return;
     }
     setExportError(null);
+    setIsExporting(true);
 
-    // Fetch all completed tasks with date filter
-    let query = supabase
-      .from('tasks')
-      .select('*')
-      .eq('status', 'completed')
-      .eq('is_test', false);
+    try {
+      // Fetch all completed tasks with date filter
+      let query = supabase
+        .from('tasks')
+        .select('*')
+        .eq('status', 'completed')
+        .eq('is_test', false);
 
-    const { data: allTasks } = await query;
+      const { data: allTasks } = await query;
 
-    let filteredTasks = allTasks || [];
-    if (fromDate || toDate) {
-      filteredTasks = filteredTasks.filter(task => {
-        const taskDate = task.completed_at ? new Date(task.completed_at) : null;
-        if (!taskDate) return false;
-        if (fromDate && taskDate < parseISO(fromDate)) return false;
-        if (toDate && taskDate > parseISO(toDate + 'T23:59:59')) return false;
-        return true;
+      let filteredTasks = allTasks || [];
+      if (fromDate || toDate) {
+        filteredTasks = filteredTasks.filter(task => {
+          const taskDate = task.completed_at ? new Date(task.completed_at) : null;
+          if (!taskDate) return false;
+          if (fromDate && taskDate < parseISO(fromDate)) return false;
+          if (toDate && taskDate > parseISO(toDate + 'T23:59:59')) return false;
+          return true;
+        });
+      }
+
+      // Build user map
+      const userMap = new Map(members.map(m => [m.profile.user_id, m]));
+
+      const exportData = filteredTasks.map(task => {
+        const member = userMap.get(task.assigned_to);
+        return {
+          'User': member?.profile.full_name || 'Unknown',
+          'Role': member?.role ? ROLE_LABELS[member.role] : '-',
+          'Department': member?.profile.department || '-',
+          'Task': task.title,
+          'Date Completed': task.completed_at ? format(new Date(task.completed_at), 'yyyy-MM-dd') : '-',
+          'Duration (min)': task.duration_minutes || '-',
+          'Start Time': task.accepted_at ? format(new Date(task.accepted_at), 'HH:mm') : '-',
+          'End Time': task.completed_at ? format(new Date(task.completed_at), 'HH:mm') : '-',
+        };
       });
+
+      if (exportData.length === 0) {
+        toast({ variant: 'destructive', title: 'No Data', description: 'No completed tasks in the selected range.' });
+        setIsExporting(false);
+        return;
+      }
+
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Team Task History');
+
+      const dateRange = fromDate && toDate 
+        ? `${fromDate}_to_${toDate}` 
+        : fromDate 
+          ? `from_${fromDate}` 
+          : toDate 
+            ? `to_${toDate}` 
+            : 'full_history';
+
+      const filename = `Krypton_Team_History_${dateRange}.${exportFormat}`;
+      XLSX.writeFile(wb, filename);
+
+      toast({ title: 'Export Complete', description: `Downloaded ${filename}` });
+      setShowExportDialog(false);
+    } catch (error: any) {
+      setExportError(error.message || 'Export failed');
+    } finally {
+      setIsExporting(false);
     }
-
-    // Build user map
-    const userMap = new Map(members.map(m => [m.profile.user_id, m]));
-
-    const exportData = filteredTasks.map(task => {
-      const member = userMap.get(task.assigned_to);
-      return {
-        'User': member?.profile.full_name || 'Unknown',
-        'Role': member?.role ? member.role : '-',
-        'Department': member?.profile.department || '-',
-        'Task': task.title,
-        'Date Completed': task.completed_at ? format(new Date(task.completed_at), 'yyyy-MM-dd') : '-',
-        'Duration (min)': task.duration_minutes || '-',
-        'Start Time': task.accepted_at ? format(new Date(task.accepted_at), 'HH:mm') : '-',
-        'End Time': task.completed_at ? format(new Date(task.completed_at), 'HH:mm') : '-',
-      };
-    });
-
-    if (exportData.length === 0) {
-      toast({ variant: 'destructive', title: 'No Data', description: 'No completed tasks in the selected range.' });
-      return;
-    }
-
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Team Task History');
-
-    const dateRange = fromDate && toDate 
-      ? `${fromDate}_to_${toDate}` 
-      : fromDate 
-        ? `from_${fromDate}` 
-        : toDate 
-          ? `to_${toDate}` 
-          : 'full_history';
-
-    const filename = `Krypton_Team_History_${dateRange}.${exportFormat}`;
-    XLSX.writeFile(wb, filename);
-
-    toast({ title: 'Export Complete', description: `Downloaded ${filename}` });
-    setShowExportDialog(false);
   };
 
   // Filter members by search
@@ -329,64 +469,115 @@ const Team = () => {
           </div>
         )}
 
-        {/* Export Dialog */}
+        {/* Export Dialog - Mode-Aware */}
         <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <Download className="w-5 h-5" />
-                Export Team Task History
+                {isGroupingMode ? (
+                  <>
+                    <Target className="w-5 h-5" />
+                    Export Grouping Session Report
+                  </>
+                ) : (
+                  <>
+                    <FileSpreadsheet className="w-5 h-5" />
+                    Export Team Task History
+                  </>
+                )}
               </DialogTitle>
+              <DialogDescription>
+                {isGroupingMode 
+                  ? 'Export team performance data for the current active session only.'
+                  : 'Export completed task history for all team members.'}
+              </DialogDescription>
             </DialogHeader>
+            
             <div className="space-y-4 py-4">
-              <p className="text-sm text-muted-foreground">
-                Export completed task history for all team members. States, durations, and dates included. Alerts and reasons are excluded.
-              </p>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>From Date</Label>
-                  <Input 
-                    type="date" 
-                    value={fromDate}
-                    onChange={(e) => {
-                      setFromDate(e.target.value);
-                      setExportError(null);
-                    }}
-                    max={getTodayString()}
-                  />
-                </div>
-                <div>
-                  <Label>To Date</Label>
-                  <Input 
-                    type="date" 
-                    value={toDate}
-                    onChange={(e) => {
-                      setToDate(e.target.value);
-                      setExportError(null);
-                    }}
-                    max={getTodayString()}
-                  />
-                </div>
-              </div>
+              {isGroupingMode ? (
+                // GROUPING MODE EXPORT
+                <>
+                  <div className="bg-muted/50 p-4 rounded-lg space-y-2">
+                    <p className="text-sm font-medium">Export includes:</p>
+                    <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
+                      <li>Member identity (name, role, department)</li>
+                      <li>Session details (name, dates, days remaining)</li>
+                      <li>Group & individual target progress</li>
+                      <li>PS daily entries (completed, pending counts)</li>
+                      <li>Total reward points & attempts</li>
+                      <li>Target status & completion projection</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="bg-amber-500/10 border border-amber-500/30 p-3 rounded-lg">
+                    <p className="text-sm text-amber-700 dark:text-amber-400">
+                      <strong>Note:</strong> Only data from the current active session will be exported. 
+                      PBL task data is excluded.
+                    </p>
+                  </div>
+                </>
+              ) : (
+                // PBL MODE EXPORT
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    Export completed task history for all team members. States, durations, and dates included.
+                  </p>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>From Date</Label>
+                      <Input 
+                        type="date" 
+                        value={fromDate}
+                        onChange={(e) => {
+                          setFromDate(e.target.value);
+                          setExportError(null);
+                        }}
+                        max={getTodayString()}
+                      />
+                    </div>
+                    <div>
+                      <Label>To Date</Label>
+                      <Input 
+                        type="date" 
+                        value={toDate}
+                        onChange={(e) => {
+                          setToDate(e.target.value);
+                          setExportError(null);
+                        }}
+                        max={getTodayString()}
+                      />
+                    </div>
+                  </div>
+                  
+                  <p className="text-xs text-muted-foreground">
+                    Leave dates empty for full history export.
+                  </p>
+                </>
+              )}
               
               {exportError && (
                 <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 p-2 rounded">
-                  <AlertCircle className="w-4 h-4" />
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
                   {exportError}
                 </div>
               )}
-              
-              <p className="text-xs text-muted-foreground">
-                Leave dates empty for full history export.
-              </p>
 
               <div className="flex gap-2 pt-2">
-                <Button variant="outline" className="flex-1" onClick={() => handleExport('csv')}>
-                  Download CSV
+                <Button 
+                  variant="outline" 
+                  className="flex-1" 
+                  onClick={() => isGroupingMode ? handleGroupingExport('csv') : handlePBLExport('csv')}
+                  disabled={isExporting}
+                >
+                  {isExporting ? 'Exporting...' : 'Download CSV'}
                 </Button>
-                <Button className="flex-1" onClick={() => handleExport('xlsx')}>
-                  Download Excel
+                <Button 
+                  className="flex-1" 
+                  onClick={() => isGroupingMode ? handleGroupingExport('xlsx') : handlePBLExport('xlsx')}
+                  disabled={isExporting}
+                >
+                  {isExporting ? 'Exporting...' : 'Download Excel'}
                 </Button>
               </div>
             </div>

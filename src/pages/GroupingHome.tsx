@@ -7,11 +7,15 @@ import { TargetActionPanel } from '@/components/grouping/TargetActionPanel';
 import { SessionManagementPanel } from '@/components/grouping/SessionManagementPanel';
 import { GroupingAlertsPanel } from '@/components/grouping/GroupingAlertsPanel';
 import { GroupingNotesPanel } from '@/components/grouping/GroupingNotesPanel';
+import { BulkEntryCreation } from '@/components/grouping/BulkEntryCreation';
+import { useGroupingSessions } from '@/hooks/useGroupingSessions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Target, MessageSquare } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Target, MessageSquare, Users } from 'lucide-react';
 
 const GroupingHome = () => {
   const { user, isLoading, isLeadership, isCaptainOrVice } = useAuth();
+  const { activeSession } = useGroupingSessions();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -64,6 +68,26 @@ const GroupingHome = () => {
           <div className="space-y-4 sm:space-y-6 order-2">
             {/* Session Management for TL/VC only */}
             {isCaptainOrVice && <SessionManagementPanel />}
+            
+            {/* Bulk Entry Creation for Leadership - Prominent placement */}
+            {isLeadership && activeSession && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center justify-between">
+                    <span className="flex items-center gap-2 text-base">
+                      <Users className="w-4 h-4" />
+                      Quick Actions
+                    </span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <BulkEntryCreation session={activeSession} />
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Create PS entries for multiple members at once
+                  </p>
+                </CardContent>
+              </Card>
+            )}
             
             {/* Target Action Panel - now visible to all leadership */}
             <TargetActionPanel />

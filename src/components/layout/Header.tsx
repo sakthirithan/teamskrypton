@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppMode } from '@/hooks/useAppMode';
 import { ROLE_LABELS, KryptonRole } from '@/lib/constants';
-import { LogOut, User, Users, Home, LayoutDashboard, Menu, X, Download, UserCog, Target } from 'lucide-react';
+import { LogOut, User, Users, Home, LayoutDashboard, Menu, X, Download, UserCog, Target, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -16,7 +16,9 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { UserListPanel } from '@/components/admin/UserListPanel';
+import { ModeSelectionDialog } from '@/components/auth/ModeSelectionDialog';
 import { Badge } from '@/components/ui/badge';
+import { AppMode } from '@/lib/groupingConstants';
 
 function getRoleBadgeClass(role: KryptonRole | null): string {
   switch (role) {
@@ -37,13 +39,14 @@ function getRoleBadgeClass(role: KryptonRole | null): string {
 
 export function Header() {
   const { user, profile, role, signOut, isCaptainOrVice } = useAuth();
-  const { isGroupingMode, clearMode } = useAppMode();
+  const { isGroupingMode, clearMode, setMode } = useAppMode();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userListOpen, setUserListOpen] = useState(false);
+  const [showModeSwitch, setShowModeSwitch] = useState(false);
 
   // Mode-aware navigation links
   const navLinks = isGroupingMode
@@ -87,6 +90,15 @@ export function Header() {
     clearMode(); // Reset mode selection on logout
     await signOut();
     navigate('/auth');
+  };
+
+  // Handle mode switch from profile menu
+  const handleModeSwitch = (mode: AppMode) => {
+    setMode(mode);
+    setShowModeSwitch(false);
+    // Navigate to appropriate home based on selected mode
+    navigate(mode === 'grouping' ? '/grouping/home' : '/', { replace: true });
+    toast({ title: 'Mode Switched', description: `Now in ${mode === 'grouping' ? 'Grouping' : 'PBL'} Mode` });
   };
 
   const handleInstallAPK = () => {
@@ -235,6 +247,12 @@ export function Header() {
                 
                 <DropdownMenuSeparator />
                 
+                {/* Switch Mode - Available to all */}
+                <DropdownMenuItem onClick={() => setShowModeSwitch(true)}>
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Switch Mode
+                </DropdownMenuItem>
+                
                 {/* Install APK - Available to all */}
                 <DropdownMenuItem onClick={handleInstallAPK}>
                   <Download className="w-4 h-4 mr-2" />
@@ -314,6 +332,19 @@ export function Header() {
             )}
             
             <div className="border-t border-primary-foreground/20 pt-2 mt-2 space-y-1">
+              {/* Switch Mode for mobile */}
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setShowModeSwitch(true);
+                  setMobileMenuOpen(false);
+                }}
+                className="justify-start text-primary-foreground hover:bg-primary-foreground/10 w-full h-12 touch-target"
+              >
+                <RefreshCw className="w-5 h-5 mr-3" />
+                Switch Mode
+              </Button>
+              
               {/* Install App for mobile */}
               <Button
                 variant="ghost"
@@ -356,6 +387,13 @@ export function Header() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Mode Switch Dialog */}
+      <ModeSelectionDialog
+        open={showModeSwitch}
+        onSelectMode={handleModeSwitch}
+        disableAutoSelect={true}
+      />
     </header>
   );
 }

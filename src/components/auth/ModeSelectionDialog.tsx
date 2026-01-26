@@ -14,22 +14,40 @@ import { AppMode } from '@/lib/groupingConstants';
 interface ModeSelectionDialogProps {
   open: boolean;
   onSelectMode: (mode: AppMode) => void;
+  disableAutoSelect?: boolean; // For Switch Mode from profile menu
 }
 
 const AUTO_SELECT_TIMEOUT = 60; // 60 seconds
 
-export function ModeSelectionDialog({ open, onSelectMode }: ModeSelectionDialogProps) {
+export function ModeSelectionDialog({ open, onSelectMode, disableAutoSelect = false }: ModeSelectionDialogProps) {
   const [selectedMode, setSelectedMode] = useState<AppMode | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
   const [countdown, setCountdown] = useState(AUTO_SELECT_TIMEOUT);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Auto-select Grouping after 60 seconds of inactivity
-  useEffect(() => {
-    if (!open) return;
+  // Cleanup function
+  const clearTimers = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+      countdownRef.current = null;
+    }
+  };
 
-    // Reset countdown when dialog opens
+  // Auto-select Grouping after 60 seconds of inactivity (only if not disabled)
+  useEffect(() => {
+    if (!open || disableAutoSelect) {
+      clearTimers();
+      return;
+    }
+
+    // Reset state when dialog opens
+    setSelectedMode(null);
+    setIsConfirming(false);
     setCountdown(AUTO_SELECT_TIMEOUT);
 
     // Start countdown timer
@@ -44,25 +62,21 @@ export function ModeSelectionDialog({ open, onSelectMode }: ModeSelectionDialogP
 
     // Auto-select timer
     timerRef.current = setTimeout(() => {
-      if (!selectedMode) {
-        setSelectedMode('grouping');
-        setIsConfirming(true);
-        setTimeout(() => {
-          onSelectMode('grouping');
-        }, 300);
-      }
+      setSelectedMode('grouping');
+      setIsConfirming(true);
+      setTimeout(() => {
+        onSelectMode('grouping');
+      }, 300);
     }, AUTO_SELECT_TIMEOUT * 1000);
 
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      if (countdownRef.current) clearInterval(countdownRef.current);
-    };
-  }, [open, onSelectMode, selectedMode]);
+    return () => clearTimers();
+  }, [open, disableAutoSelect, onSelectMode]);
 
-  // Reset auto-select timer when user interacts
+  // Reset auto-select timer when user interacts (only if not disabled)
   const resetAutoSelect = () => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    if (countdownRef.current) clearInterval(countdownRef.current);
+    if (disableAutoSelect) return;
+    
+    clearTimers();
     setCountdown(AUTO_SELECT_TIMEOUT);
 
     countdownRef.current = setInterval(() => {
@@ -83,16 +97,13 @@ export function ModeSelectionDialog({ open, onSelectMode }: ModeSelectionDialogP
   const handleModeSelect = (mode: AppMode) => {
     setSelectedMode(mode);
     // Clear auto-select timer once user selects
-    if (timerRef.current) clearTimeout(timerRef.current);
-    if (countdownRef.current) clearInterval(countdownRef.current);
+    clearTimers();
   };
 
   const handleConfirm = () => {
     if (!selectedMode) return;
     setIsConfirming(true);
-    // Clear timers
-    if (timerRef.current) clearTimeout(timerRef.current);
-    if (countdownRef.current) clearInterval(countdownRef.current);
+    clearTimers();
     // Small delay for UX feedback
     setTimeout(() => {
       onSelectMode(selectedMode);
@@ -105,14 +116,18 @@ export function ModeSelectionDialog({ open, onSelectMode }: ModeSelectionDialogP
     <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent className="sm:max-w-md [&>button]:hidden" onClick={resetAutoSelect}>
         <DialogHeader>
-          <DialogTitle className="text-center text-xl">Select Your Mode</DialogTitle>
+          <DialogTitle className="text-center text-xl">
+            {disableAutoSelect ? 'Switch Mode' : 'Select Your Mode'}
+          </DialogTitle>
           <DialogDescription className="text-center">
-            Choose how you want to work in this session. To change modes, you'll need to logout and login again.
+            {disableAutoSelect 
+              ? 'Select a new mode for this session.'
+              : 'Choose how you want to work in this session.'}
           </DialogDescription>
         </DialogHeader>
 
-        {/* Auto-select countdown indicator */}
-        {!selectedMode && countdown > 0 && (
+        {/* Auto-select countdown indicator - only when not disabled */}
+        {!disableAutoSelect && !selectedMode && countdown > 0 && (
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>Auto-selecting Grouping Mode in</span>
