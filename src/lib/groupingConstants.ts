@@ -13,6 +13,7 @@ export const SESSION_STATUS_LABELS: Record<SessionStatus, string> = {
   closed: 'Closed',
 };
 
+
 export const TARGET_SCOPE_LABELS: Record<TargetScope, string> = {
   group: 'Group Target',
   individual: 'Individual Target',

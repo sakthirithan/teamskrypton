@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -20,9 +20,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { useGroupingTargets } from '@/hooks/useGroupingTargets';
 import { usePSDailyEntries } from '@/hooks/usePSDailyEntries';
 import { GroupingSession } from '@/hooks/useGroupingSessions';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format, subDays, isToday } from 'date-fns';
+import { RefreshButton } from '@/components/ui/RefreshIconButton';
+
 import { 
   calculateTargetStatus, 
   calculateSessionDays, 
@@ -41,10 +43,12 @@ interface Profile {
 
 export function RoleBasedMySpaceFeatures({ session, userId }: RoleBasedMySpaceFeaturesProps) {
   const { user, role, isLeadership, isCaptainOrVice } = useAuth();
+  const queryClient = useQueryClient();
   const viewingUserId = userId || user?.id;
-  
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { targets, myTargets } = useGroupingTargets(session?.id);
   const { entries, getTotalPoints, getPendingCount } = usePSDailyEntries(session?.id, viewingUserId);
+
 
   // Fetch all members for lead features
   const { data: allMembers = [] } = useQuery({
@@ -59,6 +63,13 @@ export function RoleBasedMySpaceFeatures({ session, userId }: RoleBasedMySpaceFe
     },
     enabled: isLeadership,
   });
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await queryClient.invalidateQueries({ queryKey: ['grouping-targets'] });
+    await queryClient.invalidateQueries({ queryKey: ['ps-daily-entries'] });
+    setIsRefreshing(false);
+  }, [queryClient]);
 
   // Fetch all entries for leads
   const { data: allEntries = [] } = useQuery({
@@ -303,6 +314,7 @@ export function RoleBasedMySpaceFeatures({ session, userId }: RoleBasedMySpaceFe
             <Shield className="w-4 h-4 text-primary" />
             Leadership Overview
           </CardTitle>
+          <RefreshButton onClick={handleRefresh} isRefreshing={isRefreshing} />
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Group Health Score */}

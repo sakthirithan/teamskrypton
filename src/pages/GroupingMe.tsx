@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Trash2 } from 'lucide-react';
 import { 
   Target, 
   Calendar, 
@@ -173,6 +174,35 @@ const GroupingMe = () => {
   const canChangeStatus = !isSessionClosed && (
     (!isViewingOther) || isLeadership
   );
+  const canDeleteEntry = (entry: PSDailyEntry) =>
+  !isSessionClosed &&
+  (
+    isLeadership ||
+    (entry.user_id === user?.id && entry.status === 'pending' || 'completed')
+  );
+
+  const handleDeleteEntry = async (entryId: string) => {
+  const confirmDelete = window.confirm(
+    'Are you sure you want to permanently delete this PS entry? This action cannot be undone.'
+  );
+
+  if (!confirmDelete) return;
+
+  try {
+    await deleteEntry.mutateAsync(entryId);
+    toast({
+      title: 'Entry deleted',
+      description: 'PS Daily Entry has been permanently removed.',
+    });
+  } catch (error) {
+    toast({
+      variant: 'destructive',
+      title: 'Delete failed',
+      description: 'Unable to delete PS entry. Please try again.',
+    });
+  }
+};
+
 
   const handleAddEntry = async () => {
     if (!viewingSession || !entryForm.skill_name || !viewingUserId) return;
@@ -558,7 +588,7 @@ const GroupingMe = () => {
                                     </Badge>
                                   )}
                                 </TableCell>
-                                <TableCell>
+                                {/* <TableCell>
                                   <div className="flex items-center gap-1">
                                     {canChangeStatus && isPending && (
                                       <Button
@@ -591,6 +621,61 @@ const GroupingMe = () => {
                                         title="Edit Entry"
                                       >
                                         <Edit2 className="w-3 h-3" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                </TableCell> */}
+                                <TableCell>
+                                  <div className="flex items-center gap-1">
+                                    {/* Mark Completed */}
+                                    {canChangeStatus && entry.status === 'pending' && (
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-500/10"
+                                        onClick={() => handleCompleteEntry(entry.id)}
+                                        title="Mark as Completed"
+                                      >
+                                        <Check className="w-4 h-4" />
+                                      </Button>
+                                    )}
+
+                                    {/* Revert to Pending (Leadership only) */}
+                                    {isLeadership && entry.status === 'completed' && !isSessionClosed && (
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-7 w-7 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-500/10"
+                                        onClick={() => handleRevertEntry(entry.id)}
+                                        title="Revert to Pending"
+                                      >
+                                        <RotateCcw className="w-3 h-3" />
+                                      </Button>
+                                    )}
+
+                                    {/* Edit Entry */}
+                                    {canEditThisEntry && (
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-7 w-7"
+                                        onClick={() => openEditEntry(entry)}
+                                        title="Edit Entry"
+                                      >
+                                        <Edit2 className="w-3 h-3" />
+                                      </Button>
+                                    )}
+
+                                    {/* Delete Entry */}
+                                    {canDeleteEntry(entry) && (
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-500/10"
+                                        onClick={() => handleDeleteEntry(entry.id)}
+                                        title="Delete Entry"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
                                       </Button>
                                     )}
                                   </div>

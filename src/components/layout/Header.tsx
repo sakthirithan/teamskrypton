@@ -20,6 +20,7 @@ import { ModeSelectionDialog } from '@/components/auth/ModeSelectionDialog';
 import { Badge } from '@/components/ui/badge';
 import { AppMode } from '@/lib/groupingConstants';
 
+
 function getRoleBadgeClass(role: KryptonRole | null): string {
   switch (role) {
     case 'team_captain':
@@ -47,6 +48,8 @@ export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userListOpen, setUserListOpen] = useState(false);
   const [showModeSwitch, setShowModeSwitch] = useState(false);
+  const [showModeDialog, setShowModeDialog] = useState(false);
+
 
   // Mode-aware navigation links
   const navLinks = isGroupingMode

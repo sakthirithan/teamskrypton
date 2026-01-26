@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,10 +17,11 @@ import { Plus, Users, Check, X } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { usePSDailyEntries } from '@/hooks/usePSDailyEntries';
 import { GroupingSession } from '@/hooks/useGroupingSessions';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { RefreshButton } from '@/components/ui/RefreshIconButton';
 
 interface BulkEntryCreationProps {
   session: GroupingSession;
@@ -34,9 +35,11 @@ interface Profile {
 
 export function BulkEntryCreation({ session }: BulkEntryCreationProps) {
   const { isLeadership, user } = useAuth();
+  const queryClient = useQueryClient();
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   const [formData, setFormData] = useState({
     selectedUsers: [] as string[],
@@ -44,6 +47,13 @@ export function BulkEntryCreation({ session }: BulkEntryCreationProps) {
     skill_name: '',
     reward_points: 0,
   });
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await queryClient.invalidateQueries({ queryKey: ['grouping-targets'] });
+    await queryClient.invalidateQueries({ queryKey: ['ps-daily-entries'] });
+    setIsRefreshing(false);
+  }, [queryClient]);
 
   // Fetch team members
   const { data: teamMembers = [] } = useQuery({
@@ -114,7 +124,7 @@ export function BulkEntryCreation({ session }: BulkEntryCreationProps) {
 
       if (fetchError) throw fetchError;
 
-      let nextSNo = existingEntries && existingEntries.length > 0 
+      const nextSNo = existingEntries && existingEntries.length > 0 
         ? (existingEntries[0].s_no || 0) + 1 
         : 1;
 
@@ -161,7 +171,9 @@ export function BulkEntryCreation({ session }: BulkEntryCreationProps) {
   }
 
   return (
+    
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <RefreshButton onClick={handleRefresh} isRefreshing={isRefreshing} />
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" onClick={resetForm}>
           <Users className="w-4 h-4 mr-2" />

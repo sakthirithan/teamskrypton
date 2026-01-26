@@ -11,20 +11,34 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { AppMode } from '@/lib/groupingConstants';
 
+
 interface ModeSelectionDialogProps {
   open: boolean;
   onSelectMode: (mode: AppMode) => void;
-  disableAutoSelect?: boolean; // For Switch Mode from profile menu
+  onCancel?: () => void;
+  disableAutoSelect?: boolean;
 }
+
 
 const AUTO_SELECT_TIMEOUT = 60; // 60 seconds
 
-export function ModeSelectionDialog({ open, onSelectMode, disableAutoSelect = false }: ModeSelectionDialogProps) {
+export function ModeSelectionDialog({ open, onSelectMode, onCancel, disableAutoSelect = false }: ModeSelectionDialogProps) {
   const [selectedMode, setSelectedMode] = useState<AppMode | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
   const [countdown, setCountdown] = useState(AUTO_SELECT_TIMEOUT);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const countdownRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+
+
+  //Cancel Button
+  const handleCancel = () => {
+    clearTimers();
+    setSelectedMode(null);
+    setIsConfirming(false);
+    onCancel?.();
+  };
+
 
   // Cleanup function
   const clearTimers = () => {
@@ -40,37 +54,33 @@ export function ModeSelectionDialog({ open, onSelectMode, disableAutoSelect = fa
 
   // Auto-select Grouping after 60 seconds of inactivity (only if not disabled)
   useEffect(() => {
-    if (!open || disableAutoSelect) {
-      clearTimers();
-      return;
-    }
+  if (!open || disableAutoSelect) {
+    clearTimers();
+    return;
+  }
 
-    // Reset state when dialog opens
-    setSelectedMode(null);
-    setIsConfirming(false);
-    setCountdown(AUTO_SELECT_TIMEOUT);
+  // Reset state when dialog opens
+  setSelectedMode(null);
+  setIsConfirming(false);
+  setCountdown(AUTO_SELECT_TIMEOUT);
 
-    // Start countdown timer
-    countdownRef.current = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+  countdownRef.current = setInterval(() => {
+    setCountdown(prev => (prev <= 1 ? 0 : prev - 1));
+  }, 1000);
 
-    // Auto-select timer
-    timerRef.current = setTimeout(() => {
-      setSelectedMode('grouping');
-      setIsConfirming(true);
-      setTimeout(() => {
-        onSelectMode('grouping');
-      }, 300);
-    }, AUTO_SELECT_TIMEOUT * 1000);
+  timerRef.current = setTimeout(() => {
+    if (selectedMode) return; // ✅ guard
 
-    return () => clearTimers();
-  }, [open, disableAutoSelect, onSelectMode]);
+    setSelectedMode('grouping');
+    setIsConfirming(true);
+
+    setTimeout(() => {
+      onSelectMode('grouping');
+    }, 300);
+  }, AUTO_SELECT_TIMEOUT * 1000);
+
+  return () => clearTimers();
+}, [open, disableAutoSelect, onSelectMode, selectedMode]);
 
   // Reset auto-select timer when user interacts (only if not disabled)
   const resetAutoSelect = () => {
@@ -113,8 +123,9 @@ export function ModeSelectionDialog({ open, onSelectMode, disableAutoSelect = fa
   const progressValue = ((AUTO_SELECT_TIMEOUT - countdown) / AUTO_SELECT_TIMEOUT) * 100;
 
   return (
-    <Dialog open={open} onOpenChange={() => {}}>
-      <DialogContent className="sm:max-w-md [&>button]:hidden" onClick={resetAutoSelect}>
+    <Dialog open={open} onOpenChange={(v) => !v && onCancel?.()}>
+      <DialogContent className="sm:max-w-md" onClick={resetAutoSelect}>
+
         <DialogHeader>
           <DialogTitle className="text-center text-xl">
             {disableAutoSelect ? 'Switch Mode' : 'Select Your Mode'}
@@ -137,15 +148,25 @@ export function ModeSelectionDialog({ open, onSelectMode, disableAutoSelect = fa
           </div>
         )}
 
+        {!disableAutoSelect && selectedMode === 'grouping' && isConfirming && (
+          <p className="text-xs text-center text-muted-foreground">
+            Auto-selected Grouping mode due to inactivity
+          </p>
+        )}
+
+
         <div className="grid gap-4 py-4">
           {/* PBL Mode Option */}
           <button
             onClick={() => handleModeSelect('pbl')}
             className={`relative flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all ${
-              selectedMode === 'pbl'
-                ? 'border-primary bg-primary/5 shadow-md'
-                : 'border-muted hover:border-primary/50 hover:bg-muted/50'
-            }`}
+                isConfirming
+                  ? 'opacity-60 pointer-events-none'
+                  : selectedMode === 'pbl'
+                    ? 'border-primary bg-primary/5 shadow-md'
+                    : 'border-muted hover:border-primary/50 hover:bg-muted/50'
+              }`}
+
           >
             <div className={`p-4 rounded-full ${
               selectedMode === 'pbl' ? 'bg-primary text-primary-foreground' : 'bg-muted'
@@ -167,10 +188,13 @@ export function ModeSelectionDialog({ open, onSelectMode, disableAutoSelect = fa
           <button
             onClick={() => handleModeSelect('grouping')}
             className={`relative flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all ${
-              selectedMode === 'grouping'
-                ? 'border-primary bg-primary/5 shadow-md'
-                : 'border-muted hover:border-primary/50 hover:bg-muted/50'
-            }`}
+                isConfirming
+                  ? 'opacity-60 pointer-events-none'
+                  : selectedMode === 'grouping'
+                    ? 'border-primary bg-primary/5 shadow-md'
+                    : 'border-muted hover:border-primary/50 hover:bg-muted/50'
+              }`}
+
           >
             <div className={`p-4 rounded-full ${
               selectedMode === 'grouping' ? 'bg-primary text-primary-foreground' : 'bg-muted'
@@ -188,6 +212,7 @@ export function ModeSelectionDialog({ open, onSelectMode, disableAutoSelect = fa
             )}
           </button>
         </div>
+        
 
         <Button 
           onClick={handleConfirm} 

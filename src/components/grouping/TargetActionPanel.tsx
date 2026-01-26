@@ -14,6 +14,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { RefreshButton } from '@/components/ui/RefreshIconButton';
+import { LEADERSHIP_ROLES } from '@/lib/roles';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Checkbox } from '@/components/ui/checkbox';
+
+
+
+
 
 interface Profile {
   user_id: string;
@@ -22,14 +29,17 @@ interface Profile {
 }
 
 export function TargetActionPanel() {
-  const { isCaptainOrVice, isLeadership, user } = useAuth();
+  const { role, user } = useAuth();
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { sessions, activeSession } = useGroupingSessions();
   const { targets, createTarget, updateTarget, deleteTarget } = useGroupingTargets(activeSession?.id);
   
   // Target creation: TL, VC, Strategist, TM can create targets
   // Team Members cannot unless editable flag is set on their target
-  const canCreateTarget = isLeadership;
+  const canCreateTarget =
+  !!role && LEADERSHIP_ROLES.includes(role);
+
   
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingTarget, setEditingTarget] = useState<GroupingTarget | null>(null);
@@ -39,6 +49,7 @@ export function TargetActionPanel() {
     session_id: '',
     target_scope: 'individual' as 'group' | 'individual',
     user_id: '',
+    selectedUsers: [] as string[],
     target_points: 0,
     editable: false,
     notes: '',
@@ -63,12 +74,39 @@ export function TargetActionPanel() {
     },
     enabled: !!user,
   });
+    const { data: earnedPointsMap = {} } = useQuery<Record<string, number>>({
+  queryKey: ['earned-points', activeSession?.id],
+  enabled: !!activeSession,
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from('ps_daily_entries')
+      .select('user_id, reward_points,status') // ✅ FIXED
+      .eq('session_id', activeSession!.id);
+
+    if (error) throw error;
+
+    const map: Record<string, number> = {};
+    
+    data.forEach(row => {
+      if (row.status === 'completed') {
+        map[row.user_id] =
+          (map[row.user_id] || 0) + (row.reward_points ?? 0);
+      }
+    });
+
+    return map;
+  },
+});
+
+
+
 
   const resetForm = () => {
     setFormData({
       session_id: activeSession?.id || '',
       target_scope: 'individual',
       user_id: '',
+      selectedUsers: [],
       target_points: 0,
       editable: false,
       notes: '',
@@ -78,14 +116,32 @@ export function TargetActionPanel() {
   const handleCreate = async () => {
     if (!formData.session_id || formData.target_points <= 0) return;
     
-    await createTarget.mutateAsync({
-      session_id: formData.session_id,
-      target_scope: formData.target_scope,
-      user_id: formData.target_scope === 'individual' ? formData.user_id : null,
-      target_points: formData.target_points,
-      editable: formData.editable,
-      notes: formData.notes,
-    });
+    if (formData.target_scope === 'group') {
+      await createTarget.mutateAsync({
+        session_id: formData.session_id,
+        target_scope: 'group',
+        user_id: null,
+        target_points: formData.target_points,
+        editable: formData.editable,
+        notes: formData.notes,
+      });
+    }
+
+    if (
+    formData.target_scope === 'individual' &&
+    formData.selectedUsers.length > 0
+  ) {
+    for (const userId of formData.selectedUsers) {
+      await createTarget.mutateAsync({
+        session_id: formData.session_id,
+        target_scope: 'individual',
+        user_id: userId, // ✅ THIS WAS MISSING
+        target_points: formData.target_points,
+        editable: formData.editable,
+        notes: formData.notes,
+      });
+    }
+  }
     
     resetForm();
     setIsCreateOpen(false);
@@ -105,11 +161,13 @@ export function TargetActionPanel() {
     resetForm();
   };
 
-  const handleDelete = async (targetId: string) => {
-    if (confirm('Are you sure you want to delete this target?')) {
-      await deleteTarget.mutateAsync(targetId);
-    }
+  const handleDeleteConfirm = async () => {
+    if (!deleteTargetId) return;
+
+    await deleteTarget.mutateAsync(deleteTargetId);
+    setDeleteTargetId(null);
   };
+
 
   const openEdit = (target: GroupingTarget) => {
     setEditingTarget(target);
@@ -117,11 +175,21 @@ export function TargetActionPanel() {
       session_id: target.session_id,
       target_scope: target.target_scope,
       user_id: target.user_id || '',
+      selectedUsers: [],
       target_points: target.target_points,
       editable: target.editable,
       notes: target.notes || '',
     });
   };
+    const toggleUser = (userId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      selectedUsers: prev.selectedUsers.includes(userId)
+        ? prev.selectedUsers.filter(id => id !== userId)
+        : [...prev.selectedUsers, userId],
+    }));
+  };
+
 
   if (!canCreateTarget) {
     return (
@@ -214,24 +282,40 @@ export function TargetActionPanel() {
 
                 {formData.target_scope === 'individual' && (
                   <div className="space-y-2">
-                    <Label>Assign To</Label>
-                    <Select
-                      value={formData.user_id}
-                      onValueChange={(v) => setFormData({ ...formData, user_id: v })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select member" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {teamMembers.map((member) => (
-                          <SelectItem key={member.user_id} value={member.user_id}>
-                            {member.full_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label>Assign To (Multiple Members)</Label>
+
+                    <ScrollArea className="h-[150px] border rounded-md p-2">
+                      <div className="space-y-2">
+                        {teamMembers.map(member => {
+                          const selected = formData.selectedUsers.includes(member.user_id);
+
+                          return (
+                            <div
+                              key={member.user_id}
+                              className={`flex items-center gap-3 p-2 rounded cursor-pointer transition-colors ${
+                                selected ? 'bg-primary/10' : 'hover:bg-muted'
+                              }`}
+                              onClick={() => toggleUser(member.user_id)}
+                            >
+                              <Checkbox
+                                checked={selected}
+                                onCheckedChange={() => toggleUser(member.user_id)}
+                              />
+                              <span className="text-sm">{member.full_name}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </ScrollArea>
+
+                    {formData.selectedUsers.length > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        {formData.selectedUsers.length} member(s) selected
+                      </p>
+                    )}
                   </div>
                 )}
+
 
                 <div className="space-y-2">
                   <Label>Target Points</Label>
@@ -260,10 +344,14 @@ export function TargetActionPanel() {
                   />
                 </div>
 
-                <Button 
-                  onClick={handleCreate} 
+                <Button
+                  onClick={handleCreate}
                   className="w-full"
-                  disabled={createTarget.isPending}
+                  disabled={
+                    createTarget.isPending ||
+                    (formData.target_scope === 'individual' &&
+                      formData.selectedUsers.length === 0)
+                  }
                 >
                   {createTarget.isPending ? 'Creating...' : 'Create Target'}
                 </Button>
@@ -285,6 +373,11 @@ export function TargetActionPanel() {
           <div className="space-y-2 max-h-[300px] overflow-y-auto">
             {targets.slice(0, 5).map((target) => {
               const member = teamMembers.find(m => m.user_id === target.user_id);
+
+               const achieved =
+                  target.target_scope === 'group'
+                    ? Object.values(earnedPointsMap).reduce((a, b) => a + b, 0)
+                    : earnedPointsMap[target.user_id ?? ''] ?? 0;
               return (
                 <div
                   key={target.id}
@@ -302,7 +395,7 @@ export function TargetActionPanel() {
                         : member?.full_name || 'Unknown'}
                     </span>
                     <span className="text-muted-foreground">
-                      {target.achieved_points}/{target.target_points} pts
+                      {achieved}/{target.target_points} pts
                     </span>
                   </div>
                   <div className="flex items-center gap-1">
@@ -318,7 +411,8 @@ export function TargetActionPanel() {
                       size="icon"
                       variant="ghost"
                       className="h-7 w-7 text-destructive"
-                      onClick={() => handleDelete(target.id)}
+                      onClick={() => setDeleteTargetId(target.id)}
+
                     >
                       <Trash2 className="w-3 h-3" />
                     </Button>
@@ -372,6 +466,40 @@ export function TargetActionPanel() {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Delete Target Dialog */}
+        <Dialog
+          open={!!deleteTargetId}
+          onOpenChange={(open) => !open && setDeleteTargetId(null)}
+        >
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Delete Target?</DialogTitle>
+            </DialogHeader>
+
+            <p className="text-sm text-muted-foreground">
+              This action cannot be undone. Are you sure you want to delete this target?
+            </p>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setDeleteTargetId(null)}
+              >
+                No
+              </Button>
+
+              <Button
+                variant="destructive"
+                onClick={handleDeleteConfirm}
+                disabled={deleteTarget.isPending}
+              >
+                {deleteTarget.isPending ? 'Deleting...' : 'Yes, Delete'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
       </CardContent>
     </Card>
   );

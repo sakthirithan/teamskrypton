@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { KryptonRole, LEADERSHIP_ROLES, CAPTAIN_ROLES } from '@/lib/constants';
+import { KryptonRole, LEADERSHIP_ROLES, CAPTAIN_ROLES } from '@/lib/roles';
+
 
 interface AuthContextType {
   user: User | null;
