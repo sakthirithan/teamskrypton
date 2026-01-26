@@ -11,35 +11,22 @@ const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [showModeSelection, setShowModeSelection] = useState(false);
   const { user, isLoading } = useAuth();
-  const { isModeSelected, setMode, isGroupingMode } = useAppMode();
+  const { isModeSelected, setMode } = useAppMode();
   const navigate = useNavigate();
 
-  // useEffect(() => {
-  //   if (!isLoading && user) {
-  //     // User is logged in
-  //     if (!isModeSelected) {
-  //       // Show mode selection dialog
-  //       setShowModeSelection(true);
-  //     } else {
-  //       // Mode already selected, navigate to appropriate home
-  //       navigate(isGroupingMode ? '/grouping/home' : '/');
-  //       // navigate('/grouping/home', { replace: true });
-  //     }
-  //   }
-  // }, [user, isLoading, isModeSelected, isGroupingMode, navigate]);
+  // Show mode selection dialog when user logs in and mode not yet selected
   useEffect(() => {
-  if (!isLoading && user && !isModeSelected) {
-    setShowModeSelection(true);
-  }
-}, [user, isLoading, isModeSelected]);
+    if (!isLoading && user && !isModeSelected) {
+      setShowModeSelection(true);
+    }
+  }, [user, isLoading, isModeSelected]);
 
-
-
+  // Handle mode selection - SINGLE source of navigation
   const handleModeSelect = (mode: AppMode) => {
     setMode(mode);
     setShowModeSelection(false);
-    // Navigate based on selected mode
-    navigate(mode === 'grouping' ? '/grouping/home' : '/');
+    // Navigate based on selected mode - this is the ONLY place navigation happens
+    navigate(mode === 'grouping' ? '/grouping/home' : '/', { replace: true });
   };
 
   if (isLoading) {
@@ -50,6 +37,11 @@ const Auth = () => {
     );
   }
 
+  // If user is logged in and mode already selected, redirect immediately
+  if (user && isModeSelected) {
+    return null; // Let useAppMode handle the default state
+  }
+
   // Show mode selection dialog when user is logged in but hasn't selected mode
   if (showModeSelection && user) {
     return (
@@ -57,6 +49,7 @@ const Auth = () => {
         <ModeSelectionDialog 
           open={true} 
           onSelectMode={handleModeSelect}
+          disableAutoSelect={false}
         />
       </div>
     );
