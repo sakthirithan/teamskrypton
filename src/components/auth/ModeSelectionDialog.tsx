@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Layers, Target } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -8,6 +8,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+import { Progress } from '@/components/ui/progress';
 import { AppMode } from '@/lib/groupingConstants';
 
 interface ModeSelectionDialogProps {
@@ -15,22 +16,94 @@ interface ModeSelectionDialogProps {
   onSelectMode: (mode: AppMode) => void;
 }
 
+const AUTO_SELECT_TIMEOUT = 60; // 60 seconds
+
 export function ModeSelectionDialog({ open, onSelectMode }: ModeSelectionDialogProps) {
   const [selectedMode, setSelectedMode] = useState<AppMode | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [countdown, setCountdown] = useState(AUTO_SELECT_TIMEOUT);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Auto-select Grouping after 60 seconds of inactivity
+  useEffect(() => {
+    if (!open) return;
+
+    // Reset countdown when dialog opens
+    setCountdown(AUTO_SELECT_TIMEOUT);
+
+    // Start countdown timer
+    countdownRef.current = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    // Auto-select timer
+    timerRef.current = setTimeout(() => {
+      if (!selectedMode) {
+        setSelectedMode('grouping');
+        setIsConfirming(true);
+        setTimeout(() => {
+          onSelectMode('grouping');
+        }, 300);
+      }
+    }, AUTO_SELECT_TIMEOUT * 1000);
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      if (countdownRef.current) clearInterval(countdownRef.current);
+    };
+  }, [open, onSelectMode, selectedMode]);
+
+  // Reset auto-select timer when user interacts
+  const resetAutoSelect = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    setCountdown(AUTO_SELECT_TIMEOUT);
+
+    countdownRef.current = setInterval(() => {
+      setCountdown((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+
+    timerRef.current = setTimeout(() => {
+      if (!selectedMode) {
+        setSelectedMode('grouping');
+        setIsConfirming(true);
+        setTimeout(() => {
+          onSelectMode('grouping');
+        }, 300);
+      }
+    }, AUTO_SELECT_TIMEOUT * 1000);
+  };
+
+  const handleModeSelect = (mode: AppMode) => {
+    setSelectedMode(mode);
+    // Clear auto-select timer once user selects
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (countdownRef.current) clearInterval(countdownRef.current);
+  };
 
   const handleConfirm = () => {
     if (!selectedMode) return;
     setIsConfirming(true);
+    // Clear timers
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (countdownRef.current) clearInterval(countdownRef.current);
     // Small delay for UX feedback
     setTimeout(() => {
       onSelectMode(selectedMode);
     }, 300);
   };
 
+  const progressValue = ((AUTO_SELECT_TIMEOUT - countdown) / AUTO_SELECT_TIMEOUT) * 100;
+
   return (
     <Dialog open={open} onOpenChange={() => {}}>
-      <DialogContent className="sm:max-w-md [&>button]:hidden">
+      <DialogContent className="sm:max-w-md [&>button]:hidden" onClick={resetAutoSelect}>
         <DialogHeader>
           <DialogTitle className="text-center text-xl">Select Your Mode</DialogTitle>
           <DialogDescription className="text-center">
@@ -38,10 +111,21 @@ export function ModeSelectionDialog({ open, onSelectMode }: ModeSelectionDialogP
           </DialogDescription>
         </DialogHeader>
 
+        {/* Auto-select countdown indicator */}
+        {!selectedMode && countdown > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>Auto-selecting Grouping Mode in</span>
+              <span className="font-medium">{countdown}s</span>
+            </div>
+            <Progress value={progressValue} className="h-1" />
+          </div>
+        )}
+
         <div className="grid gap-4 py-4">
           {/* PBL Mode Option */}
           <button
-            onClick={() => setSelectedMode('pbl')}
+            onClick={() => handleModeSelect('pbl')}
             className={`relative flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all ${
               selectedMode === 'pbl'
                 ? 'border-primary bg-primary/5 shadow-md'
@@ -66,7 +150,7 @@ export function ModeSelectionDialog({ open, onSelectMode }: ModeSelectionDialogP
 
           {/* Grouping Mode Option */}
           <button
-            onClick={() => setSelectedMode('grouping')}
+            onClick={() => handleModeSelect('grouping')}
             className={`relative flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all ${
               selectedMode === 'grouping'
                 ? 'border-primary bg-primary/5 shadow-md'

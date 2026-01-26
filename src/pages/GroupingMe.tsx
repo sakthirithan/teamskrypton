@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,6 +27,9 @@ import { useGroupingSessions, GroupingSession } from '@/hooks/useGroupingSession
 import { useGroupingTargets } from '@/hooks/useGroupingTargets';
 import { usePSDailyEntries, PSDailyEntry } from '@/hooks/usePSDailyEntries';
 import { MySpaceAlertsPanel } from '@/components/grouping/MySpaceAlertsPanel';
+import { SessionCard } from '@/components/grouping/SessionCard';
+import { RoleBasedMySpaceFeatures } from '@/components/grouping/RoleBasedMySpaceFeatures';
+import { BulkEntryCreation } from '@/components/grouping/BulkEntryCreation';
 import { 
   calculateSessionDays, 
   calculateDaysRemaining,
@@ -74,7 +76,7 @@ const GroupingMe = () => {
   
   const { sessions, activeSession } = useGroupingSessions();
   
-  // Session switching - allow viewing historical sessions
+  // Session switching via Session Card
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const viewingSession = selectedSessionId 
     ? sessions.find(s => s.id === selectedSessionId) || activeSession
@@ -230,7 +232,7 @@ const GroupingMe = () => {
     });
   };
 
-  // Export PS entries
+  // Export PS entries for current session
   const handleExport = (exportFormat: 'csv' | 'xlsx') => {
     if (entries.length === 0) {
       toast({ variant: 'destructive', title: 'No Data', description: 'No entries to export.' });
@@ -244,7 +246,8 @@ const GroupingMe = () => {
       'Reward Points': entry.reward_points,
       'Attempts': entry.attempt_count,
       'Status': entry.status === 'completed' ? 'Completed' : 'Pending',
-      'Completed At': entry.completed_at ? format(new Date(entry.completed_at), 'yyyy-MM-dd HH:mm') : '-'
+      'Completed At': entry.completed_at ? format(new Date(entry.completed_at), 'yyyy-MM-dd HH:mm') : '-',
+      'Session': viewingSession?.name || 'N/A'
     }));
 
     const ws = XLSX.utils.json_to_sheet(exportData);
@@ -252,7 +255,7 @@ const GroupingMe = () => {
     XLSX.utils.book_append_sheet(wb, ws, 'PS Entries');
 
     const userName = displayProfile?.full_name?.replace(/\s+/g, '_') || 'user';
-    const sessionName = activeSession?.name?.replace(/\s+/g, '_') || 'session';
+    const sessionName = viewingSession?.name?.replace(/\s+/g, '_') || 'session';
     const filename = `PS_Entries_${userName}_${sessionName}.${exportFormat}`;
     XLSX.writeFile(wb, filename);
 
@@ -291,95 +294,32 @@ const GroupingMe = () => {
             </CardHeader>
           </Card>
 
-          {!viewingSession ? (
-            <Card>
-              <CardContent className="py-8 text-center text-muted-foreground">
-                <Target className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>No active session</p>
-                <p className="text-sm">Wait for leadership to create a session.</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <>
-              {/* Session Selector */}
-              {sessions.length > 1 && (
-                <Card>
-                  <CardContent className="py-3">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <History className="w-4 h-4" />
-                        <span>View Session:</span>
-                      </div>
-                      <Select
-                        value={selectedSessionId || activeSession?.id || ''}
-                        onValueChange={(value) => setSelectedSessionId(value || null)}
-                      >
-                        <SelectTrigger className="w-[200px]">
-                          <SelectValue placeholder="Select session..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {sessions.map((session) => (
-                            <SelectItem key={session.id} value={session.id}>
-                              #{session.session_number} - {session.name}
-                              {session.status === 'active' && ' (Active)'}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+          {/* Session Card - Replaces the old session selector */}
+          <SessionCard 
+            sessions={sessions}
+            activeSession={activeSession}
+            selectedSession={viewingSession}
+            onSessionChange={setSelectedSessionId}
+          />
 
+          {!viewingSession ? null : (
+            <>
               {/* Personal Alerts Panel */}
               <MySpaceAlertsPanel userId={viewingUserId} />
-              {isViewingHistory && (
-                <div className="p-4 rounded-lg bg-muted/50 border flex items-center gap-3">
-                  <History className="w-5 h-5 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">Viewing Historical Session</p>
-                    <p className="text-sm text-muted-foreground">
-                      Session #{viewingSession.session_number}: {viewingSession.name} - Data is read-only.
-                    </p>
-                  </div>
-                </div>
-              )}
 
-              {isSessionClosed && !isViewingHistory && (
-                <div className="p-4 rounded-lg bg-muted/50 border flex items-center gap-3">
-                  <AlertCircle className="w-5 h-5 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">Session Closed</p>
-                    <p className="text-sm text-muted-foreground">
-                      This session is closed. Data is read-only.
-                    </p>
-                  </div>
-                </div>
-              )}
+              {/* Role-Based Features */}
+              <RoleBasedMySpaceFeatures session={viewingSession} userId={viewingUserId} />
 
-              {/* Session Overview */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {/* Session Overview Stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <Card>
                   <CardContent className="pt-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-muted-foreground">Current Session</p>
-                        <p className="text-2xl font-bold">#{viewingSession.session_number}</p>
-                        <p className="text-sm text-muted-foreground">{viewingSession.name}</p>
-                      </div>
-                      <Calendar className="w-8 h-8 text-primary opacity-50" />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Completed Points</p>
+                        <p className="text-sm text-muted-foreground">Completed</p>
                         <p className="text-2xl font-bold text-green-600">{myAchievedPoints}</p>
-                        <p className="text-sm text-muted-foreground">
-                          Target: {myIndividualTarget?.target_points || 0}
+                        <p className="text-xs text-muted-foreground">
+                          of {myIndividualTarget?.target_points || 0} pts
                         </p>
                       </div>
                       <CheckCircle className="w-8 h-8 text-green-500 opacity-50" />
@@ -393,7 +333,7 @@ const GroupingMe = () => {
                       <div>
                         <p className="text-sm text-muted-foreground">Pending</p>
                         <p className="text-2xl font-bold text-yellow-600">{pendingCount}</p>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                           {pendingPointsSum} pts waiting
                         </p>
                       </div>
@@ -406,11 +346,26 @@ const GroupingMe = () => {
                   <CardContent className="pt-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-muted-foreground">Days Remaining</p>
+                        <p className="text-sm text-muted-foreground">Days Left</p>
                         <p className="text-2xl font-bold">{daysRemaining}</p>
-                        <p className="text-sm text-muted-foreground">of {totalDays} total</p>
+                        <p className="text-xs text-muted-foreground">of {totalDays} total</p>
                       </div>
-                      <Target className="w-8 h-8 text-orange-500 opacity-50" />
+                      <Calendar className="w-8 h-8 text-primary opacity-50" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Group</p>
+                        <p className="text-2xl font-bold">{groupTarget?.achieved_points || 0}</p>
+                        <p className="text-xs text-muted-foreground">
+                          of {groupTarget?.target_points || 0} pts
+                        </p>
+                      </div>
+                      <Target className="w-8 h-8 text-blue-500 opacity-50" />
                     </div>
                   </CardContent>
                 </Card>
@@ -487,6 +442,10 @@ const GroupingMe = () => {
                             Excel
                           </Button>
                         </div>
+                      )}
+                      {/* Bulk Entry Creation for Leads */}
+                      {viewingSession && isLeadership && !isSessionClosed && (
+                        <BulkEntryCreation session={viewingSession} />
                       )}
                       {canEdit && (
                         <Dialog open={isAddEntryOpen} onOpenChange={setIsAddEntryOpen}>
