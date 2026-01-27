@@ -8,13 +8,14 @@ import { SessionManagementPanel } from '@/components/grouping/SessionManagementP
 import { GroupingAlertsPanel } from '@/components/grouping/GroupingAlertsPanel';
 import { GroupingNotesPanel } from '@/components/grouping/GroupingNotesPanel';
 import { BulkEntryCreation } from '@/components/grouping/BulkEntryCreation';
+import { LoginActivityPanel } from '@/components/grouping/LoginActivityPanel';
 import { useGroupingSessions } from '@/hooks/useGroupingSessions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Target, MessageSquare, Users } from 'lucide-react';
 
 const GroupingHome = () => {
-  const { user, isLoading, isLeadership, isCaptainOrVice } = useAuth();
+  const { user, isLoading, isLeadership, isCaptainOrVice, role } = useAuth();
   const { activeSession } = useGroupingSessions();
   const navigate = useNavigate();
 
@@ -68,6 +69,9 @@ const GroupingHome = () => {
           <div className="space-y-4 sm:space-y-6 order-2">
             {/* Session Management for TL/VC only */}
             {isCaptainOrVice && <SessionManagementPanel />}
+            
+            {/* Login Activity Panel - Team Manager ONLY */}
+            {role === 'team_manager' && <LoginActivityPanel />}
             
             {/* Bulk Entry Creation for Leadership - Prominent placement */}
             {isLeadership && activeSession && (

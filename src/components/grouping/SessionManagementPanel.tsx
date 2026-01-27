@@ -4,10 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Plus, Clock, Trash2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Calendar, Plus, Clock, Trash2, AlertTriangle } from 'lucide-react';
 import { useGroupingSessions } from '@/hooks/useGroupingSessions';
 import { useAuth } from '@/hooks/useAuth';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { RefreshButton } from '@/components/ui/RefreshIconButton';
 import { format } from 'date-fns';
 import { calculateSessionDays, calculateDaysRemaining } from '@/lib/groupingConstants';
@@ -26,6 +27,9 @@ export function SessionManagementPanel() {
   } = useGroupingSessions();
   
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isCloseConfirmOpen, setIsCloseConfirmOpen] = useState(false);
+  const [sessionToClose, setSessionToClose] = useState<string | null>(null);
+  const [exportConfirmed, setExportConfirmed] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -51,10 +55,19 @@ export function SessionManagementPanel() {
     setIsCreateOpen(false);
   };
 
-  const handleCloseSession = async (sessionId: string) => {
-    if (confirm('Are you sure you want to close this session? This cannot be undone.')) {
-      await closeSession.mutateAsync(sessionId);
-    }
+  const openCloseConfirmation = (sessionId: string) => {
+    setSessionToClose(sessionId);
+    setExportConfirmed(false);
+    setIsCloseConfirmOpen(true);
+  };
+
+  const handleCloseSession = async () => {
+    if (!sessionToClose || !exportConfirmed) return;
+    
+    await closeSession.mutateAsync(sessionToClose);
+    setIsCloseConfirmOpen(false);
+    setSessionToClose(null);
+    setExportConfirmed(false);
   };
 
   const handleDeleteSession = async (sessionId: string) => {
@@ -165,7 +178,7 @@ export function SessionManagementPanel() {
                         size="sm"
                         variant="ghost"
                         className="h-6 text-xs text-destructive"
-                        onClick={() => handleCloseSession(session.id)}
+                        onClick={() => openCloseConfirmation(session.id)}
                       >
                         Close
                       </Button>
@@ -190,6 +203,61 @@ export function SessionManagementPanel() {
             ))}
           </div>
         )}
+
+        {/* Close Session Confirmation Dialog */}
+        <Dialog open={isCloseConfirmOpen} onOpenChange={setIsCloseConfirmOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-yellow-600" />
+                Close Session?
+              </DialogTitle>
+              <DialogDescription>
+                Closing a session makes all data read-only. This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="py-4 space-y-4">
+              <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-sm">
+                <p className="font-medium text-yellow-700 dark:text-yellow-400 mb-2">
+                  Before closing, ensure you have:
+                </p>
+                <ul className="list-disc list-inside text-muted-foreground space-y-1">
+                  <li>Reviewed all pending PS entries</li>
+                  <li>Verified target completion status</li>
+                  <li>Exported team performance data</li>
+                </ul>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="export-confirmed"
+                  checked={exportConfirmed}
+                  onCheckedChange={(checked) => setExportConfirmed(checked === true)}
+                />
+                <Label htmlFor="export-confirmed" className="text-sm cursor-pointer">
+                  I have exported the team history data
+                </Label>
+              </div>
+            </div>
+            
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsCloseConfirmOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleCloseSession}
+                disabled={!exportConfirmed || closeSession.isPending}
+              >
+                {closeSession.isPending ? 'Closing...' : 'Close Session'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );

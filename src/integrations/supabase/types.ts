@@ -565,6 +565,30 @@ export type Database = {
         }
         Relationships: []
       }
+      user_login_activity: {
+        Row: {
+          created_at: string
+          id: string
+          login_date: string
+          login_time: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          login_date?: string
+          login_time: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          login_date?: string
+          login_time?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -626,6 +650,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cleanup_old_login_activity: { Args: never; Returns: undefined }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["krypton_role"]

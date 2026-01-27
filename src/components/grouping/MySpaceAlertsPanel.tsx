@@ -13,9 +13,10 @@ import {
 
 interface MySpaceAlertsPanelProps {
   userId?: string;
+  isViewingOther?: boolean;
 }
 
-export function MySpaceAlertsPanel({ userId }: MySpaceAlertsPanelProps) {
+export function MySpaceAlertsPanel({ userId, isViewingOther = false }: MySpaceAlertsPanelProps) {
   const { user } = useAuth();
   const { activeSession } = useGroupingSessions();
   const { myTargets } = useGroupingTargets(activeSession?.id);
@@ -26,7 +27,8 @@ export function MySpaceAlertsPanel({ userId }: MySpaceAlertsPanelProps) {
 
   const viewingUserId = userId || user?.id;
 
-  if (!activeSession || !viewingUserId) return null;
+  // Don't show alerts when viewing another user's workspace (read-only mode)
+  if (!activeSession || !viewingUserId || isViewingOther) return null;
 
   const totalDays = calculateSessionDays(
     activeSession.start_date,
