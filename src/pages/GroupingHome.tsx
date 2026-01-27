@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Header } from '@/components/layout/Header';
@@ -9,6 +9,7 @@ import { GroupingAlertsPanel } from '@/components/grouping/GroupingAlertsPanel';
 import { GroupingNotesPanel } from '@/components/grouping/GroupingNotesPanel';
 import { BulkEntryCreation } from '@/components/grouping/BulkEntryCreation';
 import { LoginActivityPanel } from '@/components/grouping/LoginActivityPanel';
+import { SessionCard } from '@/components/grouping/SessionCard';
 import { useGroupingSessions } from '@/hooks/useGroupingSessions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,8 +17,16 @@ import { Target, MessageSquare, Users } from 'lucide-react';
 
 const GroupingHome = () => {
   const { user, isLoading, isLeadership, isCaptainOrVice, role } = useAuth();
-  const { activeSession } = useGroupingSessions();
+  const { sessions, activeSession } = useGroupingSessions();
   const navigate = useNavigate();
+  
+  // Session switching state - allows viewing historical sessions
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const viewingSession = selectedSessionId 
+    ? sessions.find(s => s.id === selectedSessionId) || activeSession
+    : activeSession;
+  
+  const isSessionClosed = viewingSession?.status === 'closed';
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -39,6 +48,16 @@ const GroupingHome = () => {
     <div className="min-h-screen bg-background">
       <Header />
       <main className="container mx-auto px-3 sm:px-6 py-4 sm:py-6 safe-area-bottom">
+        {/* Session Selector Card - visible to all */}
+        <div className="mb-4">
+          <SessionCard 
+            sessions={sessions}
+            activeSession={activeSession}
+            selectedSession={viewingSession}
+            onSessionChange={setSelectedSessionId}
+          />
+        </div>
+        
         {/* PBL-style layout: Left 2/3, Right 1/3 */}
         <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Main content area with tabs */}
@@ -73,8 +92,8 @@ const GroupingHome = () => {
             {/* Login Activity Panel - Team Manager ONLY */}
             {role === 'team_manager' && <LoginActivityPanel />}
             
-            {/* Bulk Entry Creation for Leadership - Prominent placement */}
-            {isLeadership && activeSession && (
+            {/* Bulk Entry Creation for Leadership - Only in active sessions */}
+            {isLeadership && viewingSession && !isSessionClosed && (
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center justify-between">
@@ -85,7 +104,7 @@ const GroupingHome = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <BulkEntryCreation session={activeSession} />
+                  <BulkEntryCreation session={viewingSession} />
                   <p className="text-xs text-muted-foreground mt-2">
                     Create PS entries for multiple members at once
                   </p>
@@ -93,11 +112,11 @@ const GroupingHome = () => {
               </Card>
             )}
             
-            {/* Target Action Panel - now visible to all leadership */}
-            <TargetActionPanel />
+            {/* Target Action Panel - session-bound */}
+            <TargetActionPanel session={viewingSession} />
             
-            {/* Alerts for leadership - visible to all for transparency */}
-            {isLeadership && <GroupingAlertsPanel />}
+            {/* Alerts for leadership - session-bound */}
+            {isLeadership && <GroupingAlertsPanel session={viewingSession} />}
           </div>
         </div>
       </main>
