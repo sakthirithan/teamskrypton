@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 import { Target, Plus, Users, User, Trash2, Edit2 } from 'lucide-react';
 import { useGroupingSessions } from '@/hooks/useGroupingSessions';
 import { useGroupingTargets, GroupingTarget } from '@/hooks/useGroupingTargets';
@@ -28,12 +29,18 @@ interface Profile {
   email: string;
 }
 
-export function TargetActionPanel() {
+interface TargetActionPanelProps {
+  session?: { id: string; session_number: number; name: string; status: string } | null;
+}
+
+export function TargetActionPanel({ session }: TargetActionPanelProps) {
   const { role, user } = useAuth();
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const queryClient = useQueryClient();
-  const { sessions, activeSession } = useGroupingSessions();
-  const { targets, createTarget, updateTarget, deleteTarget } = useGroupingTargets(activeSession?.id);
+  const { sessions } = useGroupingSessions();
+  // Use passed session for session-bound targets
+  const targetSession = session || sessions.find(s => s.status === 'active');
+  const { targets, createTarget, updateTarget, deleteTarget } = useGroupingTargets(targetSession?.id);
   
   // Target creation: TL, VC, Strategist, TM can create targets
   // Team Members cannot unless editable flag is set on their target
@@ -75,13 +82,13 @@ export function TargetActionPanel() {
     enabled: !!user,
   });
     const { data: earnedPointsMap = {} } = useQuery<Record<string, number>>({
-  queryKey: ['earned-points', activeSession?.id],
-  enabled: !!activeSession,
+  queryKey: ['earned-points', targetSession?.id],
+  enabled: !!targetSession,
   queryFn: async () => {
     const { data, error } = await supabase
       .from('ps_daily_entries')
-      .select('user_id, reward_points,status') // ✅ FIXED
-      .eq('session_id', activeSession!.id);
+      .select('user_id, reward_points,status')
+      .eq('session_id', targetSession!.id);
 
     if (error) throw error;
 
@@ -103,7 +110,7 @@ export function TargetActionPanel() {
 
   const resetForm = () => {
     setFormData({
-      session_id: activeSession?.id || '',
+      session_id: targetSession?.id || '',
       target_scope: 'individual',
       user_id: '',
       selectedUsers: [],
@@ -112,6 +119,9 @@ export function TargetActionPanel() {
       notes: '',
     });
   };
+  
+  // Check if session is closed (read-only)
+  const isSessionClosed = targetSession?.status === 'closed';
 
   const handleCreate = async () => {
     if (!formData.session_id || formData.target_points <= 0) return;
@@ -191,6 +201,7 @@ export function TargetActionPanel() {
   };
 
 
+  // Team members see simplified view
   if (!canCreateTarget) {
     return (
       <Card>
@@ -198,6 +209,9 @@ export function TargetActionPanel() {
           <CardTitle className="flex items-center gap-2 text-base">
             <Target className="w-4 h-4" />
             My Targets
+            {isSessionClosed && (
+              <Badge variant="secondary" className="ml-auto text-xs">Closed</Badge>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -217,21 +231,25 @@ export function TargetActionPanel() {
             <Target className="w-4 h-4" />
             Target Actions
             <RefreshButton onClick={handleRefresh} isRefreshing={isRefreshing} />
+            {isSessionClosed && (
+              <Badge variant="secondary" className="text-xs">Closed</Badge>
+            )}
           </span>
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-            <DialogTrigger asChild>
-              <Button 
-                size="sm" 
-                onClick={() => {
-                  resetForm();
-                  setFormData(f => ({ ...f, session_id: activeSession?.id || '' }));
-                }}
-                disabled={!activeSession}
-              >
-                <Plus className="w-4 h-4 mr-1" />
-                New Target
-              </Button>
-            </DialogTrigger>
+          {!isSessionClosed && (
+            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+              <DialogTrigger asChild>
+                <Button 
+                  size="sm" 
+                  onClick={() => {
+                    resetForm();
+                    setFormData(f => ({ ...f, session_id: targetSession?.id || '' }));
+                  }}
+                  disabled={!targetSession}
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  New Target
+                </Button>
+              </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Create New Target</DialogTitle>
@@ -353,21 +371,22 @@ export function TargetActionPanel() {
                       formData.selectedUsers.length === 0)
                   }
                 >
-                  {createTarget.isPending ? 'Creating...' : 'Create Target'}
+                {createTarget.isPending ? 'Creating...' : 'Create Target'}
                 </Button>
               </div>
             </DialogContent>
           </Dialog>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {!activeSession ? (
+        {!targetSession ? (
           <p className="text-sm text-muted-foreground text-center py-4">
             No active session. Create a session first.
           </p>
         ) : targets.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">
-            No targets yet. Create your first target.
+            {isSessionClosed ? 'Session is closed. No targets available.' : 'No targets yet. Create your first target.'}
           </p>
         ) : (
           <div className="space-y-2 max-h-[300px] overflow-y-auto">
@@ -398,25 +417,26 @@ export function TargetActionPanel() {
                       {achieved}/{target.target_points} pts
                     </span>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-7 w-7"
-                      onClick={() => openEdit(target)}
-                    >
-                      <Edit2 className="w-3 h-3" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-7 w-7 text-destructive"
-                      onClick={() => setDeleteTargetId(target.id)}
-
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  </div>
+                  {!isSessionClosed && (
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7"
+                        onClick={() => openEdit(target)}
+                      >
+                        <Edit2 className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-destructive"
+                        onClick={() => setDeleteTargetId(target.id)}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               );
             })}

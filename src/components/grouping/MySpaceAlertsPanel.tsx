@@ -1,10 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, Clock, Target, Calendar } from 'lucide-react';
-import { useGroupingSessions } from '@/hooks/useGroupingSessions';
 import { useGroupingTargets } from '@/hooks/useGroupingTargets';
 import { usePSDailyEntries } from '@/hooks/usePSDailyEntries';
 import { useAuth } from '@/hooks/useAuth';
+import { GroupingSession } from '@/hooks/useGroupingSessions';
 import {
   calculateTargetStatus,
   calculateSessionDays,
@@ -14,27 +14,28 @@ import {
 interface MySpaceAlertsPanelProps {
   userId?: string;
   isViewingOther?: boolean;
+  session?: GroupingSession | null;
 }
 
-export function MySpaceAlertsPanel({ userId, isViewingOther = false }: MySpaceAlertsPanelProps) {
+export function MySpaceAlertsPanel({ userId, isViewingOther = false, session }: MySpaceAlertsPanelProps) {
   const { user } = useAuth();
-  const { activeSession } = useGroupingSessions();
-  const { myTargets } = useGroupingTargets(activeSession?.id);
+  // Use passed session (for session switching) - alerts are now session-bound
+  const { myTargets } = useGroupingTargets(session?.id);
   const { getTotalPoints, getPendingCount } = usePSDailyEntries(
-    activeSession?.id,
+    session?.id,
     userId || user?.id
   );
 
   const viewingUserId = userId || user?.id;
 
   // Don't show alerts when viewing another user's workspace (read-only mode)
-  if (!activeSession || !viewingUserId || isViewingOther) return null;
+  if (!session || !viewingUserId || isViewingOther) return null;
 
   const totalDays = calculateSessionDays(
-    activeSession.start_date,
-    activeSession.end_date
+    session.start_date,
+    session.end_date
   );
-  const daysRemaining = calculateDaysRemaining(activeSession.end_date);
+  const daysRemaining = calculateDaysRemaining(session.end_date);
 
   // Individual target
   const myIndividualTarget = myTargets.find(

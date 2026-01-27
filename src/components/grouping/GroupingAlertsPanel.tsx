@@ -39,12 +39,20 @@ interface Profile {
   full_name: string;
 }
 
-export function GroupingAlertsPanel() {
+interface GroupingAlertsPanelProps {
+  session?: { id: string; start_date: string; end_date: string; status: string } | null;
+}
+
+export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
   const { isLeadership } = useAuth();
   const queryClient = useQueryClient();
   const { activeSession } = useGroupingSessions();
-  const { targets } = useGroupingTargets(activeSession?.id);
-  const { entries } = usePSDailyEntries(activeSession?.id);
+  
+  // Use passed session or fall back to active session
+  const viewingSession = session || activeSession;
+  
+  const { targets } = useGroupingTargets(viewingSession?.id);
+  const { entries } = usePSDailyEntries(viewingSession?.id);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showPendingDialog, setShowPendingDialog] = useState(false);
@@ -124,13 +132,16 @@ export function GroupingAlertsPanel() {
     },
   });
 
-  if (!isLeadership || !activeSession) return null;
+  if (!isLeadership || !viewingSession) return null;
+
+  // Check if session is closed (read-only alerts)
+  const isSessionClosed = viewingSession.status === 'closed';
 
   const totalDays = calculateSessionDays(
-    activeSession.start_date,
-    activeSession.end_date
+    viewingSession.start_date,
+    viewingSession.end_date
   );
-  const daysRemaining = calculateDaysRemaining(activeSession.end_date);
+  const daysRemaining = calculateDaysRemaining(viewingSession.end_date);
 
   // 🔔 ALERTS
   const alerts: {
@@ -230,6 +241,9 @@ export function GroupingAlertsPanel() {
             <AlertTriangle className="w-4 h-4" />
             Alerts & Risks
             <RefreshButton onClick={handleRefresh} isRefreshing={isRefreshing} />
+            {isSessionClosed && (
+              <Badge variant="secondary" className="text-xs">Closed</Badge>
+            )}
             {alerts.length > 0 && (
               <Badge variant="destructive" className="ml-auto">
                 {alerts.length}

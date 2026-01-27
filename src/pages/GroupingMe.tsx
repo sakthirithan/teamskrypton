@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Trash2, Eye, Lock } from 'lucide-react';
+import { Trash2, Eye, Lock, Shield } from 'lucide-react';
 import { 
   Target, 
   Calendar, 
@@ -32,6 +32,7 @@ import { SessionCard } from '@/components/grouping/SessionCard';
 import { RoleBasedMySpaceFeatures } from '@/components/grouping/RoleBasedMySpaceFeatures';
 import { BulkEntryCreation } from '@/components/grouping/BulkEntryCreation';
 import { ReadOnlyWorkspaceIndicator } from '@/components/grouping/ReadOnlyWorkspaceIndicator';
+import { ROLE_LABELS, KryptonRole } from '@/lib/constants';
 import { 
   calculateSessionDays, 
   calculateDaysRemaining,
@@ -123,7 +124,24 @@ const GroupingMe = () => {
     enabled: !!viewingUserId && isViewingOther,
   });
 
+  // Fetch the role of the user being viewed (for displaying role-based features)
+  const { data: viewedUserRole } = useQuery({
+    queryKey: ['user-role', viewingUserId],
+    queryFn: async () => {
+      if (!viewingUserId) return null;
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', viewingUserId)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.role || null;
+    },
+    enabled: !!viewingUserId && isViewingOther,
+  });
+
   const displayProfile = isViewingOther ? viewedProfile : profile;
+  const displayRole = isViewingOther ? viewedUserRole : role;
 
   const [isAddEntryOpen, setIsAddEntryOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<PSDailyEntry | null>(null);
@@ -173,30 +191,44 @@ const GroupingMe = () => {
   const isSessionClosed = viewingSession?.status === 'closed';
   const isViewingHistory = selectedSessionId && viewingSession?.status === 'closed';
   
+  // TL has full control on any user's My Space (not read-only)
+  const isTL = role === 'team_captain';
+  
   // STRICT READ-ONLY RULES:
   // 1. Closed session = always read-only for everyone
-  // 2. Viewing another user's workspace = read-only (even for leadership)
+  // 2. Viewing another user's workspace = read-only EXCEPT for TL
   // 3. Own workspace + active session = can edit own entries
-  const isReadOnlyMode = isSessionClosed || isViewingOther;
+  const isReadOnlyMode = isSessionClosed || (isViewingOther && !isTL);
   
-  // Can only add entries to own workspace in active session
-  const canAddEntry = !isSessionClosed && !isViewingOther;
+  // TL can add entries in any workspace; others can only add in own workspace
+  const canAddEntry = !isSessionClosed && (!isViewingOther || isTL);
   
-  // Can edit: own pending entries in active session OR leadership can edit any in active session
+  // Can edit: 
+  // - TL can edit any entry in active session
+  // - Leadership can edit entries in their own workspace
+  // - Owner can edit their own PENDING entries only (completed = locked)
   const canEditEntry = (entry: PSDailyEntry) => {
     if (isSessionClosed) return false;
-    if (isViewingOther && !isLeadership) return false;
-    // Leadership can edit in active session
+    // Completed entries cannot be edited by anyone except TL for correction
+    if (entry.status === 'completed' && !isTL) return false;
+    // TL can edit any entry
+    if (isTL) return true;
+    // Other leadership can edit in their own workspace
     if (isLeadership && !isViewingOther) return true;
     // Owner can edit their own pending entries
-    return entry.user_id === user?.id && entry.status === 'pending';
+    return entry.user_id === user?.id && entry.status === 'pending' && !isViewingOther;
   };
   
-  // Can complete: only the entry owner in active session
+  // Can complete: 
+  // - Entry owner in own workspace
+  // - TL can complete entries in any workspace
   const canCompleteEntry = (entry: PSDailyEntry) => {
     if (isSessionClosed) return false;
-    if (isViewingOther) return false;
-    return entry.user_id === user?.id && entry.status === 'pending';
+    if (entry.status !== 'pending') return false;
+    // TL can complete any pending entry
+    if (isTL) return true;
+    // Owner can complete their own entries
+    return entry.user_id === user?.id && !isViewingOther;
   };
   
   // Can revert: only leadership in active session
@@ -205,13 +237,15 @@ const GroupingMe = () => {
     return isLeadership && entry.status === 'completed';
   };
   
-  // Can delete: owner can delete own entries, TL/VC can delete any
+  // Can delete: owner can delete own entries, TL can delete any
   const canDeleteEntry = (entry: PSDailyEntry) => {
     if (isSessionClosed) return false;
+    // TL can delete any entry
+    if (isTL) return true;
     // Owner can delete their own entries
     if (entry.user_id === user?.id && !isViewingOther) return true;
-    // Only TL/VC can delete others' entries
-    return ['team_captain', 'vice_captain'].includes(role || '');
+    // VC can delete (but with restrictions - same as own)
+    return role === 'vice_captain' && !isViewingOther;
   };
 
   const handleDeleteEntry = async (entryId: string) => {
@@ -336,7 +370,7 @@ const GroupingMe = () => {
       <Header />
       <main className="container mx-auto px-3 sm:px-6 py-4 sm:py-6 safe-area-bottom">
         <div className="space-y-6">
-          {/* Profile Header */}
+          {/* Profile Header with Role-Based Features */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-3">
@@ -344,12 +378,18 @@ const GroupingMe = () => {
                   <User className="w-6 h-6 text-primary" />
                 </div>
                 <div className="flex-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <h2 className="text-xl font-bold">{displayProfile?.full_name || 'Loading...'}</h2>
-                    {isViewingOther && (
+                    {isViewingOther && !isTL && (
                       <Badge variant="outline" className="flex items-center gap-1">
                         <Eye className="w-3 h-3" />
                         Read-Only
+                      </Badge>
+                    )}
+                    {isViewingOther && isTL && (
+                      <Badge variant="default" className="flex items-center gap-1 bg-primary">
+                        <Edit2 className="w-3 h-3" />
+                        Full Access
                       </Badge>
                     )}
                     {isSessionClosed && (
@@ -359,12 +399,30 @@ const GroupingMe = () => {
                       </Badge>
                     )}
                   </div>
-                  <p className="text-sm text-muted-foreground">
+                  
+                  {/* User Role Badge - Show below name */}
+                  {displayRole && (
+                    <div className="flex items-center gap-2 mt-1">
+                      <Badge variant="outline" className="flex items-center gap-1 text-xs">
+                        <Shield className="w-3 h-3" />
+                        {ROLE_LABELS[displayRole as KryptonRole] || displayRole}
+                      </Badge>
+                    </div>
+                  )}
+                  
+                  <p className="text-sm text-muted-foreground mt-1">
                     {isViewingOther ? `${displayProfile?.full_name}'s Grouping Space` : 'My Grouping Space'}
                   </p>
                 </div>
               </CardTitle>
             </CardHeader>
+            
+            {/* Role-Based Features Section - Show below user name for own profile */}
+            {!isViewingOther && viewingSession && (
+              <CardContent className="pt-0 border-t mt-2">
+                <RoleBasedMySpaceFeatures session={viewingSession} userId={viewingUserId} />
+              </CardContent>
+            )}
           </Card>
 
           {/* Read-Only Mode Indicator */}
@@ -385,11 +443,14 @@ const GroupingMe = () => {
 
           {!viewingSession ? null : (
             <>
-              {/* Personal Alerts Panel - only show for own workspace */}
-              {!isViewingOther && <MySpaceAlertsPanel userId={viewingUserId} isViewingOther={isViewingOther} />}
-
-              {/* Role-Based Features - only show for own workspace */}
-              {!isViewingOther && <RoleBasedMySpaceFeatures session={viewingSession} userId={viewingUserId} />}
+              {/* Personal Alerts Panel - session-bound, only show for own workspace or TL */}
+              {(!isViewingOther || isTL) && (
+                <MySpaceAlertsPanel 
+                  userId={viewingUserId} 
+                  isViewingOther={isViewingOther && !isTL}
+                  session={viewingSession}
+                />
+              )}
 
               {/* Session Overview Stats */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
