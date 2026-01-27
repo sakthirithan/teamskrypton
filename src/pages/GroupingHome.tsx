@@ -48,15 +48,6 @@ const GroupingHome = () => {
     <div className="min-h-screen bg-background">
       <Header />
       <main className="container mx-auto px-3 sm:px-6 py-4 sm:py-6 safe-area-bottom">
-        {/* Session Selector Card - visible to all */}
-        <div className="mb-4">
-          <SessionCard 
-            sessions={sessions}
-            activeSession={activeSession}
-            selectedSession={viewingSession}
-            onSessionChange={setSelectedSessionId}
-          />
-        </div>
         
         {/* PBL-style layout: Left 2/3, Right 1/3 */}
         <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 sm:gap-6">
@@ -73,7 +64,15 @@ const GroupingHome = () => {
                   Notes
                 </TabsTrigger>
               </TabsList>
-              
+              {/* Session Selector Card - visible to all */}
+              <Tabs className="mb-4">
+                <SessionCard 
+                  sessions={sessions}
+                  activeSession={activeSession}
+                  selectedSession={viewingSession}
+                  onSessionChange={setSelectedSessionId}
+                />
+              </Tabs>
               <TabsContent value="targets" className="mt-0">
                 <GroupingPanel />
               </TabsContent>

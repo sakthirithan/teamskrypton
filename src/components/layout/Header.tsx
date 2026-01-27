@@ -179,7 +179,7 @@ export function Header() {
           </div>
 
           {/* Date and Time - Hidden on mobile */}
-          <div className="hidden lg:flex flex-col items-center px-4 py-2 rounded-lg bg-primary-foreground/5 backdrop-blur-sm">
+          <div className="hidden lg:flex flex-col items-center px-3 py-2 rounded-lg bg-primary-foreground/5 backdrop-blur-sm">
             <span className="text-sm opacity-80">{formatDate(currentTime)}</span>
             <span className="text-xl font-mono font-semibold tabular-nums">{formatTime(currentTime)}</span>
           </div>

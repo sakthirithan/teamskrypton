@@ -173,7 +173,6 @@ export function BulkEntryCreation({ session }: BulkEntryCreationProps) {
   return (
     
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <RefreshButton onClick={handleRefresh} isRefreshing={isRefreshing} />
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" onClick={resetForm}>
           <Users className="w-4 h-4 mr-2" />

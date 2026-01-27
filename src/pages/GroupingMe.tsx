@@ -243,7 +243,10 @@ const GroupingMe = () => {
     // TL can delete any entry
     if (isTL) return true;
     // Owner can delete their own entries
-    if (entry.user_id === user?.id && !isViewingOther) return true;
+    if (entry.user_id === user?.id && !isViewingOther) {
+      if((entry.status == 'completed')) return false;
+      return true
+    }
     // VC can delete (but with restrictions - same as own)
     return role === 'vice_captain' && !isViewingOther;
   };
@@ -416,13 +419,6 @@ const GroupingMe = () => {
                 </div>
               </CardTitle>
             </CardHeader>
-            
-            {/* Role-Based Features Section - Show below user name for own profile */}
-            {!isViewingOther && viewingSession && (
-              <CardContent className="pt-0 border-t mt-2">
-                <RoleBasedMySpaceFeatures session={viewingSession} userId={viewingUserId} />
-              </CardContent>
-            )}
           </Card>
 
           {/* Read-Only Mode Indicator */}
@@ -432,6 +428,13 @@ const GroupingMe = () => {
               isSessionClosed={isSessionClosed}
             />
           )}
+
+          {/* Role-Based Features Section - Show below user name for own profile */}
+            {!isViewingOther && viewingSession && (
+              <CardContent className="pt-0 border-t mt-2 w-full">
+                <RoleBasedMySpaceFeatures session={viewingSession} userId={viewingUserId} />
+              </CardContent>
+            )}
 
           {/* Session Card - Replaces the old session selector */}
           <SessionCard 
@@ -584,10 +587,6 @@ const GroupingMe = () => {
                             Excel
                           </Button>
                         </div>
-                      )}
-                      {/* Bulk Entry Creation for Leads */}
-                      {viewingSession && isLeadership && !isSessionClosed && (
-                        <BulkEntryCreation session={viewingSession} />
                       )}
                       {canAddEntry && (
                         <Dialog open={isAddEntryOpen} onOpenChange={setIsAddEntryOpen}>
