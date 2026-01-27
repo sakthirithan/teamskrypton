@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Eye, Lock } from 'lucide-react';
 import { 
   Target, 
   Calendar, 
@@ -31,6 +31,7 @@ import { MySpaceAlertsPanel } from '@/components/grouping/MySpaceAlertsPanel';
 import { SessionCard } from '@/components/grouping/SessionCard';
 import { RoleBasedMySpaceFeatures } from '@/components/grouping/RoleBasedMySpaceFeatures';
 import { BulkEntryCreation } from '@/components/grouping/BulkEntryCreation';
+import { ReadOnlyWorkspaceIndicator } from '@/components/grouping/ReadOnlyWorkspaceIndicator';
 import { 
   calculateSessionDays, 
   calculateDaysRemaining,
@@ -57,6 +58,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { RefreshButton } from '@/components/ui/RefreshIconButton';
 import { useToast } from '@/hooks/use-toast';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import * as XLSX from 'xlsx';
 
 interface Profile {
@@ -65,7 +67,7 @@ interface Profile {
 }
 
 const GroupingMe = () => {
-  const { user, profile, isLoading, isLeadership } = useAuth();
+  const { user, profile, isLoading, isLeadership, role } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
@@ -170,16 +172,47 @@ const GroupingMe = () => {
   // Check if session is closed (read-only)
   const isSessionClosed = viewingSession?.status === 'closed';
   const isViewingHistory = selectedSessionId && viewingSession?.status === 'closed';
-  const canEdit = !isSessionClosed && (!isViewingOther || isLeadership);
-  const canChangeStatus = !isSessionClosed && (
-    (!isViewingOther) || isLeadership
-  );
-  const canDeleteEntry = (entry: PSDailyEntry) =>
-  !isSessionClosed &&
-  (
-    isLeadership ||
-    (entry.user_id === user?.id && entry.status === 'pending' || 'completed')
-  );
+  
+  // STRICT READ-ONLY RULES:
+  // 1. Closed session = always read-only for everyone
+  // 2. Viewing another user's workspace = read-only (even for leadership)
+  // 3. Own workspace + active session = can edit own entries
+  const isReadOnlyMode = isSessionClosed || isViewingOther;
+  
+  // Can only add entries to own workspace in active session
+  const canAddEntry = !isSessionClosed && !isViewingOther;
+  
+  // Can edit: own pending entries in active session OR leadership can edit any in active session
+  const canEditEntry = (entry: PSDailyEntry) => {
+    if (isSessionClosed) return false;
+    if (isViewingOther && !isLeadership) return false;
+    // Leadership can edit in active session
+    if (isLeadership && !isViewingOther) return true;
+    // Owner can edit their own pending entries
+    return entry.user_id === user?.id && entry.status === 'pending';
+  };
+  
+  // Can complete: only the entry owner in active session
+  const canCompleteEntry = (entry: PSDailyEntry) => {
+    if (isSessionClosed) return false;
+    if (isViewingOther) return false;
+    return entry.user_id === user?.id && entry.status === 'pending';
+  };
+  
+  // Can revert: only leadership in active session
+  const canRevertEntry = (entry: PSDailyEntry) => {
+    if (isSessionClosed) return false;
+    return isLeadership && entry.status === 'completed';
+  };
+  
+  // Can delete: owner can delete own entries, TL/VC can delete any
+  const canDeleteEntry = (entry: PSDailyEntry) => {
+    if (isSessionClosed) return false;
+    // Owner can delete their own entries
+    if (entry.user_id === user?.id && !isViewingOther) return true;
+    // Only TL/VC can delete others' entries
+    return ['team_captain', 'vice_captain'].includes(role || '');
+  };
 
   const handleDeleteEntry = async (entryId: string) => {
   const confirmDelete = window.confirm(
@@ -298,6 +331,7 @@ const GroupingMe = () => {
     .reduce((sum, e) => sum + e.reward_points, 0);
 
   return (
+    <TooltipProvider>
     <div className="min-h-screen bg-background">
       <Header />
       <main className="container mx-auto px-3 sm:px-6 py-4 sm:py-6 safe-area-bottom">
@@ -313,7 +347,16 @@ const GroupingMe = () => {
                   <div className="flex items-center gap-2">
                     <h2 className="text-xl font-bold">{displayProfile?.full_name || 'Loading...'}</h2>
                     {isViewingOther && (
-                      <Badge variant="outline">Viewing as Leadership</Badge>
+                      <Badge variant="outline" className="flex items-center gap-1">
+                        <Eye className="w-3 h-3" />
+                        Read-Only
+                      </Badge>
+                    )}
+                    {isSessionClosed && (
+                      <Badge variant="secondary" className="flex items-center gap-1">
+                        <Lock className="w-3 h-3" />
+                        Closed Session
+                      </Badge>
                     )}
                   </div>
                   <p className="text-sm text-muted-foreground">
@@ -323,6 +366,14 @@ const GroupingMe = () => {
               </CardTitle>
             </CardHeader>
           </Card>
+
+          {/* Read-Only Mode Indicator */}
+          {isReadOnlyMode && (
+            <ReadOnlyWorkspaceIndicator
+              viewingUserName={isViewingOther ? displayProfile?.full_name : undefined}
+              isSessionClosed={isSessionClosed}
+            />
+          )}
 
           {/* Session Card - Replaces the old session selector */}
           <SessionCard 
@@ -334,11 +385,11 @@ const GroupingMe = () => {
 
           {!viewingSession ? null : (
             <>
-              {/* Personal Alerts Panel */}
-              <MySpaceAlertsPanel userId={viewingUserId} />
+              {/* Personal Alerts Panel - only show for own workspace */}
+              {!isViewingOther && <MySpaceAlertsPanel userId={viewingUserId} isViewingOther={isViewingOther} />}
 
-              {/* Role-Based Features */}
-              <RoleBasedMySpaceFeatures session={viewingSession} userId={viewingUserId} />
+              {/* Role-Based Features - only show for own workspace */}
+              {!isViewingOther && <RoleBasedMySpaceFeatures session={viewingSession} userId={viewingUserId} />}
 
               {/* Session Overview Stats */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -477,7 +528,7 @@ const GroupingMe = () => {
                       {viewingSession && isLeadership && !isSessionClosed && (
                         <BulkEntryCreation session={viewingSession} />
                       )}
-                      {canEdit && (
+                      {canAddEntry && (
                         <Dialog open={isAddEntryOpen} onOpenChange={setIsAddEntryOpen}>
                           <DialogTrigger asChild>
                             <Button size="sm">
@@ -566,7 +617,10 @@ const GroupingMe = () => {
                         <TableBody>
                           {entries.map((entry) => {
                             const isPending = entry.status === 'pending';
-                            const canEditThisEntry = canEdit && (isPending || isLeadership);
+                            const canEditThisEntry = canEditEntry(entry);
+                            const canComplete = canCompleteEntry(entry);
+                            const canRevert = canRevertEntry(entry);
+                            const canDelete = canDeleteEntry(entry);
                             
                             return (
                               <TableRow key={entry.id} className={isPending ? 'bg-yellow-500/5' : ''}>
@@ -628,55 +682,71 @@ const GroupingMe = () => {
                                 <TableCell>
                                   <div className="flex items-center gap-1">
                                     {/* Mark Completed */}
-                                    {canChangeStatus && entry.status === 'pending' && (
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-500/10"
-                                        onClick={() => handleCompleteEntry(entry.id)}
-                                        title="Mark as Completed"
-                                      >
-                                        <Check className="w-4 h-4" />
-                                      </Button>
+                                    {canComplete && (
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-500/10"
+                                            onClick={() => handleCompleteEntry(entry.id)}
+                                          >
+                                            <Check className="w-4 h-4" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Mark as Completed</TooltipContent>
+                                      </Tooltip>
                                     )}
 
                                     {/* Revert to Pending (Leadership only) */}
-                                    {isLeadership && entry.status === 'completed' && !isSessionClosed && (
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-7 w-7 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-500/10"
-                                        onClick={() => handleRevertEntry(entry.id)}
-                                        title="Revert to Pending"
-                                      >
-                                        <RotateCcw className="w-3 h-3" />
-                                      </Button>
+                                    {canRevert && (
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="h-7 w-7 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-500/10"
+                                            onClick={() => handleRevertEntry(entry.id)}
+                                          >
+                                            <RotateCcw className="w-3 h-3" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Revert to Pending (Leadership Only)</TooltipContent>
+                                      </Tooltip>
                                     )}
 
                                     {/* Edit Entry */}
                                     {canEditThisEntry && (
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-7 w-7"
-                                        onClick={() => openEditEntry(entry)}
-                                        title="Edit Entry"
-                                      >
-                                        <Edit2 className="w-3 h-3" />
-                                      </Button>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="h-7 w-7"
+                                            onClick={() => openEditEntry(entry)}
+                                          >
+                                            <Edit2 className="w-3 h-3" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Edit Entry</TooltipContent>
+                                      </Tooltip>
                                     )}
 
                                     {/* Delete Entry */}
-                                    {canDeleteEntry(entry) && (
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-500/10"
-                                        onClick={() => handleDeleteEntry(entry.id)}
-                                        title="Delete Entry"
-                                      >
-                                        <Trash2 className="w-4 h-4" />
-                                      </Button>
+                                    {canDelete && (
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-500/10"
+                                            onClick={() => handleDeleteEntry(entry.id)}
+                                          >
+                                            <Trash2 className="w-4 h-4" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Delete Entry</TooltipContent>
+                                      </Tooltip>
                                     )}
                                   </div>
                                 </TableCell>
@@ -739,6 +809,7 @@ const GroupingMe = () => {
         </Dialog>
       </main>
     </div>
+    </TooltipProvider>
   );
 };
 
