@@ -380,13 +380,26 @@ export function TargetActionPanel({ session }: TargetActionPanelProps) {
         </CardTitle>
       </CardHeader>
       <CardContent>
+        {/* Closed Session Warning */}
+        {isSessionClosed && (
+          <div className="p-3 mb-4 rounded-lg bg-amber-500/10 border border-amber-500/20">
+            <p className="text-sm font-medium text-amber-700 dark:text-amber-400 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+              Targets cannot be modified for closed sessions.
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              This session is archived. View targets in read-only mode.
+            </p>
+          </div>
+        )}
+        
         {!targetSession ? (
           <p className="text-sm text-muted-foreground text-center py-4">
             No active session. Create a session first.
           </p>
         ) : targets.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">
-            {isSessionClosed ? 'Session is closed. No targets available.' : 'No targets yet. Create your first target.'}
+            {isSessionClosed ? 'No targets in this closed session.' : 'No targets yet. Create your first target.'}
           </p>
         ) : (
           <div className="space-y-2 max-h-[300px] overflow-y-auto">
