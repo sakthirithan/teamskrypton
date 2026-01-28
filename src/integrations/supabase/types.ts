@@ -267,48 +267,84 @@ export type Database = {
           },
         ]
       }
+      guest_audit_log: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          guest_user_id: string
+          id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          guest_user_id: string
+          id?: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          guest_user_id?: string
+          id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
           created_at: string
+          created_by_tl: string | null
           current_status: Database["public"]["Enums"]["task_status"] | null
           department: string
           email: string
+          expires_at: string | null
           full_name: string
           id: string
           is_direct_access: boolean | null
           is_test: boolean | null
           phone_number: string | null
+          simulated_role: Database["public"]["Enums"]["krypton_role"] | null
           updated_at: string
           user_id: string
+          user_type: Database["public"]["Enums"]["test_user_type"]
         }
         Insert: {
           avatar_url?: string | null
           created_at?: string
+          created_by_tl?: string | null
           current_status?: Database["public"]["Enums"]["task_status"] | null
           department: string
           email: string
+          expires_at?: string | null
           full_name: string
           id?: string
           is_direct_access?: boolean | null
           is_test?: boolean | null
           phone_number?: string | null
+          simulated_role?: Database["public"]["Enums"]["krypton_role"] | null
           updated_at?: string
           user_id: string
+          user_type?: Database["public"]["Enums"]["test_user_type"]
         }
         Update: {
           avatar_url?: string | null
           created_at?: string
+          created_by_tl?: string | null
           current_status?: Database["public"]["Enums"]["task_status"] | null
           department?: string
           email?: string
+          expires_at?: string | null
           full_name?: string
           id?: string
           is_direct_access?: boolean | null
           is_test?: boolean | null
           phone_number?: string | null
+          simulated_role?: Database["public"]["Enums"]["krypton_role"] | null
           updated_at?: string
           user_id?: string
+          user_type?: Database["public"]["Enums"]["test_user_type"]
         }
         Relationships: []
       }
@@ -651,6 +687,10 @@ export type Database = {
     }
     Functions: {
       cleanup_old_login_activity: { Args: never; Returns: undefined }
+      get_simulated_role: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["krypton_role"]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["krypton_role"]
@@ -663,7 +703,10 @@ export type Database = {
         Returns: boolean
       }
       is_captain_or_vice: { Args: { _user_id: string }; Returns: boolean }
+      is_guest_expired: { Args: { _user_id: string }; Returns: boolean }
+      is_guest_user: { Args: { _user_id: string }; Returns: boolean }
       is_leadership: { Args: { _user_id: string }; Returns: boolean }
+      is_primary_test_user: { Args: { _user_id: string }; Returns: boolean }
       is_team_member_only: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
@@ -683,6 +726,7 @@ export type Database = {
         | "team_member"
       registration_status: "pending" | "approved" | "rejected"
       task_status: "idle" | "working" | "completed" | "pending"
+      test_user_type: "real" | "primary_test" | "secondary_test"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -828,6 +872,7 @@ export const Constants = {
       ],
       registration_status: ["pending", "approved", "rejected"],
       task_status: ["idle", "working", "completed", "pending"],
+      test_user_type: ["real", "primary_test", "secondary_test"],
     },
   },
 } as const
