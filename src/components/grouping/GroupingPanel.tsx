@@ -1,10 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Users, User, Target, TrendingUp, TrendingDown, Minus, History } from 'lucide-react';
-import { useGroupingSessions } from '@/hooks/useGroupingSessions';
 import { useGroupingTargets } from '@/hooks/useGroupingTargets';
 import { usePSDailyEntries } from '@/hooks/usePSDailyEntries';
 import { useAuth } from '@/hooks/useAuth';
@@ -17,28 +15,28 @@ import {
   calculateDaysRemaining,
   TARGET_STATUS_LABELS 
 } from '@/lib/groupingConstants';
+import { GroupingSession } from '@/hooks/useGroupingSessions';
 
 interface Profile {
   user_id: string;
   full_name: string;
 }
 
-export function GroupingPanel() {
+interface GroupingPanelProps {
+  session?: GroupingSession | null;
+}
+
+export function GroupingPanel({ session }: GroupingPanelProps) {
   const { user, isLeadership } = useAuth();
   const queryClient = useQueryClient();
-  const { sessions, activeSession } = useGroupingSessions();
   const [isRefreshing, setIsRefreshing] = useState(false);
   
-  // Allow viewing historical sessions
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
-  const viewingSession = selectedSessionId 
-    ? sessions.find(s => s.id === selectedSessionId) || activeSession
-    : activeSession;
-  
+  // Use passed session (controlled by Home's SessionCard)
+  const viewingSession = session;
   const isViewingHistory = viewingSession && viewingSession.status === 'closed';
   
   const { targets, myTargets } = useGroupingTargets(viewingSession?.id);
-  const { entries, getTotalPoints } = usePSDailyEntries(viewingSession?.id);
+  const { entries } = usePSDailyEntries(viewingSession?.id);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -107,7 +105,7 @@ export function GroupingPanel() {
     );
   };
 
-  if (!viewingSession && !activeSession) {
+  if (!viewingSession) {
     return (
       <Card>
         <CardHeader>
@@ -139,36 +137,16 @@ export function GroupingPanel() {
             <RefreshButton onClick={handleRefresh} isRefreshing={isRefreshing} />
           </span>
           <div className="flex items-center gap-2">
-            {/* Session History Selector - Visible to ALL */}
-            {sessions.length > 1 && (
-              <Select
-                value={selectedSessionId || activeSession?.id || ''}
-                onValueChange={(value) => setSelectedSessionId(value || null)}
-              >
-                <SelectTrigger className="w-[180px] h-8 text-xs">
-                  <History className="w-3 h-3 mr-1" />
-                  <SelectValue placeholder="View session..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {sessions.map((session) => (
-                    <SelectItem key={session.id} value={session.id}>
-                      #{session.session_number} - {session.name}
-                      {session.status === 'active' && ' (Active)'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            
+            {/* Session is controlled from Home's SessionCard - no local selector */}
             {isViewingHistory ? (
               <Badge variant="secondary">
                 Closed
               </Badge>
-            ) : (
+            ) : viewingSession ? (
               <Badge variant="secondary">
                 {daysRemaining} days left
               </Badge>
-            )}
+            ) : null}
           </div>
         </CardTitle>
       </CardHeader>
@@ -176,7 +154,7 @@ export function GroupingPanel() {
         {isViewingHistory && (
           <div className="mb-4 p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground">
             <History className="w-4 h-4 inline mr-2" />
-            Viewing historical session. Data is read-only.
+            Session is controlled from Home. Targets update automatically.
           </div>
         )}
         

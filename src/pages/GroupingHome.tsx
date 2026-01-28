@@ -74,7 +74,7 @@ const GroupingHome = () => {
                 />
               </Tabs>
               <TabsContent value="targets" className="mt-0">
-                <GroupingPanel />
+                <GroupingPanel session={viewingSession} />
               </TabsContent>
               
               <TabsContent value="notes" className="mt-0">
