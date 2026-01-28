@@ -20,3 +20,9 @@ verify_jwt = false
 
 [functions.approve-registration]
 verify_jwt = false
+
+[functions.create-test-user]
+verify_jwt = false
+
+[functions.delete-test-user]
+verify_jwt = false

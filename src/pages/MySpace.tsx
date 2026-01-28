@@ -17,6 +17,7 @@ import { TeamMemberDashboard } from '@/components/dashboard/TeamMemberDashboard'
 import { StrategistDashboard } from '@/components/dashboard/StrategistDashboard';
 import { TeamManagerDashboard } from '@/components/dashboard/TeamManagerDashboard';
 import { CaptainDashboard } from '@/components/dashboard/CaptainDashboard';
+import { TestModeSettingsPanel } from '@/components/guest/TestModeSettingsPanel';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { CheckCircle, Clock, BarChart3, ExternalLink, Trash2, RotateCcw, Download } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
@@ -387,6 +388,9 @@ const MySpace = () => {
                 }}
               />
             )}
+
+            {/* Test Mode Settings Panel - Guest Users Only */}
+            <TestModeSettingsPanel />
 
             {/* Productivity Summary */}
             <Card className="mt-6">

@@ -19,6 +19,7 @@ import { UserListPanel } from '@/components/admin/UserListPanel';
 import { ModeSelectionDialog } from '@/components/auth/ModeSelectionDialog';
 import { Badge } from '@/components/ui/badge';
 import { AppMode } from '@/lib/groupingConstants';
+import { GuestModeBadge } from '@/components/guest/GuestModeBadge';
 
 
 function getRoleBadgeClass(role: KryptonRole | null): string {
@@ -186,6 +187,9 @@ export function Header() {
 
           {/* User Info & Mobile Menu */}
           <div className="flex items-center gap-2 sm:gap-4">
+            {/* Guest Mode Badge */}
+            <GuestModeBadge />
+            
             {/* Mode Indicator Badge (read-only, shows current mode) */}
             <Badge 
               variant="outline" 

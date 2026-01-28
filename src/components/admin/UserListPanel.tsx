@@ -30,7 +30,8 @@ import {
   Shield,
   EyeOff,
   UserPlus,
-  Check
+  Check,
+  FlaskConical
 } from 'lucide-react';
 import {
   Dialog,
@@ -40,6 +41,7 @@ import {
   DialogDescription
 } from '@/components/ui/dialog';
 import { useNavigate } from 'react-router-dom';
+import { GuestUserPanel } from '@/components/admin/GuestUserPanel';
 
 interface UserData {
   id: string;
@@ -510,18 +512,22 @@ export function UserListPanel({ onClose }: UserListPanelProps) {
         </CardHeader>
         <CardContent className="space-y-4 px-0">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="members" className="flex items-center gap-2">
                 <Users className="w-4 h-4" />
-                Team Members
+                Members
                 <Badge variant="secondary" className="ml-1 text-xs">{users.length}</Badge>
               </TabsTrigger>
               <TabsTrigger value="approvals" className="flex items-center gap-2">
                 <UserPlus className="w-4 h-4" />
-                Pending Approvals
+                Approvals
                 {requests.length > 0 && (
                   <Badge variant="destructive" className="ml-1 text-xs">{requests.length}</Badge>
                 )}
+              </TabsTrigger>
+              <TabsTrigger value="test-users" className="flex items-center gap-2">
+                <FlaskConical className="w-4 h-4" />
+                Test Users
               </TabsTrigger>
             </TabsList>
 
@@ -752,6 +758,11 @@ export function UserListPanel({ onClose }: UserListPanelProps) {
                   </div>
                 </ScrollArea>
               )}
+            </TabsContent>
+
+            {/* Test Users Tab - TL Only */}
+            <TabsContent value="test-users" className="mt-4">
+              <GuestUserPanel />
             </TabsContent>
           </Tabs>
         </CardContent>

@@ -31,6 +31,7 @@ import { MySpaceAlertsPanel } from '@/components/grouping/MySpaceAlertsPanel';
 import { SessionCard } from '@/components/grouping/SessionCard';
 import { RoleBasedMySpaceFeatures } from '@/components/grouping/RoleBasedMySpaceFeatures';
 import { BulkEntryCreation } from '@/components/grouping/BulkEntryCreation';
+import { TestModeSettingsPanel } from '@/components/guest/TestModeSettingsPanel';
 import { ReadOnlyWorkspaceIndicator } from '@/components/grouping/ReadOnlyWorkspaceIndicator';
 import { ROLE_LABELS, KryptonRole } from '@/lib/constants';
 import { 
@@ -438,6 +439,9 @@ const GroupingMe = () => {
               isSessionClosed={isSessionClosed}
             />
           )}
+
+          {/* Test Mode Settings Panel - Guest Users Only, own profile only */}
+          {!isViewingOther && <TestModeSettingsPanel />}
 
           {/* Role-Based Features Section - Show below user name for own profile */}
             {!isViewingOther && viewingSession && (
