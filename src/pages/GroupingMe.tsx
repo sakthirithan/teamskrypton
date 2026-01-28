@@ -145,12 +145,19 @@ const GroupingMe = () => {
 
   const [isAddEntryOpen, setIsAddEntryOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<PSDailyEntry | null>(null);
+  const [selectedEntrySessionId, setSelectedEntrySessionId] = useState<string | null>(null);
   const [entryForm, setEntryForm] = useState({
     entry_date: format(new Date(), 'yyyy-MM-dd'),
     skill_name: '',
     reward_points: 0,
     attempt_count: 1,
   });
+  
+  // Get active sessions for entry creation dropdown
+  const activeSessions = sessions.filter(s => s.status === 'active');
+  const entrySession = selectedEntrySessionId 
+    ? sessions.find(s => s.id === selectedEntrySessionId) 
+    : activeSession;
 
   // Redirect if not logged in
   useEffect(() => {
@@ -275,10 +282,12 @@ const GroupingMe = () => {
 
 
   const handleAddEntry = async () => {
-    if (!viewingSession || !entryForm.skill_name || !viewingUserId) return;
+    // Use selected entry session or fall back to current viewing session
+    const targetSession = entrySession || viewingSession;
+    if (!targetSession || !entryForm.skill_name || !viewingUserId) return;
 
     await createEntry.mutateAsync({
-      session_id: viewingSession.id,
+      session_id: targetSession.id,
       user_id: viewingUserId,
       entry_date: entryForm.entry_date,
       skill_name: entryForm.skill_name,
@@ -292,6 +301,7 @@ const GroupingMe = () => {
       reward_points: 0,
       attempt_count: 1,
     });
+    setSelectedEntrySessionId(null);
     setIsAddEntryOpen(false);
   };
 
@@ -605,6 +615,34 @@ const GroupingMe = () => {
                               <Clock className="w-4 h-4 inline mr-2 text-yellow-500" />
                               Entry starts as <strong>Pending</strong>. Mark as completed to add to targets.
                             </div>
+                            
+                            {/* Session Selection */}
+                            <div className="space-y-2">
+                              <Label>Session</Label>
+                              <select
+                                className="w-full h-10 px-3 py-2 text-sm bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                                value={selectedEntrySessionId || activeSession?.id || ''}
+                                onChange={(e) => setSelectedEntrySessionId(e.target.value || null)}
+                              >
+                                {sessions.map((s) => (
+                                  <option 
+                                    key={s.id} 
+                                    value={s.id}
+                                    disabled={s.status === 'closed'}
+                                  >
+                                    Session #{s.session_number} - {s.name} 
+                                    {s.status === 'closed' ? ' (Closed - Read Only)' : ''}
+                                    {s.id === activeSession?.id ? ' (Active)' : ''}
+                                  </option>
+                                ))}
+                              </select>
+                              {sessions.find(s => s.id === selectedEntrySessionId)?.status === 'closed' && (
+                                <p className="text-xs text-destructive">
+                                  This session is closed and read-only. Select an active session.
+                                </p>
+                              )}
+                            </div>
+                            
                             <div className="space-y-2">
                               <Label>Date</Label>
                               <Input
@@ -644,7 +682,11 @@ const GroupingMe = () => {
                             <Button 
                               onClick={handleAddEntry} 
                               className="w-full"
-                              disabled={createEntry.isPending || !entryForm.skill_name}
+                              disabled={
+                                createEntry.isPending || 
+                                !entryForm.skill_name ||
+                                (selectedEntrySessionId && sessions.find(s => s.id === selectedEntrySessionId)?.status === 'closed')
+                              }
                             >
                               {createEntry.isPending ? 'Adding...' : 'Add Entry (Pending)'}
                             </Button>
