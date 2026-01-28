@@ -23,7 +23,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { CheckCircle2 } from 'lucide-react';
 import {
   Table,
@@ -57,7 +56,6 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showPendingDialog, setShowPendingDialog] = useState(false);
   const [deleteEntryId, setDeleteEntryId] = useState<string | null>(null);
-  const [selectedEntryIds, setSelectedEntryIds] = useState<string[]>([]);
   const [showCompletedDialog, setShowCompletedDialog] = useState(false);
   const [searchText, setSearchText] = useState('');
 
@@ -72,23 +70,15 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
   }, [queryClient]);
 
   const handleConfirmDelete = async () => {
-    const idsToDelete =
-      selectedEntryIds.length > 0
-        ? selectedEntryIds
-        : deleteEntryId
-        ? [deleteEntryId]
-        : [];
-
-    if (idsToDelete.length === 0) return;
+    if (!deleteEntryId) return;
 
     const { error } = await supabase
       .from('ps_daily_entries')
       .delete()
-      .in('id', idsToDelete);
+      .eq('id', deleteEntryId);
 
     if (error) throw error;
 
-    setSelectedEntryIds([]);
     setDeleteEntryId(null);
     setShowDeleteDialog(false);
 
@@ -96,14 +86,6 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
     await queryClient.invalidateQueries({ queryKey: ['grouping-targets'] });
   };
 
-
-  const toggleEntry = (id: string) => {
-    setSelectedEntryIds(prev =>
-      prev.includes(id)
-        ? prev.filter(x => x !== id)
-        : [...prev, id]
-    );
-  };
 
 
   const openPendingDialog = () => {
@@ -121,7 +103,7 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
 
   // Fetch team members
   const { data: teamMembers = [] } = useQuery({
-    queryKey: ['team-members-alerts'],
+    queryKey: ['team-members-alerts', viewingSession?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
@@ -210,7 +192,7 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
 
   //Searching Logic
   const filterEntries = (list: typeof entries) => {
-    if (!searchText.trim()) return list;
+    if (!list || !searchText.trim()) return list || [];
 
     const q = searchText.toLowerCase();
 
@@ -222,6 +204,7 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
       );
     });
   };
+
 
 
 
@@ -294,141 +277,9 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
       <Dialog open={showPendingDialog} onOpenChange={setShowPendingDialog}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <div className="flex-1 items-center justify-between">
-              <DialogTitle>Pending PS Daily Entries</DialogTitle>
-
-              {selectedEntryIds.length > 0 && (
-                <Button className='mt-2'
-                  size="sm"
-                  variant="destructive"
-                  onClick={() => {
-                    setDeleteEntryId(null); // bulk mode
-                    setShowDeleteDialog(true);
-                  }}
-                >
-                  <Trash2 className="w-4 h-4 mr-1" />
-                  Delete Selected ({selectedEntryIds.length})
-                </Button>
-              )}
-            </div>
+            <DialogTitle>Pending PS Daily Entries</DialogTitle>
           </DialogHeader>
 
-          <Input
-              placeholder="Search by user or skill..."
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              className="mb-3"
-            />
-
-
-
-          <div className="max-h-[400px] overflow-y-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead />
-                  <TableHead>User</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Skill</TableHead>
-                  <TableHead className="text-right">Points</TableHead>
-                  <TableHead className="text-right">Attempts</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filterEntries(pendingEntries).map((entry) => {
-                  const member = teamMembers.find(
-                    (m) => m.user_id === entry.user_id
-                  );
-
-                  return (
-                    <TableRow key={entry.id}>
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedEntryIds.includes(entry.id)}
-                          onCheckedChange={() => toggleEntry(entry.id)}
-                        />
-                      </TableCell>
-
-                      <TableCell>{member?.full_name || 'Unknown'}</TableCell>
-
-                      <TableCell>
-                        {format(new Date(entry.entry_date), 'yyyy-MM-dd')}
-                      </TableCell>
-
-                      <TableCell>{entry.skill_name}</TableCell>
-
-                      <TableCell className="text-right">
-                        {entry.reward_points}
-                      </TableCell>
-
-                      <TableCell className="text-right">
-                        {entry.attempt_count}
-                      </TableCell>
-
-                      <TableCell className="text-right">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="text-destructive"
-                          onClick={() => {
-                            setDeleteEntryId(entry.id);
-                            setSelectedEntryIds([]);
-                            setShowDeleteDialog(true);
-                          }}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        </DialogContent>
-
-        {/* Delete Dialog */}
-        <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                Delete{' '}
-                {selectedEntryIds.length > 0
-                  ? selectedEntryIds.length
-                  : 1}{' '}
-                Entry{selectedEntryIds.length > 1 ? 'ies' : ''}?
-              </DialogTitle>
-            </DialogHeader>
-
-            <p className="text-sm text-muted-foreground">
-              This action cannot be undone. Deleted entries will be removed from:
-              <br />• Individual PS records  
-              <br />• Target progress  
-              <br />• Team analytics
-            </p>
-
-            <div className="flex justify-end gap-2 pt-4">
-              <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
-                Cancel
-              </Button>
-
-              <Button variant="destructive" onClick={handleConfirmDelete}>
-                Yes, Delete
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </Dialog>
-
-      {/* ✅ COMPLETED ENTRIES POPUP */}
-      <Dialog open={showCompletedDialog} onOpenChange={setShowCompletedDialog}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Completed PS Daily Entries</DialogTitle>
-          </DialogHeader>
-
-          {/* 🔍 SEARCH */}
           <Input
             placeholder="Search by user or skill..."
             value={searchText}
@@ -445,25 +296,36 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
                   <TableHead>Skill</TableHead>
                   <TableHead className="text-right">Points</TableHead>
                   <TableHead className="text-right">Attempts</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
 
               <TableBody>
-                {filterEntries(completedEntries).map(entry => {
+                {filterEntries(pendingEntries).map(entry => {
                   const member = teamMembers.find(m => m.user_id === entry.user_id);
 
                   return (
                     <TableRow key={entry.id}>
                       <TableCell>{member?.full_name || 'Unknown'}</TableCell>
-                      <TableCell>
-                        {format(new Date(entry.entry_date), 'yyyy-MM-dd')}
-                      </TableCell>
+                      <TableCell>{entry.entry_date ? format(new Date(entry.entry_date), 'yyyy-MM-dd') : '-' }</TableCell>
                       <TableCell>{entry.skill_name}</TableCell>
+                      <TableCell className="text-right">{entry.reward_points}</TableCell>
+                      <TableCell className="text-right">{entry.attempt_count}</TableCell>
                       <TableCell className="text-right">
-                        {entry.reward_points}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {entry.attempt_count}
+                        {isLeadership && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="text-destructive"
+                            disabled={isSessionClosed}
+                            onClick={() => {
+                              setDeleteEntryId(entry.id);
+                              setShowDeleteDialog(true);
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   );
@@ -474,6 +336,96 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
         </DialogContent>
       </Dialog>
 
+
+        {/* Delete Dialog */}
+        {/* // 🔥 SHARED DELETE CONFIRMATION DIALOG (OUTSIDE ALL OTHERS) */}
+        <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete PS Entry</DialogTitle>
+            </DialogHeader>
+
+            <p className="text-sm text-muted-foreground">
+              This action cannot be undone. Deleted entries will be removed from:
+              <br />• Individual PS records
+              <br />• Target progress
+              <br />• Team analytics
+            </p>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={handleConfirmDelete}>
+                Yes, Delete
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+      {/* ✅ COMPLETED ENTRIES POPUP */}
+      <Dialog open={showCompletedDialog} onOpenChange={setShowCompletedDialog}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Completed PS Daily Entries</DialogTitle>
+          </DialogHeader>
+
+          <Input
+            placeholder="Search by user or skill..."
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            className="mb-3"
+          />
+
+          <div className="max-h-[400px] overflow-y-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>User</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Skill</TableHead>
+                  <TableHead className="text-right">Points</TableHead>
+                  <TableHead className="text-right">Attempts</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+
+              <TableBody>
+                {filterEntries(completedEntries).map(entry => {
+                  const member = teamMembers.find(m => m.user_id === entry.user_id);
+
+                  return (
+                    <TableRow key={entry.id}>
+                      <TableCell>{member?.full_name || 'Unknown'}</TableCell>
+                      <TableCell>{entry.entry_date ? format(new Date(entry.entry_date), 'yyyy-MM-dd') : '-' }</TableCell>
+                      <TableCell>{entry.skill_name}</TableCell>
+                      <TableCell className="text-right">{entry.reward_points}</TableCell>
+                      <TableCell className="text-right">{entry.attempt_count}</TableCell>
+                      <TableCell className="text-right">
+                        {isLeadership && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="text-destructive"
+                            disabled={isSessionClosed}
+                            onClick={() => {
+                              setDeleteEntryId(entry.id);
+                              setShowDeleteDialog(true);
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

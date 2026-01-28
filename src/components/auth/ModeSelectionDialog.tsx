@@ -20,7 +20,7 @@ interface ModeSelectionDialogProps {
 }
 
 
-const AUTO_SELECT_TIMEOUT = 60; // 60 seconds
+const AUTO_SELECT_TIMEOUT = 30; // 60 seconds
 
 export function ModeSelectionDialog({ open, onSelectMode, onCancel, disableAutoSelect = false }: ModeSelectionDialogProps) {
   const [selectedMode, setSelectedMode] = useState<AppMode | null>(null);

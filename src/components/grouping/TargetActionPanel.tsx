@@ -202,22 +202,88 @@ export function TargetActionPanel({ session }: TargetActionPanelProps) {
 
 
   // Team members see simplified view
+
+  const { data: allTargets = [] } = useQuery({
+    queryKey: ['all-targets-readonly', targetSession?.id],
+    enabled: !canCreateTarget && !!targetSession,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('grouping_targets')
+        .select('*')
+        .eq('session_id', targetSession!.id)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      return data as GroupingTarget[];
+    },
+  });
+
+  /* ============================================================
+     👤 TEAM MEMBER VIEW — READ ONLY (FIXED)
+     ============================================================ */
   if (!canCreateTarget) {
     return (
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <Target className="w-4 h-4" />
-            My Targets
+            Targets
             {isSessionClosed && (
-              <Badge variant="secondary" className="ml-auto text-xs">Closed</Badge>
+              <Badge variant="secondary" className="ml-auto text-xs">
+                Closed
+              </Badge>
             )}
           </CardTitle>
         </CardHeader>
+
         <CardContent>
-          <p className="text-sm text-muted-foreground">
-            View your assigned targets in the main panel.
-          </p>
+          {!targetSession ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              No active session.
+            </p>
+          ) : targets.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              No targets available.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {allTargets.map(target => {
+                const member = teamMembers.find(
+                  m => m.user_id === target.user_id
+                );
+
+                const achieved =
+                  target.target_scope === 'group'
+                    ? Object.values(earnedPointsMap).reduce((a, b) => a + b, 0)
+                    : earnedPointsMap[target.user_id ?? ''] ?? 0;
+
+                return (
+                  <div
+                    key={target.id}
+                    className="flex items-center justify-between p-2 rounded-lg bg-muted/50 text-sm"
+                  >
+                    <div className="flex items-center gap-2">
+                      {target.target_scope === 'group' ? (
+                        <Users className="w-4 h-4 text-blue-500" />
+                      ) : (
+                        <User className="w-4 h-4 text-green-500" />
+                      )}
+
+                      <span className="font-medium">
+                        {target.target_scope === 'group'
+                          ? 'Group'
+                          : member?.full_name || 'Member'}
+                      </span>
+
+                      <span className="text-muted-foreground">
+                        {achieved}/{target.target_points} pts
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
     );
