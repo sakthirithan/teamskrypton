@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, memo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Header } from '@/components/layout/Header';
@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Trash2, Eye, Lock, Shield } from 'lucide-react';
+import { Trash2, Eye, Lock, Shield, Coins } from 'lucide-react';
 import { 
   Target, 
   Calendar, 
@@ -27,12 +27,14 @@ import {
 import { useGroupingSessions, GroupingSession } from '@/hooks/useGroupingSessions';
 import { useGroupingTargets } from '@/hooks/useGroupingTargets';
 import { usePSDailyEntries, PSDailyEntry } from '@/hooks/usePSDailyEntries';
+import { useUserPoints } from '@/hooks/useUserPoints';
 import { MySpaceAlertsPanel } from '@/components/grouping/MySpaceAlertsPanel';
 import { SessionCard } from '@/components/grouping/SessionCard';
 import { RoleBasedMySpaceFeatures } from '@/components/grouping/RoleBasedMySpaceFeatures';
 import { BulkEntryCreation } from '@/components/grouping/BulkEntryCreation';
 import { TestModeSettingsPanel } from '@/components/guest/TestModeSettingsPanel';
 import { ReadOnlyWorkspaceIndicator } from '@/components/grouping/ReadOnlyWorkspaceIndicator';
+import { PointsDisplay } from '@/components/points/PointsDisplay';
 import { ROLE_LABELS, KryptonRole } from '@/lib/constants';
 import { 
   calculateSessionDays, 
@@ -67,6 +69,15 @@ interface Profile {
   user_id: string;
   full_name: string;
 }
+
+// Inline points display component
+const PointsDisplayInline = memo(function PointsDisplayInline({ userId }: { userId?: string }) {
+  const { getUserPoints } = useUserPoints();
+  const points = getUserPoints(userId);
+  return (
+    <p className="text-2xl font-bold text-amber-700 dark:text-amber-400">{points}</p>
+  );
+});
 
 const GroupingMe = () => {
   const { user, profile, isLoading, isLeadership, role } = useAuth();
@@ -468,6 +479,21 @@ const GroupingMe = () => {
                   session={viewingSession}
                 />
               )}
+
+              {/* Points Card - Common to both modes */}
+              <Card className="bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-800/20 border-amber-200 dark:border-amber-800">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-amber-200 dark:bg-amber-900/50 flex items-center justify-center">
+                      <Coins className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-amber-700/80 dark:text-amber-400/80">Total Points</p>
+                      <PointsDisplayInline userId={viewingUserId} />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
               {/* Session Overview Stats */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

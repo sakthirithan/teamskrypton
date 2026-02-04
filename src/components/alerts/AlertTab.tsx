@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, memo, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -41,7 +41,7 @@ interface CompletedTask {
   has_docs: boolean;
 }
 
-export function AlertTab() {
+export const AlertTab = memo(function AlertTab() {
   const { user, isLeadership } = useAuth();
   const { toast } = useToast();
   const [approvals, setApprovals] = useState<Approval[]>([]);
@@ -783,4 +783,4 @@ export function AlertTab() {
       </CardContent>
     </Card>
   );
-}
+});

@@ -1,10 +1,11 @@
-import { User, Eye, Phone, Pencil, CheckCircle, Power, Target } from 'lucide-react';
+import { User, Eye, Phone, Pencil, CheckCircle, Power, Target, Coins } from 'lucide-react';
 import { ROLE_LABELS, KryptonRole, TaskStatus } from '@/lib/constants';
 import { format } from 'date-fns';
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useAppMode } from '@/hooks/useAppMode';
+import { useUserPoints } from '@/hooks/useUserPoints';
 interface KryptonIdCardProps {
   profile: {
     user_id: string;
@@ -76,6 +77,7 @@ export function KryptonIdCard({
   manualStatusOverride
 }: KryptonIdCardProps) {
   const { mode } = useAppMode();
+  const { getUserPoints } = useUserPoints();
   const [isEditingPhone, setIsEditingPhone] = useState(false);
   const [phoneValue, setPhoneValue] = useState(profile.phone_number || '');
   const [isSaving, setIsSaving] = useState(false);
@@ -83,6 +85,7 @@ export function KryptonIdCard({
 
   const derivedStatus = getDerivedStatus(taskStats, manualStatusOverride);
   const isGroupingMode = mode === 'grouping';
+  const userPoints = getUserPoints(profile.user_id);
 
   const handleToggleStatus = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -121,7 +124,15 @@ export function KryptonIdCard({
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-medium truncate">{profile.full_name}</p>
-          <p className="text-xs text-muted-foreground truncate">{role ? ROLE_LABELS[role] : 'Member'}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-xs text-muted-foreground truncate">{role ? ROLE_LABELS[role] : 'Member'}</p>
+            {userPoints > 0 && (
+              <span className="inline-flex items-center gap-0.5 text-xs text-amber-600 dark:text-amber-400 font-medium">
+                <Coins className="w-3 h-3" />
+                {userPoints}
+              </span>
+            )}
+          </div>
         </div>
         <span className={derivedStatus.className}>
           {derivedStatus.label}
@@ -173,6 +184,12 @@ export function KryptonIdCard({
               {ROLE_LABELS[role]}
             </span>
           )}
+          {/* Points Display */}
+          <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 font-semibold text-sm">
+            <Coins className="w-4 h-4" />
+            <span>{userPoints}</span>
+            <span className="font-normal opacity-80">pts</span>
+          </div>
         </div>
 
         {/* In Grouping mode - simplified view without tabs, direct click opens My Space */}
