@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, memo, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -69,7 +69,7 @@ interface UserListPanelProps {
   onClose?: () => void;
 }
 
-export function UserListPanel({ onClose }: UserListPanelProps) {
+export const UserListPanel = memo(function UserListPanel({ onClose }: UserListPanelProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -1003,4 +1003,4 @@ export function UserListPanel({ onClose }: UserListPanelProps) {
       </Dialog>
     </>
   );
-}
+});

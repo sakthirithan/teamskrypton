@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -18,6 +18,7 @@ import { StrategistDashboard } from '@/components/dashboard/StrategistDashboard'
 import { TeamManagerDashboard } from '@/components/dashboard/TeamManagerDashboard';
 import { CaptainDashboard } from '@/components/dashboard/CaptainDashboard';
 import { TestModeSettingsPanel } from '@/components/guest/TestModeSettingsPanel';
+import { PointsDisplay } from '@/components/points/PointsDisplay';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { CheckCircle, Clock, BarChart3, ExternalLink, Trash2, RotateCcw, Download } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
@@ -419,6 +420,9 @@ const MySpace = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Points Display - Common to both modes */}
+            <PointsDisplay userId={user.id} compact />
           </div>
 
           {/* Main Content */}

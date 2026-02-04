@@ -291,6 +291,42 @@ export type Database = {
         }
         Relationships: []
       }
+      points_history: {
+        Row: {
+          created_at: string
+          id: string
+          operation_type: string
+          performed_by: string
+          points_after: number
+          points_before: number
+          points_change: number
+          reason: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          operation_type: string
+          performed_by: string
+          points_after: number
+          points_before: number
+          points_change: number
+          reason?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          operation_type?: string
+          performed_by?: string
+          points_after?: number
+          points_before?: number
+          points_change?: number
+          reason?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -621,6 +657,36 @@ export type Database = {
           id?: string
           login_date?: string
           login_time?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_points: {
+        Row: {
+          created_at: string
+          id: string
+          last_updated_at: string
+          last_updated_by: string
+          notes: string | null
+          points: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_updated_at?: string
+          last_updated_by: string
+          notes?: string | null
+          points?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_updated_at?: string
+          last_updated_by?: string
+          notes?: string | null
+          points?: number
           user_id?: string
         }
         Relationships: []

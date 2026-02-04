@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppMode } from '@/hooks/useAppMode';
 import { ROLE_LABELS, KryptonRole } from '@/lib/constants';
-import { LogOut, User, Users, Home, LayoutDashboard, Menu, X, Download, UserCog, Target, RefreshCw } from 'lucide-react';
+import { LogOut, User, Users, Home, LayoutDashboard, Menu, X, Download, UserCog, Target, RefreshCw, Coins } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -16,11 +16,11 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { UserListPanel } from '@/components/admin/UserListPanel';
+import { PointsManagementPanel } from '@/components/admin/PointsManagementPanel';
 import { ModeSelectionDialog } from '@/components/auth/ModeSelectionDialog';
 import { Badge } from '@/components/ui/badge';
 import { AppMode } from '@/lib/groupingConstants';
 import { GuestModeBadge } from '@/components/guest/GuestModeBadge';
-
 
 function getRoleBadgeClass(role: KryptonRole | null): string {
   switch (role) {
@@ -48,9 +48,11 @@ export function Header() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userListOpen, setUserListOpen] = useState(false);
+  const [pointsOpen, setPointsOpen] = useState(false);
   const [showModeSwitch, setShowModeSwitch] = useState(false);
   const [showModeDialog, setShowModeDialog] = useState(false);
-
+  
+  const isTL = role === 'team_captain';
 
   // Mode-aware navigation links
   const navLinks = isGroupingMode
@@ -252,6 +254,14 @@ export function Header() {
                   </>
                 )}
                 
+                {/* Points Management - Only for TL */}
+                {isTL && (
+                  <DropdownMenuItem onClick={() => setPointsOpen(true)}>
+                    <Coins className="w-4 h-4 mr-2" />
+                    Manage Points
+                  </DropdownMenuItem>
+                )}
+                
                 <DropdownMenuSeparator />
                 
                 {/* Switch Mode - Available to all */}
@@ -338,6 +348,21 @@ export function Header() {
               </Button>
             )}
             
+            {/* Points Management for TL on mobile */}
+            {isTL && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setPointsOpen(true);
+                  setMobileMenuOpen(false);
+                }}
+                className="justify-start text-primary-foreground hover:bg-primary-foreground/10 h-12 touch-target"
+              >
+                <Coins className="w-5 h-5 mr-3" />
+                Manage Points
+              </Button>
+            )}
+            
             <div className="border-t border-primary-foreground/20 pt-2 mt-2 space-y-1">
               {/* Switch Mode for mobile */}
               <Button
@@ -390,6 +415,23 @@ export function Header() {
             </DialogHeader>
             <div className="overflow-y-auto max-h-[calc(90vh-80px)] scrollbar-hide">
               <UserListPanel onClose={() => setUserListOpen(false)} />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Points Management Dialog - TL Only */}
+      {isTL && (
+        <Dialog open={pointsOpen} onOpenChange={setPointsOpen}>
+          <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-hidden p-3 sm:p-6">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Coins className="w-4 h-4 sm:w-5 sm:h-5" />
+                Points Management
+              </DialogTitle>
+            </DialogHeader>
+            <div className="overflow-y-auto max-h-[calc(90vh-80px)] scrollbar-hide">
+              <PointsManagementPanel />
             </div>
           </DialogContent>
         </Dialog>
