@@ -160,6 +160,7 @@ const GroupingMe = () => {
   const [selectedEntrySessionId, setSelectedEntrySessionId] = useState<string | null>(null);
   const [entryForm, setEntryForm] = useState({
     entry_date: format(new Date(), 'yyyy-MM-dd'),
+    entry_time: '',
     skill_name: '',
     reward_points: 0,
     attempt_count: 1,
@@ -302,6 +303,7 @@ const GroupingMe = () => {
       session_id: targetSession.id,
       user_id: viewingUserId,
       entry_date: entryForm.entry_date,
+      entry_time: entryForm.entry_time || undefined,
       skill_name: entryForm.skill_name,
       reward_points: entryForm.reward_points,
       attempt_count: entryForm.attempt_count,
@@ -309,6 +311,7 @@ const GroupingMe = () => {
 
     setEntryForm({
       entry_date: format(new Date(), 'yyyy-MM-dd'),
+      entry_time: '',
       skill_name: '',
       reward_points: 0,
       attempt_count: 1,
@@ -330,6 +333,7 @@ const GroupingMe = () => {
     setEditingEntry(null);
     setEntryForm({
       entry_date: format(new Date(), 'yyyy-MM-dd'),
+      entry_time: '',
       skill_name: '',
       reward_points: 0,
       attempt_count: 1,
@@ -348,6 +352,7 @@ const GroupingMe = () => {
     setEditingEntry(entry);
     setEntryForm({
       entry_date: entry.entry_date,
+      entry_time: entry.entry_time || '',
       skill_name: entry.skill_name,
       reward_points: entry.reward_points,
       attempt_count: entry.attempt_count,
@@ -673,13 +678,24 @@ const GroupingMe = () => {
                               )}
                             </div>
                             
-                            <div className="space-y-2">
-                              <Label>Date</Label>
-                              <Input
-                                type="date"
-                                value={entryForm.entry_date}
-                                onChange={(e) => setEntryForm({ ...entryForm, entry_date: e.target.value })}
-                              />
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label>Date</Label>
+                                <Input
+                                  type="date"
+                                  value={entryForm.entry_date}
+                                  onChange={(e) => setEntryForm({ ...entryForm, entry_date: e.target.value })}
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label>Time</Label>
+                                <Input
+                                  type="time"
+                                  value={entryForm.entry_time}
+                                  onChange={(e) => setEntryForm({ ...entryForm, entry_time: e.target.value })}
+                                  placeholder="HH:MM"
+                                />
+                              </div>
                             </div>
                             <div className="space-y-2">
                               <Label>Skill Name</Label>
@@ -739,6 +755,7 @@ const GroupingMe = () => {
                           <TableRow>
                             <TableHead className="w-12">#</TableHead>
                             <TableHead>Date</TableHead>
+                            <TableHead>Time</TableHead>
                             <TableHead>Skill</TableHead>
                             <TableHead className="text-right">Points</TableHead>
                             <TableHead className="text-right">Attempts</TableHead>
@@ -758,6 +775,9 @@ const GroupingMe = () => {
                               <TableRow key={entry.id} className={isPending ? 'bg-yellow-500/5' : ''}>
                                 <TableCell className="font-medium">{entry.s_no}</TableCell>
                                 <TableCell>{format(new Date(entry.entry_date), 'MMM d')}</TableCell>
+                                <TableCell className="text-muted-foreground">
+                                  {entry.entry_time ? entry.entry_time.slice(0, 5) : '—'}
+                                </TableCell>
                                 <TableCell>{entry.skill_name}</TableCell>
                                 <TableCell className="text-right font-medium">{entry.reward_points}</TableCell>
                                 <TableCell className="text-right">{entry.attempt_count}</TableCell>

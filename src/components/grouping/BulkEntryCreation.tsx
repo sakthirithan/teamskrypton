@@ -47,6 +47,7 @@ export function BulkEntryCreation({ session }: BulkEntryCreationProps) {
     selectedSessionId: session?.id || '',
     selectedUsers: [] as string[],
     entry_date: format(new Date(), 'yyyy-MM-dd'),
+    entry_time: '',
     skill_name: '',
     reward_points: 0,
   });
@@ -81,6 +82,7 @@ export function BulkEntryCreation({ session }: BulkEntryCreationProps) {
       selectedSessionId: activeSession?.id || session?.id || '',
       selectedUsers: [],
       entry_date: format(new Date(), 'yyyy-MM-dd'),
+      entry_time: '',
       skill_name: '',
       reward_points: 0,
     });
@@ -151,6 +153,7 @@ export function BulkEntryCreation({ session }: BulkEntryCreationProps) {
         session_id: formData.selectedSessionId,
         user_id: userId,
         entry_date: formData.entry_date,
+        entry_time: formData.entry_time || null,
         skill_name: formData.skill_name,
         reward_points: formData.reward_points,
         attempt_count: 1,
@@ -310,13 +313,24 @@ export function BulkEntryCreation({ session }: BulkEntryCreationProps) {
             </div>
 
             {/* Entry Details */}
-            <div className="space-y-2">
-              <Label>Date</Label>
-              <Input
-                type="date"
-                value={formData.entry_date}
-                onChange={(e) => setFormData({ ...formData, entry_date: e.target.value })}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Date</Label>
+                <Input
+                  type="date"
+                  value={formData.entry_date}
+                  onChange={(e) => setFormData({ ...formData, entry_date: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Time</Label>
+                <Input
+                  type="time"
+                  value={formData.entry_time}
+                  onChange={(e) => setFormData({ ...formData, entry_time: e.target.value })}
+                  placeholder="HH:MM"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">

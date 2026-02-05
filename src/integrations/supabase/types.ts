@@ -392,6 +392,7 @@ export type Database = {
           created_at: string
           entered_by: string
           entry_date: string
+          entry_time: string | null
           id: string
           is_test: boolean | null
           reward_points: number
@@ -409,6 +410,7 @@ export type Database = {
           created_at?: string
           entered_by: string
           entry_date: string
+          entry_time?: string | null
           id?: string
           is_test?: boolean | null
           reward_points?: number
@@ -426,6 +428,7 @@ export type Database = {
           created_at?: string
           entered_by?: string
           entry_date?: string
+          entry_time?: string | null
           id?: string
           is_test?: boolean | null
           reward_points?: number

@@ -293,6 +293,7 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
                 <TableRow>
                   <TableHead>User</TableHead>
                   <TableHead>Date</TableHead>
+                  <TableHead>Time</TableHead>
                   <TableHead>Skill</TableHead>
                   <TableHead className="text-right">Points</TableHead>
                   <TableHead className="text-right">Attempts</TableHead>
@@ -308,6 +309,9 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
                     <TableRow key={entry.id}>
                       <TableCell>{member?.full_name || 'Unknown'}</TableCell>
                       <TableCell>{entry.entry_date ? format(new Date(entry.entry_date), 'yyyy-MM-dd') : '-' }</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {entry.entry_time ? entry.entry_time.slice(0, 5) : '—'}
+                      </TableCell>
                       <TableCell>{entry.skill_name}</TableCell>
                       <TableCell className="text-right">{entry.reward_points}</TableCell>
                       <TableCell className="text-right">{entry.attempt_count}</TableCell>
@@ -383,6 +387,7 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
                 <TableRow>
                   <TableHead>User</TableHead>
                   <TableHead>Date</TableHead>
+                  <TableHead>Time</TableHead>
                   <TableHead>Skill</TableHead>
                   <TableHead className="text-right">Points</TableHead>
                   <TableHead className="text-right">Attempts</TableHead>
@@ -398,6 +403,9 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
                     <TableRow key={entry.id}>
                       <TableCell>{member?.full_name || 'Unknown'}</TableCell>
                       <TableCell>{entry.entry_date ? format(new Date(entry.entry_date), 'yyyy-MM-dd') : '-' }</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {entry.entry_time ? entry.entry_time.slice(0, 5) : '—'}
+                      </TableCell>
                       <TableCell>{entry.skill_name}</TableCell>
                       <TableCell className="text-right">{entry.reward_points}</TableCell>
                       <TableCell className="text-right">{entry.attempt_count}</TableCell>

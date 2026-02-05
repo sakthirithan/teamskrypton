@@ -11,6 +11,7 @@ export interface PSDailyEntry {
   session_id: string;
   user_id: string;
   entry_date: string;
+  entry_time: string | null;
   skill_name: string;
   reward_points: number;
   attempt_count: number;
@@ -56,6 +57,7 @@ export function usePSDailyEntries(sessionId?: string, userId?: string) {
       session_id: string;
       user_id: string;
       entry_date: string;
+      entry_time?: string;
       skill_name: string;
       reward_points: number;
       attempt_count?: number;
@@ -79,6 +81,7 @@ export function usePSDailyEntries(sessionId?: string, userId?: string) {
           session_id: entry.session_id,
           user_id: entry.user_id,
           entry_date: entry.entry_date,
+          entry_time: entry.entry_time || null,
           skill_name: entry.skill_name,
           reward_points: entry.reward_points,
           attempt_count: entry.attempt_count ?? 1,
