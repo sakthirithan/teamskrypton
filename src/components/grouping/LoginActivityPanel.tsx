@@ -22,47 +22,75 @@ interface Profile {
 }
 
 /**
- * Login Activity Panel - VISIBLE ONLY TO TEAM MANAGERS
- * 
- * Shows TODAY's latest login per user (HH:MM format).
- * Multiple logins overwrite same-day record.
- * Read-only insight - no actions.
+ * LOGIN ACTIVITY PANEL
+ * Visible to: Team Manager, TL
+ * Realtime, read-only, safe
  */
 export function LoginActivityPanel() {
   const { role, user } = useAuth();
   const queryClient = useQueryClient();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Only Team Managers can see this
-  const isTeamManager = role === 'team_manager';
+  const canView = role === 'team_manager' || role === 'team_captain';
 
-  // Record current user's login when component mounts (for any user)
+  /* ---------------------------
+     RECORD LOGIN (ONCE PER LOAD)
+  ---------------------------- */
   useEffect(() => {
+    if (!user) return;
+
     const recordLogin = async () => {
-      if (!user) return;
-      
       const today = format(new Date(), 'yyyy-MM-dd');
       const currentTime = format(new Date(), 'HH:mm');
-      
+
       try {
-        // Upsert login record
         await supabase
-          .from('user_login_activity' as any)
-          .upsert({
-            user_id: user.id,
-            login_date: today,
-            login_time: currentTime,
-          }, {
-            onConflict: 'user_id,login_date',
-          });
-      } catch (error) {
-        console.warn('Failed to record login activity:', error);
+          .from('user_login_activity')
+          .upsert(
+            {
+              user_id: user.id,
+              login_date: today,
+              login_time: currentTime,
+            },
+            { onConflict: 'user_id,login_date' }
+          );
+      } catch (err) {
+        console.warn('Login activity tracking failed:', err);
       }
     };
-    
+
     recordLogin();
   }, [user]);
 
+  /* ---------------------------
+     REALTIME SUBSCRIPTION
+  ---------------------------- */
+  useEffect(() => {
+    if (!canView) return;
+
+    const channel = supabase
+      .channel('login-activity-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_login_activity',
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['login-activity'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [canView, queryClient]);
+
+  /* ---------------------------
+     MANUAL REFRESH
+  ---------------------------- */
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     await queryClient.invalidateQueries({ queryKey: ['login-activity'] });
@@ -70,60 +98,52 @@ export function LoginActivityPanel() {
     setIsRefreshing(false);
   }, [queryClient]);
 
-  // Fetch today's login records using raw SQL query
-  const { data: loginRecords = [], isLoading: loadingRecords } = useQuery({
+  /* ---------------------------
+     FETCH LOGIN RECORDS (TODAY)
+  ---------------------------- */
+  const { data: loginRecords = [], isLoading } = useQuery({
     queryKey: ['login-activity'],
     queryFn: async (): Promise<LoginRecord[]> => {
       const today = format(new Date(), 'yyyy-MM-dd');
-      
+
       const { data, error } = await supabase
-        .rpc('get_today_login_activity' as any, { target_date: today });
-      
+        .from('user_login_activity')
+        .select('id, user_id, login_date, login_time, created_at')
+        .eq('login_date', today)
+        .order('login_time', { ascending: false });
+
       if (error) {
-        // Fallback: try direct table access
-        const { data: directData, error: directError } = await supabase
-          .from('user_login_activity' as any)
-          .select('id, user_id, login_date, login_time, created_at')
-          .eq('login_date', today)
-          .order('login_time', { ascending: false });
-        
-        if (directError) {
-          console.warn('Login activity error:', directError.message);
-          return [];
-        }
-        
-        return (directData || []) as unknown as LoginRecord[];
+        console.warn('Login fetch error:', error.message);
+        return [];
       }
-      
-      return (data || []) as unknown as LoginRecord[];
+
+      return data as LoginRecord[];
     },
-    enabled: isTeamManager && !!user,
-    refetchInterval: 60000, // Refresh every minute
+    enabled: canView && !!user,
+    refetchInterval: 60000, // fallback polling
   });
 
-  // Fetch team members for names
+  /* ---------------------------
+     FETCH TEAM MEMBERS
+  ---------------------------- */
   const { data: teamMembers = [] } = useQuery({
     queryKey: ['team-members-login'],
-    queryFn: async () => {
+    queryFn: async (): Promise<Profile[]> => {
       const { data, error } = await supabase
         .from('profiles')
         .select('user_id, full_name')
         .eq('is_test', false);
+
       if (error) throw error;
-      return data as Profile[];
+      return data;
     },
-    enabled: isTeamManager && !!user,
+    enabled: canView,
   });
 
-  // Don't render for non-Team Managers
-  if (!isTeamManager) return null;
+  if (!canView) return null;
 
-  const getMemberName = (userId: string) => {
-    return teamMembers.find(m => m.user_id === userId)?.full_name || 'Unknown';
-  };
-
-  const loggedInCount = loginRecords.length;
-  const totalMembers = teamMembers.length;
+  const getName = (userId: string) =>
+    teamMembers.find(m => m.user_id === userId)?.full_name || 'Unknown';
 
   return (
     <Card>
@@ -131,20 +151,20 @@ export function LoginActivityPanel() {
         <CardTitle className="flex items-center justify-between">
           <span className="flex items-center gap-2 text-base">
             <LogIn className="w-4 h-4" />
-            Today's Login Activity
+            Today’s Login Activity
             <RefreshButton onClick={handleRefresh} isRefreshing={isRefreshing} />
           </span>
-          <Badge variant="secondary" className="ml-auto">
+          <Badge variant="secondary">
             <Users className="w-3 h-3 mr-1" />
-            {loggedInCount}/{totalMembers}
+            {loginRecords.length}/{teamMembers.length}
           </Badge>
         </CardTitle>
       </CardHeader>
 
       <CardContent>
-        {loadingRecords ? (
-          <div className="flex items-center justify-center py-4">
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+        {isLoading ? (
+          <div className="flex justify-center py-4">
+            <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-primary" />
           </div>
         ) : loginRecords.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">
@@ -152,25 +172,25 @@ export function LoginActivityPanel() {
           </p>
         ) : (
           <div className="space-y-2 max-h-[200px] overflow-y-auto">
-            {loginRecords.map((record) => (
+            {loginRecords.map(record => (
               <div
                 key={record.id}
                 className="flex items-center justify-between p-2 rounded-lg bg-muted/50 text-sm"
               >
                 <span className="font-medium truncate">
-                  {getMemberName(record.user_id)}
+                  {getName(record.user_id)}
                 </span>
-                <div className="flex items-center gap-1 text-muted-foreground shrink-0">
+                <span className="flex items-center gap-1 text-muted-foreground">
                   <Clock className="w-3 h-3" />
-                  <span>{record.login_time}</span>
-                </div>
+                  {record.login_time}
+                </span>
               </div>
             ))}
           </div>
         )}
 
         <p className="text-xs text-muted-foreground mt-3 text-center">
-          Read-only insight • Auto-refreshes every minute
+          Read-only • Updates in real time • Latest login per user today
         </p>
       </CardContent>
     </Card>
