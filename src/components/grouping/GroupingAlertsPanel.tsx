@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, TrendingDown, Calendar, Clock, Trash2 } from 'lucide-react';
+import { AlertTriangle, TrendingDown, Calendar, Clock, Trash2, CheckCircle2, RotateCcw } from 'lucide-react';
 import { useGroupingSessions } from '@/hooks/useGroupingSessions';
 import { useGroupingTargets } from '@/hooks/useGroupingTargets';
 import { usePSDailyEntries } from '@/hooks/usePSDailyEntries';
@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { RefreshButton } from '@/components/ui/RefreshIconButton';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   calculateTargetStatus,
   calculateSessionDays,
@@ -23,7 +24,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2 } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -32,6 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useToast } from '@/hooks/use-toast';
 
 interface Profile {
   user_id: string;
@@ -45,19 +46,27 @@ interface GroupingAlertsPanelProps {
 export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
   const { isLeadership } = useAuth();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const { activeSession } = useGroupingSessions();
   
   // Use passed session or fall back to active session
   const viewingSession = session || activeSession;
   
   const { targets } = useGroupingTargets(viewingSession?.id);
-  const { entries } = usePSDailyEntries(viewingSession?.id);
+  const { entries, completeEntry, revertEntry, deleteEntry } = usePSDailyEntries(viewingSession?.id);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showPendingDialog, setShowPendingDialog] = useState(false);
   const [deleteEntryId, setDeleteEntryId] = useState<string | null>(null);
   const [showCompletedDialog, setShowCompletedDialog] = useState(false);
   const [searchText, setSearchText] = useState('');
+  
+  // Bulk selection state
+  const [selectedPendingIds, setSelectedPendingIds] = useState<Set<string>>(new Set());
+  const [selectedCompletedIds, setSelectedCompletedIds] = useState<Set<string>>(new Set());
+  const [isBulkProcessing, setIsBulkProcessing] = useState(false);
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+  const [bulkDeleteType, setBulkDeleteType] = useState<'pending' | 'completed'>('pending');
 
 
 
@@ -90,12 +99,112 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
 
   const openPendingDialog = () => {
     setSearchText('');
+    setSelectedPendingIds(new Set());
     setShowPendingDialog(true);
   };
 
   const openCompletedDialog = () => {
     setSearchText('');
+    setSelectedCompletedIds(new Set());
     setShowCompletedDialog(true);
+  };
+
+  // Bulk action handlers
+  const handleBulkComplete = async () => {
+    if (selectedPendingIds.size === 0) return;
+    setIsBulkProcessing(true);
+    
+    try {
+      for (const id of selectedPendingIds) {
+        await completeEntry.mutateAsync(id);
+      }
+      toast({ title: 'Entries Completed', description: `${selectedPendingIds.size} entries marked as completed.` });
+      setSelectedPendingIds(new Set());
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to complete some entries.', variant: 'destructive' });
+    } finally {
+      setIsBulkProcessing(false);
+    }
+  };
+
+  const handleBulkRevert = async () => {
+    if (selectedCompletedIds.size === 0) return;
+    setIsBulkProcessing(true);
+    
+    try {
+      for (const id of selectedCompletedIds) {
+        await revertEntry.mutateAsync(id);
+      }
+      toast({ title: 'Entries Reverted', description: `${selectedCompletedIds.size} entries moved back to pending.` });
+      setSelectedCompletedIds(new Set());
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to revert some entries.', variant: 'destructive' });
+    } finally {
+      setIsBulkProcessing(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    const idsToDelete = bulkDeleteType === 'pending' ? selectedPendingIds : selectedCompletedIds;
+    if (idsToDelete.size === 0) return;
+    setIsBulkProcessing(true);
+    
+    try {
+      for (const id of idsToDelete) {
+        await deleteEntry.mutateAsync(id);
+      }
+      toast({ title: 'Entries Deleted', description: `${idsToDelete.size} entries deleted.` });
+      if (bulkDeleteType === 'pending') {
+        setSelectedPendingIds(new Set());
+      } else {
+        setSelectedCompletedIds(new Set());
+      }
+      setShowBulkDeleteDialog(false);
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to delete some entries.', variant: 'destructive' });
+    } finally {
+      setIsBulkProcessing(false);
+    }
+  };
+
+  const togglePendingSelection = (id: string) => {
+    setSelectedPendingIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleCompletedSelection = (id: string) => {
+    setSelectedCompletedIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllPending = (entries: typeof pendingEntries) => {
+    if (selectedPendingIds.size === entries.length) {
+      setSelectedPendingIds(new Set());
+    } else {
+      setSelectedPendingIds(new Set(entries.map(e => e.id)));
+    }
+  };
+
+  const selectAllCompleted = (entries: typeof completedEntries) => {
+    if (selectedCompletedIds.size === entries.length) {
+      setSelectedCompletedIds(new Set());
+    } else {
+      setSelectedCompletedIds(new Set(entries.map(e => e.id)));
+    }
   };
 
 
@@ -205,6 +314,10 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
     });
   };
 
+  // Filtered entries for bulk selection
+  const filteredPendingEntries = filterEntries(pendingEntries);
+  const filteredCompletedEntries = filterEntries(completedEntries);
+
 
 
 
@@ -275,22 +388,61 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
 
       {/* 🔍 PENDING ENTRIES POPUP */}
       <Dialog open={showPendingDialog} onOpenChange={setShowPendingDialog}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-4xl">
           <DialogHeader>
-            <DialogTitle>Pending PS Daily Entries</DialogTitle>
+            <DialogTitle className="flex items-center justify-between">
+              <span>Pending PS Daily Entries</span>
+              {selectedPendingIds.size > 0 && (
+                <Badge variant="secondary">{selectedPendingIds.size} selected</Badge>
+              )}
+            </DialogTitle>
           </DialogHeader>
 
-          <Input
-            placeholder="Search by user or skill..."
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            className="mb-3"
-          />
+          <div className="flex flex-col sm:flex-row gap-2 mb-3">
+            <Input
+              placeholder="Search by user or skill..."
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              className="flex-1"
+            />
+            {selectedPendingIds.size > 0 && !isSessionClosed && (
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={handleBulkComplete}
+                  disabled={isBulkProcessing}
+                  className="bg-primary hover:bg-primary/90"
+                >
+                  <CheckCircle2 className="w-4 h-4 mr-1" />
+                  Complete ({selectedPendingIds.size})
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => {
+                    setBulkDeleteType('pending');
+                    setShowBulkDeleteDialog(true);
+                  }}
+                  disabled={isBulkProcessing}
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  Delete ({selectedPendingIds.size})
+                </Button>
+              </div>
+            )}
+          </div>
 
           <div className="max-h-[400px] overflow-y-auto">
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={filteredPendingEntries.length > 0 && selectedPendingIds.size === filteredPendingEntries.length}
+                      onCheckedChange={() => selectAllPending(filteredPendingEntries)}
+                      disabled={isSessionClosed}
+                    />
+                  </TableHead>
                   <TableHead>User</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Time</TableHead>
@@ -302,11 +454,18 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
               </TableHeader>
 
               <TableBody>
-                {filterEntries(pendingEntries).map(entry => {
+                {filteredPendingEntries.map(entry => {
                   const member = teamMembers.find(m => m.user_id === entry.user_id);
 
                   return (
-                    <TableRow key={entry.id}>
+                    <TableRow key={entry.id} className={selectedPendingIds.has(entry.id) ? 'bg-muted/50' : ''}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedPendingIds.has(entry.id)}
+                          onCheckedChange={() => togglePendingSelection(entry.id)}
+                          disabled={isSessionClosed}
+                        />
+                      </TableCell>
                       <TableCell>{member?.full_name || 'Unknown'}</TableCell>
                       <TableCell>{entry.entry_date ? format(new Date(entry.entry_date), 'yyyy-MM-dd') : '-' }</TableCell>
                       <TableCell className="text-muted-foreground">
@@ -369,22 +528,61 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
 
       {/* ✅ COMPLETED ENTRIES POPUP */}
       <Dialog open={showCompletedDialog} onOpenChange={setShowCompletedDialog}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-4xl">
           <DialogHeader>
-            <DialogTitle>Completed PS Daily Entries</DialogTitle>
+            <DialogTitle className="flex items-center justify-between">
+              <span>Completed PS Daily Entries</span>
+              {selectedCompletedIds.size > 0 && (
+                <Badge variant="secondary">{selectedCompletedIds.size} selected</Badge>
+              )}
+            </DialogTitle>
           </DialogHeader>
 
-          <Input
-            placeholder="Search by user or skill..."
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            className="mb-3"
-          />
+          <div className="flex flex-col sm:flex-row gap-2 mb-3">
+            <Input
+              placeholder="Search by user or skill..."
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              className="flex-1"
+            />
+            {selectedCompletedIds.size > 0 && !isSessionClosed && (
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleBulkRevert}
+                  disabled={isBulkProcessing}
+                >
+                  <RotateCcw className="w-4 h-4 mr-1" />
+                  Revert ({selectedCompletedIds.size})
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => {
+                    setBulkDeleteType('completed');
+                    setShowBulkDeleteDialog(true);
+                  }}
+                  disabled={isBulkProcessing}
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  Delete ({selectedCompletedIds.size})
+                </Button>
+              </div>
+            )}
+          </div>
 
           <div className="max-h-[400px] overflow-y-auto">
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={filteredCompletedEntries.length > 0 && selectedCompletedIds.size === filteredCompletedEntries.length}
+                      onCheckedChange={() => selectAllCompleted(filteredCompletedEntries)}
+                      disabled={isSessionClosed}
+                    />
+                  </TableHead>
                   <TableHead>User</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Time</TableHead>
@@ -396,11 +594,18 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
               </TableHeader>
 
               <TableBody>
-                {filterEntries(completedEntries).map(entry => {
+                {filteredCompletedEntries.map(entry => {
                   const member = teamMembers.find(m => m.user_id === entry.user_id);
 
                   return (
-                    <TableRow key={entry.id}>
+                    <TableRow key={entry.id} className={selectedCompletedIds.has(entry.id) ? 'bg-muted/50' : ''}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedCompletedIds.has(entry.id)}
+                          onCheckedChange={() => toggleCompletedSelection(entry.id)}
+                          disabled={isSessionClosed}
+                        />
+                      </TableCell>
                       <TableCell>{member?.full_name || 'Unknown'}</TableCell>
                       <TableCell>{entry.entry_date ? format(new Date(entry.entry_date), 'yyyy-MM-dd') : '-' }</TableCell>
                       <TableCell className="text-muted-foreground">
@@ -424,13 +629,37 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         )}
-
                       </TableCell>
                     </TableRow>
                   );
                 })}
               </TableBody>
             </Table>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* BULK DELETE CONFIRMATION DIALOG */}
+      <Dialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete {bulkDeleteType === 'pending' ? selectedPendingIds.size : selectedCompletedIds.size} PS Entries</DialogTitle>
+          </DialogHeader>
+
+          <p className="text-sm text-muted-foreground">
+            This action cannot be undone. All selected entries will be permanently removed from:
+            <br />• Individual PS records
+            <br />• Target progress
+            <br />• Team analytics
+          </p>
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => setShowBulkDeleteDialog(false)} disabled={isBulkProcessing}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleBulkDelete} disabled={isBulkProcessing}>
+              {isBulkProcessing ? 'Deleting...' : 'Yes, Delete All'}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
