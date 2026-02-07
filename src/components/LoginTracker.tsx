@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
@@ -6,23 +6,15 @@ import { format } from 'date-fns';
 /**
  * LoginTracker
  * - Runs for ALL roles
- * - Waits until auth is READY
- * - Records / updates latest login per day
- * - Runs ONCE per session
+ * - Updates login_time on every app load / refresh
+ * - One row per user per day (UPSERT)
  */
 export function LoginTracker() {
   const { user, isLoading } = useAuth();
 
-  // Prevent multiple writes
-  const hasRecordedRef = useRef(false);
-
   useEffect(() => {
-    // 🔴 CRITICAL CONDITIONS
-    if (isLoading) return;           // wait for auth
-    if (!user?.id) return;           // must be authenticated
-    if (hasRecordedRef.current) return; // run only once
-
-    hasRecordedRef.current = true;
+    if (isLoading) return;
+    if (!user?.id) return;
 
     const recordLogin = async () => {
       const today = format(new Date(), 'yyyy-MM-dd');
