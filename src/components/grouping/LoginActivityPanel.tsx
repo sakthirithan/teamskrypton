@@ -30,7 +30,7 @@ export function LoginActivityPanel() {
   const { role, user } = useAuth();
   const queryClient = useQueryClient();
   const [isRefreshing, setIsRefreshing] = useState(false);
-
+  // TL and TM both have access
   const canView = role === 'team_manager' || role === 'team_captain';
 
   /* ---------------------------
