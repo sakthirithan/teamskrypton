@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Trash2, Eye, Lock, Shield, Coins } from 'lucide-react';
+import { Trash2, Eye, Lock, Shield, Coins, Zap, Filter } from 'lucide-react';
 import { 
   Target, 
   Calendar, 
@@ -22,7 +22,8 @@ import {
   RotateCcw,
   AlertCircle,
   Download,
-  History
+  History,
+  Search
 } from 'lucide-react';
 import { useGroupingSessions, GroupingSession } from '@/hooks/useGroupingSessions';
 import { useGroupingTargets } from '@/hooks/useGroupingTargets';
@@ -105,9 +106,11 @@ const GroupingMe = () => {
     updateEntry, 
     completeEntry,
     revertEntry,
+    attemptEntry,
     deleteEntry, 
     getTotalPoints,
-    getPendingCount 
+    getPendingCount,
+    getAttemptCount 
   } = usePSDailyEntries(viewingSession?.id, viewingUserId);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -165,6 +168,13 @@ const GroupingMe = () => {
     reward_points: 0,
     attempt_count: 1,
   });
+  
+  // Date filter state for PS entries table
+  const [filterMode, setFilterMode] = useState<'all' | 'single' | 'range'>('all');
+  const [filterDate, setFilterDate] = useState<string>('');
+  const [filterFromDate, setFilterFromDate] = useState<string>('');
+  const [filterToDate, setFilterToDate] = useState<string>('');
+  const [tableSearchText, setTableSearchText] = useState<string>('');
   
   // Get active sessions for entry creation dropdown
   const activeSessions = sessions.filter(s => s.status === 'active');
@@ -240,35 +250,46 @@ const GroupingMe = () => {
   };
   
   // Can complete: 
-  // - Entry owner in own workspace
-  // - TL can complete entries in any workspace
+  // - Entry owner in own workspace for pending entries
+  // - TL/TM can complete entries in any workspace
   const canCompleteEntry = (entry: PSDailyEntry) => {
     if (isSessionClosed) return false;
     if (entry.status !== 'pending') return false;
-    // TL can complete any pending entry
-    if (isTL) return true;
+    // TL/TM can complete any pending entry
+    if (isTL || role === 'team_manager') return true;
     // Owner can complete their own entries
     return entry.user_id === user?.id && !isViewingOther;
   };
   
-  // Can revert: only leadership in active session
-  const canRevertEntry = (entry: PSDailyEntry) => {
+  // Can mark as attempt:
+  // - Entry owner in own workspace for pending entries
+  // - TL/TM can mark entries in any workspace
+  const canAttemptEntry = (entry: PSDailyEntry) => {
     if (isSessionClosed) return false;
-    return isLeadership && entry.status === 'completed';
+    if (entry.status !== 'pending') return false;
+    // TL/TM can mark any pending entry as attempt
+    if (isTL || role === 'team_manager') return true;
+    // Owner can mark their own entries
+    return entry.user_id === user?.id && !isViewingOther;
   };
   
-  // Can delete: owner can delete own entries, TL can delete any
+  // Can revert: only TL/TM in active session for completed or attempt entries
+  const canRevertEntry = (entry: PSDailyEntry) => {
+    if (isSessionClosed) return false;
+    return (isTL || role === 'team_manager') && (entry.status === 'completed' || entry.status === 'attempt');
+  };
+  
+  // Can delete: TL/TM can delete any, owner can delete own pending/attempt entries
   const canDeleteEntry = (entry: PSDailyEntry) => {
     if (isSessionClosed) return false;
-    // TL can delete any entry
-    if (isTL) return true;
-    // Owner can delete their own entries
+    // TL/TM can delete any entry
+    if (isTL || role === 'team_manager') return true;
+    // Owner can delete their own non-completed entries
     if (entry.user_id === user?.id && !isViewingOther) {
-      if((entry.status == 'completed')) return false;
-      return true
+      if (entry.status === 'completed') return false;
+      return true;
     }
-    // VC can delete (but with restrictions - same as own)
-    return role === 'vice_captain' && !isViewingOther;
+    return false;
   };
 
   const handleDeleteEntry = async (entryId: string) => {
@@ -344,6 +365,10 @@ const GroupingMe = () => {
     await completeEntry.mutateAsync(entryId);
   };
 
+  const handleAttemptEntry = async (entryId: string) => {
+    await attemptEntry.mutateAsync(entryId);
+  };
+
   const handleRevertEntry = async (entryId: string) => {
     await revertEntry.mutateAsync(entryId);
   };
@@ -359,20 +384,62 @@ const GroupingMe = () => {
     });
   };
 
-  // Export PS entries for current session
+  // Date-based filtering for PS entries
+  const filterEntriesByDate = (list: typeof entries) => {
+    if (filterMode === 'all') return list;
+    
+    if (filterMode === 'single' && filterDate) {
+      return list.filter(e => e.entry_date === filterDate);
+    }
+    
+    if (filterMode === 'range' && filterFromDate && filterToDate) {
+      return list.filter(e => {
+        return e.entry_date >= filterFromDate && e.entry_date <= filterToDate;
+      });
+    }
+    
+    return list;
+  };
+
+  // Get filtered and sorted entries (recent on top, ascending if filtered)
+  const getDisplayEntries = () => {
+    let filtered = filterEntriesByDate(entries);
+    
+    // Search filter
+    if (tableSearchText.trim()) {
+      const q = tableSearchText.toLowerCase();
+      filtered = filtered.filter(e => e.skill_name.toLowerCase().includes(q));
+    }
+    
+    // Sort: if filter applied, ascending; otherwise recent on top (descending)
+    const sorted = [...filtered].sort((a, b) => {
+      const dateCompare = new Date(a.entry_date).getTime() - new Date(b.entry_date).getTime();
+      if (filterMode !== 'all') {
+        return dateCompare; // Ascending when filtered
+      }
+      return -dateCompare; // Descending (recent first) by default
+    });
+    
+    return sorted;
+  };
+
+  const displayEntries = getDisplayEntries();
+
+  // Export PS entries for current session (respects filters)
   const handleExport = (exportFormat: 'csv' | 'xlsx') => {
-    if (entries.length === 0) {
+    if (displayEntries.length === 0) {
       toast({ variant: 'destructive', title: 'No Data', description: 'No entries to export.' });
       return;
     }
 
-    const exportData = entries.map(entry => ({
-      'S.No': entry.s_no,
-      'Date': format(new Date(entry.entry_date), 'yyyy-MM-dd'),
+    const exportData = displayEntries.map((entry, idx) => ({
+      'S.No': idx + 1,
+      'Date': format(new Date(entry.entry_date), 'dd-MM-yyyy'),
+      'Time': entry.entry_time ? entry.entry_time.slice(0, 5) : '-',
       'Skill Name': entry.skill_name,
       'Reward Points': entry.reward_points,
       'Attempts': entry.attempt_count,
-      'Status': entry.status === 'completed' ? 'Completed' : 'Pending',
+      'Status': entry.status.charAt(0).toUpperCase() + entry.status.slice(1),
       'Completed At': entry.completed_at ? format(new Date(entry.completed_at), 'yyyy-MM-dd HH:mm') : '-',
       'Session': viewingSession?.name || 'N/A'
     }));
@@ -383,7 +450,12 @@ const GroupingMe = () => {
 
     const userName = displayProfile?.full_name?.replace(/\s+/g, '_') || 'user';
     const sessionName = viewingSession?.name?.replace(/\s+/g, '_') || 'session';
-    const filename = `PS_Entries_${userName}_${sessionName}.${exportFormat}`;
+    const dateStr = filterMode === 'single' && filterDate 
+      ? `_${format(new Date(filterDate), 'dd-MM-yyyy')}`
+      : filterMode === 'range' && filterFromDate && filterToDate
+        ? `_${format(new Date(filterFromDate), 'dd-MM-yyyy')}_to_${format(new Date(filterToDate), 'dd-MM-yyyy')}`
+        : '';
+    const filename = `PS_Entries_${userName}_${sessionName}${dateStr}.${exportFormat}`;
     XLSX.writeFile(wb, filename);
 
     toast({ title: 'Export Complete', description: `Downloaded ${filename}` });
@@ -393,6 +465,12 @@ const GroupingMe = () => {
   const pendingPointsSum = entries
     .filter(e => e.status === 'pending')
     .reduce((sum, e) => sum + e.reward_points, 0);
+  
+  // Attempt entries sum
+  const attemptPointsSum = entries
+    .filter(e => e.status === 'attempt')
+    .reduce((sum, e) => sum + e.reward_points, 0);
+  const attemptCount = getAttemptCount(viewingUserId);
 
   return (
     <TooltipProvider>
@@ -744,9 +822,99 @@ const GroupingMe = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {entries.length === 0 ? (
+                  {/* Date Filter Controls */}
+                  <div className="flex flex-wrap gap-2 items-end mb-4 p-3 rounded-lg bg-muted/50">
+                    <div className="flex items-center gap-2">
+                      <Filter className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-xs font-medium">Filter:</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant={filterMode === 'all' ? 'default' : 'outline'}
+                        onClick={() => {
+                          setFilterMode('all');
+                          setFilterDate('');
+                          setFilterFromDate('');
+                          setFilterToDate('');
+                        }}
+                      >
+                        All
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={filterMode === 'single' ? 'default' : 'outline'}
+                        onClick={() => setFilterMode('single')}
+                      >
+                        Single Date
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={filterMode === 'range' ? 'default' : 'outline'}
+                        onClick={() => setFilterMode('range')}
+                      >
+                        Date Range
+                      </Button>
+                    </div>
+                    
+                    {filterMode === 'single' && (
+                      <Input
+                        type="date"
+                        value={filterDate}
+                        onChange={(e) => setFilterDate(e.target.value)}
+                        className="w-auto"
+                      />
+                    )}
+                    
+                    {filterMode === 'range' && (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="date"
+                          value={filterFromDate}
+                          onChange={(e) => setFilterFromDate(e.target.value)}
+                          className="w-auto"
+                          placeholder="From"
+                        />
+                        <span className="text-muted-foreground">→</span>
+                        <Input
+                          type="date"
+                          value={filterToDate}
+                          onChange={(e) => setFilterToDate(e.target.value)}
+                          className="w-auto"
+                          placeholder="To"
+                        />
+                      </div>
+                    )}
+                    
+                    {/* Search */}
+                    <div className="flex-1 min-w-[150px]">
+                      <div className="relative">
+                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Search skill..."
+                          value={tableSearchText}
+                          onChange={(e) => setTableSearchText(e.target.value)}
+                          className="pl-8"
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Active filter badge */}
+                    {filterMode === 'single' && filterDate && (
+                      <Badge variant="secondary">
+                        {format(new Date(filterDate), 'dd-MM-yyyy')}
+                      </Badge>
+                    )}
+                    {filterMode === 'range' && filterFromDate && filterToDate && (
+                      <Badge variant="secondary">
+                        {format(new Date(filterFromDate), 'dd-MM-yyyy')} → {format(new Date(filterToDate), 'dd-MM-yyyy')}
+                      </Badge>
+                    )}
+                  </div>
+
+                  {displayEntries.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-6">
-                      No entries yet. Add your first PS entry.
+                      {entries.length === 0 ? 'No entries yet. Add your first PS entry.' : 'No entries match the current filter.'}
                     </p>
                   ) : (
                     <div className="overflow-x-auto">
@@ -760,21 +928,33 @@ const GroupingMe = () => {
                             <TableHead className="text-right">Points</TableHead>
                             <TableHead className="text-right">Attempts</TableHead>
                             <TableHead>Status</TableHead>
-                            <TableHead className="w-24">Actions</TableHead>
+                            <TableHead className="w-32">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {entries.map((entry) => {
+                          {displayEntries.map((entry, idx) => {
                             const isPending = entry.status === 'pending';
+                            const isAttempt = entry.status === 'attempt';
+                            const isCompleted = entry.status === 'completed';
                             const canEditThisEntry = canEditEntry(entry);
                             const canComplete = canCompleteEntry(entry);
+                            const canAttempt = canAttemptEntry(entry);
                             const canRevert = canRevertEntry(entry);
                             const canDelete = canDeleteEntry(entry);
                             
+                            // For completed entries, only show actions to TL/TM
+                            const showActions = !isCompleted || isTL || role === 'team_manager';
+                            
                             return (
-                              <TableRow key={entry.id} className={isPending ? 'bg-yellow-500/5' : ''}>
-                                <TableCell className="font-medium">{entry.s_no}</TableCell>
-                                <TableCell>{format(new Date(entry.entry_date), 'MMM d')}</TableCell>
+                              <TableRow 
+                                key={entry.id} 
+                                className={
+                                  isPending ? 'bg-yellow-500/5' : 
+                                  isAttempt ? 'bg-blue-500/5' : ''
+                                }
+                              >
+                                <TableCell className="font-medium">{idx + 1}</TableCell>
+                                <TableCell>{format(new Date(entry.entry_date), 'dd-MM-yyyy')}</TableCell>
                                 <TableCell className="text-muted-foreground">
                                   {entry.entry_time ? entry.entry_time.slice(0, 5) : '—'}
                                 </TableCell>
@@ -787,6 +967,11 @@ const GroupingMe = () => {
                                       <Clock className="w-3 h-3 mr-1" />
                                       Pending
                                     </Badge>
+                                  ) : isAttempt ? (
+                                    <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20">
+                                      <Zap className="w-3 h-3 mr-1" />
+                                      Attempt
+                                    </Badge>
                                   ) : (
                                     <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">
                                       <CheckCircle className="w-3 h-3 mr-1" />
@@ -794,113 +979,97 @@ const GroupingMe = () => {
                                     </Badge>
                                   )}
                                 </TableCell>
-                                {/* <TableCell>
-                                  <div className="flex items-center gap-1">
-                                    {canChangeStatus && isPending && (
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-500/10"
-                                        onClick={() => handleCompleteEntry(entry.id)}
-                                        title="Mark as Completed"
-                                      >
-                                        <Check className="w-4 h-4" />
-                                      </Button>
-                                    )}
-                                    {isLeadership && !isPending && !isSessionClosed && (
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-7 w-7 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-500/10"
-                                        onClick={() => handleRevertEntry(entry.id)}
-                                        title="Revert to Pending"
-                                      >
-                                        <RotateCcw className="w-3 h-3" />
-                                      </Button>
-                                    )}
-                                    {canEditThisEntry && (
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-7 w-7"
-                                        onClick={() => openEditEntry(entry)}
-                                        title="Edit Entry"
-                                      >
-                                        <Edit2 className="w-3 h-3" />
-                                      </Button>
-                                    )}
-                                  </div>
-                                </TableCell> */}
                                 <TableCell>
-                                  <div className="flex items-center gap-1">
-                                    {/* Mark Completed */}
-                                    {canComplete && (
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-500/10"
-                                            onClick={() => handleCompleteEntry(entry.id)}
-                                          >
-                                            <Check className="w-4 h-4" />
-                                          </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>Mark as Completed</TooltipContent>
-                                      </Tooltip>
-                                    )}
+                                  {showActions ? (
+                                    <div className="flex items-center gap-1">
+                                      {/* Mark Completed */}
+                                      {canComplete && (
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <Button
+                                              size="icon"
+                                              variant="ghost"
+                                              className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-500/10"
+                                              onClick={() => handleCompleteEntry(entry.id)}
+                                            >
+                                              <Check className="w-4 h-4" />
+                                            </Button>
+                                          </TooltipTrigger>
+                                          <TooltipContent>Mark as Completed</TooltipContent>
+                                        </Tooltip>
+                                      )}
 
-                                    {/* Revert to Pending (Leadership only) */}
-                                    {canRevert && (
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            className="h-7 w-7 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-500/10"
-                                            onClick={() => handleRevertEntry(entry.id)}
-                                          >
-                                            <RotateCcw className="w-3 h-3" />
-                                          </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>Revert to Pending (Leadership Only)</TooltipContent>
-                                      </Tooltip>
-                                    )}
+                                      {/* Mark as Attempt */}
+                                      {canAttempt && (
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <Button
+                                              size="icon"
+                                              variant="ghost"
+                                              className="h-7 w-7 text-blue-600 hover:text-blue-700 hover:bg-blue-500/10"
+                                              onClick={() => handleAttemptEntry(entry.id)}
+                                            >
+                                              <Zap className="w-4 h-4" />
+                                            </Button>
+                                          </TooltipTrigger>
+                                          <TooltipContent>Mark as Attempt (effort, no points)</TooltipContent>
+                                        </Tooltip>
+                                      )}
 
-                                    {/* Edit Entry */}
-                                    {canEditThisEntry && (
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            className="h-7 w-7"
-                                            onClick={() => openEditEntry(entry)}
-                                          >
-                                            <Edit2 className="w-3 h-3" />
-                                          </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>Edit Entry</TooltipContent>
-                                      </Tooltip>
-                                    )}
+                                      {/* Revert to Pending (TL/TM only) */}
+                                      {canRevert && (
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <Button
+                                              size="icon"
+                                              variant="ghost"
+                                              className="h-7 w-7 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-500/10"
+                                              onClick={() => handleRevertEntry(entry.id)}
+                                            >
+                                              <RotateCcw className="w-3 h-3" />
+                                            </Button>
+                                          </TooltipTrigger>
+                                          <TooltipContent>Revert to Pending (TL/TM Only)</TooltipContent>
+                                        </Tooltip>
+                                      )}
 
-                                    {/* Delete Entry */}
-                                    {canDelete && (
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-500/10"
-                                            onClick={() => handleDeleteEntry(entry.id)}
-                                          >
-                                            <Trash2 className="w-4 h-4" />
-                                          </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>Delete Entry</TooltipContent>
-                                      </Tooltip>
-                                    )}
-                                  </div>
+                                      {/* Edit Entry */}
+                                      {canEditThisEntry && (
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <Button
+                                              size="icon"
+                                              variant="ghost"
+                                              className="h-7 w-7"
+                                              onClick={() => openEditEntry(entry)}
+                                            >
+                                              <Edit2 className="w-3 h-3" />
+                                            </Button>
+                                          </TooltipTrigger>
+                                          <TooltipContent>Edit Entry</TooltipContent>
+                                        </Tooltip>
+                                      )}
+
+                                      {/* Delete Entry */}
+                                      {canDelete && (
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <Button
+                                              size="icon"
+                                              variant="ghost"
+                                              className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-500/10"
+                                              onClick={() => handleDeleteEntry(entry.id)}
+                                            >
+                                              <Trash2 className="w-4 h-4" />
+                                            </Button>
+                                          </TooltipTrigger>
+                                          <TooltipContent>Delete Entry</TooltipContent>
+                                        </Tooltip>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">—</span>
+                                  )}
                                 </TableCell>
                               </TableRow>
                             );
@@ -908,6 +1077,13 @@ const GroupingMe = () => {
                         </TableBody>
                       </Table>
                     </div>
+                  )}
+                  
+                  {/* Summary note */}
+                  {attemptCount > 0 && (
+                    <p className="text-xs text-muted-foreground mt-3">
+                      ⚡ {attemptCount} attempt entries ({attemptPointsSum} pts) — efforts that do NOT count toward targets
+                    </p>
                   )}
                 </CardContent>
               </Card>

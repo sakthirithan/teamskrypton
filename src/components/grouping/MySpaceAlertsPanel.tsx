@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, Clock, Target, Calendar } from 'lucide-react';
+import { AlertTriangle, Clock, Target, Calendar, Zap } from 'lucide-react';
 import { useGroupingTargets } from '@/hooks/useGroupingTargets';
 import { usePSDailyEntries } from '@/hooks/usePSDailyEntries';
 import { useAuth } from '@/hooks/useAuth';
@@ -21,7 +21,7 @@ export function MySpaceAlertsPanel({ userId, isViewingOther = false, session }: 
   const { user } = useAuth();
   // Use passed session (for session switching) - alerts are now session-bound
   const { myTargets } = useGroupingTargets(session?.id);
-  const { getTotalPoints, getPendingCount } = usePSDailyEntries(
+  const { getTotalPoints, getPendingCount, getAttemptCount } = usePSDailyEntries(
     session?.id,
     userId || user?.id
   );
@@ -44,9 +44,10 @@ export function MySpaceAlertsPanel({ userId, isViewingOther = false, session }: 
 
   const achievedPoints = getTotalPoints(viewingUserId);
   const pendingCount = getPendingCount(viewingUserId);
+  const attemptCount = getAttemptCount(viewingUserId);
 
   const alerts: {
-    type: 'behind' | 'pending' | 'deadline';
+    type: 'behind' | 'pending' | 'deadline' | 'attempt';
     message: string;
   }[] = [];
 
@@ -81,6 +82,16 @@ export function MySpaceAlertsPanel({ userId, isViewingOther = false, session }: 
       message: `You have ${pendingCount} pending ${
         pendingCount === 1 ? 'entry' : 'entries'
       } to complete`,
+    });
+  }
+
+  // ⚡ Attempt entries alert
+  if (attemptCount > 0) {
+    alerts.push({
+      type: 'attempt',
+      message: `You have ${attemptCount} attempt ${
+        attemptCount === 1 ? 'entry' : 'entries'
+      } (does not count toward target)`,
     });
   }
 
@@ -121,6 +132,8 @@ export function MySpaceAlertsPanel({ userId, isViewingOther = false, session }: 
                   ? 'bg-red-500/10 text-red-700 dark:text-red-400'
                   : alert.type === 'pending'
                   ? 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400'
+                  : alert.type === 'attempt'
+                  ? 'bg-blue-500/10 text-blue-700 dark:text-blue-400'
                   : 'bg-blue-500/10 text-blue-700 dark:text-blue-400'
               }`}
             >
@@ -129,6 +142,9 @@ export function MySpaceAlertsPanel({ userId, isViewingOther = false, session }: 
               )}
               {alert.type === 'pending' && (
                 <Clock className="w-4 h-4 mt-0.5 shrink-0" />
+              )}
+              {alert.type === 'attempt' && (
+                <Zap className="w-4 h-4 mt-0.5 shrink-0" />
               )}
               {alert.type === 'deadline' && (
                 <Calendar className="w-4 h-4 mt-0.5 shrink-0" />

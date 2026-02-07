@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 
-export type PSEntryStatus = 'pending' | 'completed';
+export type PSEntryStatus = 'pending' | 'completed' | 'attempt';
 
 export interface PSDailyEntry {
   id: string;
@@ -179,6 +179,30 @@ export function usePSDailyEntries(sessionId?: string, userId?: string) {
     },
   });
 
+  // Mark entry as attempt (effort, not completion - does NOT count toward target)
+  const attemptEntry = useMutation({
+    mutationFn: async (entryId: string) => {
+      const { data, error } = await supabase
+        .from('ps_daily_entries')
+        .update({
+          status: 'attempt',
+        })
+        .eq('id', entryId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ps-daily-entries'] });
+      toast({ title: 'Entry Marked as Attempt', description: 'Effort recorded. Does not count toward target.' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
   const deleteEntry = useMutation({
     mutationFn: async (entryId: string) => {
       const { error } = await supabase
@@ -213,6 +237,13 @@ export function usePSDailyEntries(sessionId?: string, userId?: string) {
       .filter(e => e.user_id === targetUserId && e.status === 'pending').length;
   };
 
+  // Get attempt entries count
+  const getAttemptCount = (forUserId?: string) => {
+    const targetUserId = forUserId || user?.id;
+    return (entriesQuery.data || [])
+      .filter(e => e.user_id === targetUserId && e.status === 'attempt').length;
+  };
+
   return {
     entries: entriesQuery.data || [],
     isLoading: entriesQuery.isLoading,
@@ -221,9 +252,11 @@ export function usePSDailyEntries(sessionId?: string, userId?: string) {
     updateEntry,
     completeEntry,
     revertEntry,
+    attemptEntry,
     deleteEntry,
     getTotalPoints,
     getPendingCount,
+    getAttemptCount,
     refetch: entriesQuery.refetch,
   };
 }
