@@ -32,7 +32,7 @@ export function LoginActivityPanel() {
      RECORD / UPDATE LOGIN (LATEST PER DAY)
   ---------------------------------------- */
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id) return;   // 🔥 THIS IS CRITICAL
 
     const recordLogin = async () => {
       const today = format(new Date(), 'yyyy-MM-dd');
@@ -57,7 +57,8 @@ export function LoginActivityPanel() {
     };
 
     recordLogin();
-  }, [user]);
+  }, [user?.id]);
+
 
   /* ---------------------------------------
      REALTIME LISTENER (INSERT + UPDATE)
