@@ -539,9 +539,9 @@ const GroupingMe = () => {
 
           {/* Role-Based Features Section - Show below user name for own profile */}
             {!isViewingOther && viewingSession && (
-              <CardContent className="pt-0 border-t mt-2 w-full">
+              <Card className="pt-0 mt-2 w-full">
                 <RoleBasedMySpaceFeatures session={viewingSession} userId={viewingUserId} />
-              </CardContent>
+              </Card>
             )}
 
           {/* Session Card - Replaces the old session selector */}
