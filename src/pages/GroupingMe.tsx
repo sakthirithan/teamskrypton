@@ -222,7 +222,7 @@ const GroupingMe = () => {
   const isViewingHistory = selectedSessionId && viewingSession?.status === 'closed';
   
   // TL has full control on any user's My Space (not read-only)
-  const isTL = role === 'team_captain';
+  const isTL = role === 'team_captain' || role === 'team_manager' || role === 'vice_captain' || role === 'strategist';
   
   // STRICT READ-ONLY RULES:
   // 1. Closed session = always read-only for everyone
@@ -256,7 +256,7 @@ const GroupingMe = () => {
     if (isSessionClosed) return false;
     if (entry.status !== 'pending') return false;
     // TL/TM can complete any pending entry
-    if (isTL || role === 'team_manager') return true;
+    if (isTL) return true;
     // Owner can complete their own entries
     return entry.user_id === user?.id && !isViewingOther;
   };
@@ -268,7 +268,7 @@ const GroupingMe = () => {
     if (isSessionClosed) return false;
     if (entry.status !== 'pending') return false;
     // TL/TM can mark any pending entry as attempt
-    if (isTL || role === 'team_manager') return true;
+    if (isTL) return true;
     // Owner can mark their own entries
     return entry.user_id === user?.id && !isViewingOther;
   };
@@ -276,14 +276,14 @@ const GroupingMe = () => {
   // Can revert: only TL/TM in active session for completed or attempt entries
   const canRevertEntry = (entry: PSDailyEntry) => {
     if (isSessionClosed) return false;
-    return (isTL || role === 'team_manager') && (entry.status === 'completed' || entry.status === 'attempt');
+    return (isTL) && (entry.status === 'completed' || entry.status === 'attempt');
   };
   
   // Can delete: TL/TM can delete any, owner can delete own pending/attempt entries
   const canDeleteEntry = (entry: PSDailyEntry) => {
     if (isSessionClosed) return false;
     // TL/TM can delete any entry
-    if (isTL || role === 'team_manager') return true;
+    if (isTL) return true;
     // Owner can delete their own non-completed entries
     if (entry.user_id === user?.id && !isViewingOther) {
       if (entry.status === 'completed') return false;
@@ -943,7 +943,7 @@ const GroupingMe = () => {
                             const canDelete = canDeleteEntry(entry);
                             
                             // For completed entries, only show actions to TL/TM
-                            const showActions = !isCompleted || isTL || role === 'team_manager';
+                            const showActions = !isCompleted || isTL;
                             
                             return (
                               <TableRow 
