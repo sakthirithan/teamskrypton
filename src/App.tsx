@@ -15,8 +15,10 @@ import MemberPublicProfile from "./pages/MemberPublicProfile";
 import GroupingHome from "./pages/GroupingHome";
 import GroupingMe from "./pages/GroupingMe";
 import NotFound from "./pages/NotFound";
+import { LoginTracker } from '@/components/LoginTracker';
 
 const queryClient = new QueryClient();
+
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -27,6 +29,8 @@ const App = () => (
         <AppModeProvider>
           <PWAInstallPrompt />
           <BrowserRouter>
+          {/* 🔥 ADD LOGIN TRACKER HERE */}
+            <LoginTracker />
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
