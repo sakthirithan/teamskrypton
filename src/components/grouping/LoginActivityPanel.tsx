@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { LogIn, Clock, Users } from 'lucide-react';
@@ -8,34 +8,29 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { RefreshButton } from '@/components/ui/RefreshIconButton';
 import { format } from 'date-fns';
 
+/* ---------------- TYPES ---------------- */
+
 interface LoginRecord {
   id: string;
-  user_id: string;
-  login_date: string;
   login_time: string;
-  created_at: string;
+  profiles: {
+    full_name: string;
+  } | null;
 }
 
-interface Profile {
-  user_id: string;
-  full_name: string;
-}
+/* ---------------- COMPONENT ---------------- */
 
-/**
- * LOGIN ACTIVITY PANEL
- * Visible to: Team Manager, TL
- * Realtime, read-only, safe
- */
 export function LoginActivityPanel() {
   const { role, user } = useAuth();
   const queryClient = useQueryClient();
   const [isRefreshing, setIsRefreshing] = useState(false);
-  // TL and TM both have access
+
+  // Only Team Manager / Team Captain
   const canView = role === 'team_manager' || role === 'team_captain';
 
-  /* ---------------------------
-     RECORD LOGIN (ONCE PER LOAD)
-  ---------------------------- */
+  /* ---------------------------------------
+     RECORD / UPDATE LOGIN (LATEST PER DAY)
+  ---------------------------------------- */
   useEffect(() => {
     if (!user) return;
 
@@ -43,28 +38,30 @@ export function LoginActivityPanel() {
       const today = format(new Date(), 'yyyy-MM-dd');
       const currentTime = format(new Date(), 'HH:mm');
 
-      try {
-        await supabase
-          .from('user_login_activity')
-          .upsert(
-            {
-              user_id: user.id,
-              login_date: today,
-              login_time: currentTime,
-            },
-            { onConflict: 'user_id,login_date' }
-          );
-      } catch (err) {
-        console.warn('Login activity tracking failed:', err);
+      const { error } = await supabase
+        .from('user_login_activity')
+        .upsert(
+          {
+            user_id: user.id,
+            login_date: today,
+            login_time: currentTime,
+          },
+          {
+            onConflict: 'user_id,login_date',
+          }
+        );
+
+      if (error) {
+        console.warn('Login activity failed:', error.message);
       }
     };
 
     recordLogin();
   }, [user]);
 
-  /* ---------------------------
-     REALTIME SUBSCRIPTION
-  ---------------------------- */
+  /* ---------------------------------------
+     REALTIME LISTENER (INSERT + UPDATE)
+  ---------------------------------------- */
   useEffect(() => {
     if (!canView) return;
 
@@ -73,7 +70,7 @@ export function LoginActivityPanel() {
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: '*', // INSERT + UPDATE
           schema: 'public',
           table: 'user_login_activity',
         },
@@ -88,62 +85,51 @@ export function LoginActivityPanel() {
     };
   }, [canView, queryClient]);
 
-  /* ---------------------------
+  /* ---------------------------------------
      MANUAL REFRESH
-  ---------------------------- */
+  ---------------------------------------- */
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     await queryClient.invalidateQueries({ queryKey: ['login-activity'] });
-    await queryClient.invalidateQueries({ queryKey: ['team-members-login'] });
     setIsRefreshing(false);
   }, [queryClient]);
 
-  /* ---------------------------
-     FETCH LOGIN RECORDS (TODAY)
-  ---------------------------- */
+  /* ---------------------------------------
+     FETCH TODAY'S LOGIN DATA
+     (FK JOIN + TS SAFE CAST)
+  ---------------------------------------- */
   const { data: loginRecords = [], isLoading } = useQuery({
     queryKey: ['login-activity'],
+    enabled: canView,
+    refetchInterval: 60000,
     queryFn: async (): Promise<LoginRecord[]> => {
       const today = format(new Date(), 'yyyy-MM-dd');
 
       const { data, error } = await supabase
         .from('user_login_activity')
-        .select('id, user_id, login_date, login_time, created_at')
+        .select(
+          `
+          id,
+          login_time,
+          profiles:profiles!fk_user_login_profiles (
+            full_name
+          )
+        `
+        )
         .eq('login_date', today)
         .order('login_time', { ascending: false });
 
       if (error) {
-        console.warn('Login fetch error:', error.message);
+        console.error('Login fetch error:', error.message);
         return [];
       }
 
-      return data as LoginRecord[];
+      // Supabase TS safe cast
+      return (data ?? []) as unknown as LoginRecord[];
     },
-    enabled: canView && !!user,
-    refetchInterval: 60000, // fallback polling
-  });
-
-  /* ---------------------------
-     FETCH TEAM MEMBERS
-  ---------------------------- */
-  const { data: teamMembers = [] } = useQuery({
-    queryKey: ['team-members-login'],
-    queryFn: async (): Promise<Profile[]> => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('user_id, full_name')
-        .eq('is_test', false);
-
-      if (error) throw error;
-      return data;
-    },
-    enabled: canView,
   });
 
   if (!canView) return null;
-
-  const getName = (userId: string) =>
-    teamMembers.find(m => m.user_id === userId)?.full_name || 'Unknown';
 
   return (
     <Card>
@@ -154,9 +140,10 @@ export function LoginActivityPanel() {
             Today’s Login Activity
             <RefreshButton onClick={handleRefresh} isRefreshing={isRefreshing} />
           </span>
+
           <Badge variant="secondary">
             <Users className="w-3 h-3 mr-1" />
-            {loginRecords.length}/{teamMembers.length}
+            {loginRecords.length}
           </Badge>
         </CardTitle>
       </CardHeader>
@@ -168,17 +155,17 @@ export function LoginActivityPanel() {
           </div>
         ) : loginRecords.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">
-            No logins recorded today yet.
+            No users logged in today yet.
           </p>
         ) : (
-          <div className="space-y-2 max-h-[200px] overflow-y-auto">
+          <div className="space-y-2 max-h-[220px] overflow-y-auto">
             {loginRecords.map(record => (
               <div
                 key={record.id}
                 className="flex items-center justify-between p-2 rounded-lg bg-muted/50 text-sm"
               >
                 <span className="font-medium truncate">
-                  {getName(record.user_id)}
+                  {record.profiles?.full_name ?? 'Unknown User'}
                 </span>
                 <span className="flex items-center gap-1 text-muted-foreground">
                   <Clock className="w-3 h-3" />
@@ -190,7 +177,7 @@ export function LoginActivityPanel() {
         )}
 
         <p className="text-xs text-muted-foreground mt-3 text-center">
-          Read-only • Updates in real time • Latest login per user today
+          Read-only • Realtime • Latest login time per user (today)
         </p>
       </CardContent>
     </Card>
