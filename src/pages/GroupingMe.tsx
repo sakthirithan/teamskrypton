@@ -35,6 +35,7 @@ import { RoleBasedMySpaceFeatures } from '@/components/grouping/RoleBasedMySpace
 import { BulkEntryCreation } from '@/components/grouping/BulkEntryCreation';
 import { TestModeSettingsPanel } from '@/components/guest/TestModeSettingsPanel';
 import { ReadOnlyWorkspaceIndicator } from '@/components/grouping/ReadOnlyWorkspaceIndicator';
+import { CombinedTargetsCard } from '@/components/grouping/CombinedTargetsCard';
 import { PointsDisplay } from '@/components/points/PointsDisplay';
 import { ROLE_LABELS, KryptonRole } from '@/lib/constants';
 import { 
@@ -346,6 +347,8 @@ const GroupingMe = () => {
 
     await updateEntry.mutateAsync({
       id: editingEntry.id,
+      entry_date: entryForm.entry_date,
+      entry_time: entryForm.entry_time || null,
       skill_name: entryForm.skill_name,
       reward_points: entryForm.reward_points,
       attempt_count: entryForm.attempt_count,
@@ -639,56 +642,14 @@ const GroupingMe = () => {
                 </Card>
               </div>
 
-              {/* My Target Progress */}
-              {myIndividualTarget && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center justify-between">
-                      <span>Target Progress</span>
-                      <Badge variant={
-                        calculateTargetStatus(
-                          myAchievedPoints, 
-                          myIndividualTarget.target_points, 
-                          daysRemaining, 
-                          totalDays
-                        ) === 'on_track' ? 'default' : 'destructive'
-                      }>
-                        {TARGET_STATUS_LABELS[
-                          calculateTargetStatus(
-                            myAchievedPoints, 
-                            myIndividualTarget.target_points, 
-                            daysRemaining, 
-                            totalDays
-                          )
-                        ]}
-                      </Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Completed Progress</span>
-                        <span className="font-medium">
-                          {myAchievedPoints} / {myIndividualTarget.target_points} pts
-                        </span>
-                      </div>
-                      <Progress 
-                        value={
-                          myIndividualTarget.target_points > 0
-                            ? Math.min(100, (myAchievedPoints / myIndividualTarget.target_points) * 100)
-                            : 0
-                        } 
-                        className="h-3"
-                      />
-                      {pendingCount > 0 && (
-                        <p className="text-xs text-muted-foreground">
-                          + {pendingPointsSum} pts pending completion
-                        </p>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+              {/* Combined Targets Card - Shows Individual + Group Targets */}
+              <CombinedTargetsCard
+                session={viewingSession}
+                individualTarget={myIndividualTarget}
+                groupTarget={groupTarget}
+                achievedPoints={myAchievedPoints}
+                groupAchievedPoints={groupTarget?.achieved_points || 0}
+              />
 
               {/* PS Daily Entries */}
               <Card>
@@ -1098,6 +1059,26 @@ const GroupingMe = () => {
               <DialogTitle>Edit Entry</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 pt-4">
+              {/* Date & Time - Editable */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Date</Label>
+                  <Input
+                    type="date"
+                    value={entryForm.entry_date}
+                    onChange={(e) => setEntryForm({ ...entryForm, entry_date: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Time</Label>
+                  <Input
+                    type="time"
+                    value={entryForm.entry_time}
+                    onChange={(e) => setEntryForm({ ...entryForm, entry_time: e.target.value })}
+                    placeholder="HH:MM"
+                  />
+                </div>
+              </div>
               <div className="space-y-2">
                 <Label>Skill Name</Label>
                 <Input
