@@ -105,9 +105,17 @@ export function usePSDailyEntries(sessionId?: string, userId?: string) {
 
   const updateEntry = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<PSDailyEntry> & { id: string }) => {
+      // Only allow updating specific fields
+      const allowedUpdates: Partial<PSDailyEntry> = {};
+      if (updates.skill_name !== undefined) allowedUpdates.skill_name = updates.skill_name;
+      if (updates.reward_points !== undefined) allowedUpdates.reward_points = updates.reward_points;
+      if (updates.attempt_count !== undefined) allowedUpdates.attempt_count = updates.attempt_count;
+      if (updates.entry_date !== undefined) allowedUpdates.entry_date = updates.entry_date;
+      if (updates.entry_time !== undefined) allowedUpdates.entry_time = updates.entry_time;
+
       const { data, error } = await supabase
         .from('ps_daily_entries')
-        .update(updates)
+        .update(allowedUpdates)
         .eq('id', id)
         .select()
         .single();
