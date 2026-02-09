@@ -1,13 +1,14 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { Users, Clock, CheckCircle, XCircle, Wifi, WifiOff } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { RefreshButton } from '@/components/ui/RefreshIconButton';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 /* ---------------- TYPES ---------------- */
 
@@ -34,6 +35,9 @@ export function AttendancePanel() {
   const { role, user } = useAuth();
   const queryClient = useQueryClient();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(true);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const lastSyncRef = useRef<number>(Date.now());
 
   // Only Team Manager / Team Captain can view
   const canView = role === 'team_manager' || role === 'team_captain';
@@ -70,47 +74,37 @@ export function AttendancePanel() {
   }, [user?.id]);
 
   /* ---------------------------------------
-     REALTIME LISTENER (INSERT + UPDATE)
+     FETCH TODAY'S LOGIN DATA - REALTIME SOURCE
   ---------------------------------------- */
-  useEffect(() => {
-    if (!canView) return;
+  const today = format(new Date(), 'yyyy-MM-dd');
+  
+  const { data: loginRecords = [], isLoading: isLoadingLogins, refetch: refetchLogins } = useQuery({
+    queryKey: ['attendance-login-data', today],
+    enabled: canView,
+    staleTime: 5000,
+    queryFn: async (): Promise<LoginRecord[]> => {
+      const { data, error } = await supabase
+        .from('user_login_activity')
+        .select('user_id, login_time')
+        .eq('login_date', today);
 
-    const channel = supabase
-      .channel('attendance-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: '*', // INSERT + UPDATE
-          schema: 'public',
-          table: 'user_login_activity',
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['attendance-data'] });
-        }
-      )
-      .subscribe();
+      if (error) {
+        console.error('Login fetch error:', error.message);
+        return [];
+      }
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [canView, queryClient]);
-
-  /* ---------------------------------------
-     MANUAL REFRESH
-  ---------------------------------------- */
-  const handleRefresh = useCallback(async () => {
-    setIsRefreshing(true);
-    await queryClient.invalidateQueries({ queryKey: ['attendance-data'] });
-    setIsRefreshing(false);
-  }, [queryClient]);
+      lastSyncRef.current = Date.now();
+      return (data ?? []) as LoginRecord[];
+    },
+  });
 
   /* ---------------------------------------
      FETCH ALL PROFILES (non-test users)
   ---------------------------------------- */
-  const { data: allProfiles = [] } = useQuery({
+  const { data: allProfiles = [], isLoading: isLoadingProfiles } = useQuery({
     queryKey: ['all-profiles-attendance'],
     enabled: canView,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
     queryFn: async (): Promise<Profile[]> => {
       const { data, error } = await supabase
         .from('profiles')
@@ -128,28 +122,89 @@ export function AttendancePanel() {
   });
 
   /* ---------------------------------------
-     FETCH TODAY'S LOGIN DATA
+     REALTIME LISTENER - ROBUST IMPLEMENTATION
   ---------------------------------------- */
-  const { data: loginRecords = [], isLoading } = useQuery({
-    queryKey: ['attendance-data'],
-    enabled: canView,
-    refetchInterval: 30000, // Refresh every 30 seconds for accuracy
-    queryFn: async (): Promise<LoginRecord[]> => {
-      const today = format(new Date(), 'yyyy-MM-dd');
+  useEffect(() => {
+    if (!canView) return;
 
-      const { data, error } = await supabase
-        .from('user_login_activity')
-        .select('user_id, login_time')
-        .eq('login_date', today);
-
-      if (error) {
-        console.error('Login fetch error:', error.message);
-        return [];
+    // Setup realtime subscription
+    const setupChannel = () => {
+      // Cleanup existing channel
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
       }
 
-      return (data ?? []) as LoginRecord[];
-    },
-  });
+      const channel = supabase
+        .channel('attendance-realtime-v2')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'user_login_activity',
+            filter: `login_date=eq.${today}`,
+          },
+          (payload) => {
+            console.log('Realtime attendance update:', payload);
+            // Immediately refetch on any change
+            refetchLogins();
+            lastSyncRef.current = Date.now();
+          }
+        )
+        .on('system', { event: 'disconnect' }, () => {
+          setIsRealtimeConnected(false);
+        })
+        .on('system', { event: 'reconnect' }, () => {
+          setIsRealtimeConnected(true);
+          refetchLogins();
+        })
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            setIsRealtimeConnected(true);
+          } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+            setIsRealtimeConnected(false);
+          }
+        });
+
+      channelRef.current = channel;
+    };
+
+    setupChannel();
+
+    // Fallback polling with exponential backoff
+    let pollInterval = 10000; // Start at 10 seconds
+    const maxInterval = 30000;
+
+    const pollFn = () => {
+      const timeSinceLastSync = Date.now() - lastSyncRef.current;
+      
+      // If no realtime update in 15 seconds, poll more frequently
+      if (timeSinceLastSync > 15000) {
+        refetchLogins();
+        pollInterval = Math.min(pollInterval * 1.2, maxInterval);
+      }
+    };
+
+    const intervalId = setInterval(pollFn, pollInterval);
+
+    return () => {
+      clearInterval(intervalId);
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+      }
+    };
+  }, [canView, today, refetchLogins]);
+
+  /* ---------------------------------------
+     MANUAL REFRESH
+  ---------------------------------------- */
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await refetchLogins();
+    await queryClient.invalidateQueries({ queryKey: ['all-profiles-attendance'] });
+    lastSyncRef.current = Date.now();
+    setIsRefreshing(false);
+  }, [queryClient, refetchLogins]);
 
   /* ---------------------------------------
      COMBINE PROFILES WITH LOGIN STATUS
@@ -175,82 +230,95 @@ export function AttendancePanel() {
 
   const presentCount = attendanceList.filter(u => u.isLoggedIn).length;
   const absentCount = attendanceList.filter(u => !u.isLoggedIn).length;
+  const isLoading = isLoadingLogins || isLoadingProfiles;
 
   if (!canView) return null;
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
+    <Card className="overflow-hidden">
+      <CardHeader className="pb-3 bg-gradient-to-r from-primary/5 to-transparent">
         <CardTitle className="flex items-center justify-between">
-          <span className="flex items-center gap-2 text-base">
-            <Users className="w-4 h-4" />
+          <span className="flex items-center gap-2 text-base font-semibold">
+            <div className="p-1.5 rounded-lg bg-primary/10">
+              <Users className="w-4 h-4 text-primary" />
+            </div>
             Auto Attendance
             <RefreshButton onClick={handleRefresh} isRefreshing={isRefreshing} />
+            {isRealtimeConnected ? (
+              <Wifi className="w-3.5 h-3.5 text-green-500" />
+            ) : (
+              <WifiOff className="w-3.5 h-3.5 text-red-500" />
+            )}
           </span>
 
           <div className="flex gap-2">
-            <Badge variant="secondary" className="bg-green-500/10 text-green-600 border-green-500/20">
+            <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/20">
               <CheckCircle className="w-3 h-3 mr-1" />
-              {presentCount} Present
+              {presentCount}
             </Badge>
-            <Badge variant="secondary" className="bg-red-500/10 text-red-600 border-red-500/20">
+            <Badge className="bg-red-500/15 text-red-600 border-red-500/30 hover:bg-red-500/20">
               <XCircle className="w-3 h-3 mr-1" />
-              {absentCount} Absent
+              {absentCount}
             </Badge>
           </div>
         </CardTitle>
       </CardHeader>
 
-      <CardContent>
+      <CardContent className="p-0">
         {isLoading ? (
-          <div className="flex justify-center py-4">
-            <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-primary" />
+          <div className="flex justify-center py-8">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           </div>
         ) : attendanceList.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">
+          <p className="text-sm text-muted-foreground text-center py-8">
             No users found.
           </p>
         ) : (
-          <div className="space-y-2 max-h-[320px] overflow-y-auto">
-            {attendanceList.map(user => (
-              <div
-                key={user.user_id}
-                className={cn(
-                  "flex items-center justify-between p-2.5 rounded-lg text-sm transition-colors",
-                  user.isLoggedIn 
-                    ? "bg-green-500/5 border border-green-500/20" 
-                    : "bg-red-500/5 border border-red-500/20"
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  {/* Status Indicator */}
-                  <div className={cn(
-                    "w-2.5 h-2.5 rounded-full flex-shrink-0",
+          <ScrollArea className="h-[320px]">
+            <div className="divide-y divide-border">
+              {attendanceList.map(user => (
+                <div
+                  key={user.user_id}
+                  className={cn(
+                    "flex items-center justify-between px-4 py-3 transition-colors",
                     user.isLoggedIn 
-                      ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" 
-                      : "bg-red-500"
-                  )} />
-                  <span className="font-medium truncate">{user.full_name}</span>
+                      ? "bg-emerald-500/5 hover:bg-emerald-500/10" 
+                      : "bg-red-500/5 hover:bg-red-500/10"
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    {/* Status Indicator - Pulsing for online */}
+                    <div className={cn(
+                      "w-2.5 h-2.5 rounded-full flex-shrink-0",
+                      user.isLoggedIn 
+                        ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse" 
+                        : "bg-red-500"
+                    )} />
+                    <span className="font-medium text-sm">{user.full_name}</span>
+                  </div>
+                  
+                  {user.isLoggedIn ? (
+                    <span className="flex items-center gap-1.5 text-emerald-600 text-sm font-medium tabular-nums">
+                      <Clock className="w-3.5 h-3.5" />
+                      {user.login_time}
+                    </span>
+                  ) : (
+                    <span className="text-red-500 text-xs font-medium uppercase tracking-wide">
+                      Absent
+                    </span>
+                  )}
                 </div>
-                
-                {user.isLoggedIn ? (
-                  <span className="flex items-center gap-1.5 text-green-600 font-medium">
-                    <Clock className="w-3.5 h-3.5" />
-                    {user.login_time}
-                  </span>
-                ) : (
-                  <span className="text-red-500 text-xs font-medium">
-                    Not Logged In
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </ScrollArea>
         )}
 
-        <p className="text-xs text-muted-foreground mt-3 text-center">
-          Realtime • Auto-refresh every 30s • {format(new Date(), 'dd MMM yyyy')}
-        </p>
+        <div className="px-4 py-2.5 border-t bg-muted/30">
+          <p className="text-xs text-muted-foreground text-center flex items-center justify-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+            Live • {format(new Date(), 'dd MMM yyyy')}
+          </p>
+        </div>
       </CardContent>
     </Card>
   );
