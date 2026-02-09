@@ -88,8 +88,8 @@ const GroupingHome = () => {
             {/* Session Management for TL/VC only */}
             {isCaptainOrVice && <SessionManagementPanel />}
             
-            {/* Login Activity Panel - Team Manager ONLY */}
-            {role === 'team_manager' || role === 'team_captain' && <LoginActivityPanel />}
+            {/* Login Activity Panel - Team Manager or Team Captain */}
+            {(role === 'team_manager' || role === 'team_captain') && <LoginActivityPanel />}
             
             {/* Bulk Entry Creation for Leadership - Only in active sessions */}
             {isLeadership && viewingSession && !isSessionClosed && (

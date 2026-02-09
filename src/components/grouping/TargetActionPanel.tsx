@@ -468,58 +468,60 @@ export function TargetActionPanel({ session }: TargetActionPanelProps) {
             {isSessionClosed ? 'No targets in this closed session.' : 'No targets yet. Create your first target.'}
           </p>
         ) : (
-          <div className="space-y-2 max-h-[300px] overflow-y-auto">
-            {targets.slice(0, 5).map((target) => {
-              const member = teamMembers.find(m => m.user_id === target.user_id);
+          <ScrollArea className="max-h-[400px] pr-3">
+            <div className="space-y-2">
+              {targets.map((target) => {
+                const member = teamMembers.find(m => m.user_id === target.user_id);
 
-               const achieved =
+                const achieved =
                   target.target_scope === 'group'
                     ? Object.values(earnedPointsMap).reduce((a, b) => a + b, 0)
                     : earnedPointsMap[target.user_id ?? ''] ?? 0;
-              return (
-                <div
-                  key={target.id}
-                  className="flex items-center justify-between p-2 rounded-lg bg-muted/50 text-sm"
-                >
-                  <div className="flex items-center gap-2">
-                    {target.target_scope === 'group' ? (
-                      <Users className="w-4 h-4 text-blue-500" />
-                    ) : (
-                      <User className="w-4 h-4 text-green-500" />
-                    )}
-                    <span className="font-medium">
-                      {target.target_scope === 'group' 
-                        ? 'Group' 
-                        : member?.full_name || 'Unknown'}
-                    </span>
-                    <span className="text-muted-foreground">
-                      {achieved}/{target.target_points} pts
-                    </span>
-                  </div>
-                  {!isSessionClosed && (
-                    <div className="flex items-center gap-1">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-7 w-7"
-                        onClick={() => openEdit(target)}
-                      >
-                        <Edit2 className="w-3 h-3" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-7 w-7 text-destructive"
-                        onClick={() => setDeleteTargetId(target.id)}
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
+                return (
+                  <div
+                    key={target.id}
+                    className="flex items-center justify-between p-2 rounded-lg bg-muted/50 text-sm"
+                  >
+                    <div className="flex items-center gap-2">
+                      {target.target_scope === 'group' ? (
+                        <Users className="w-4 h-4 text-primary" />
+                      ) : (
+                        <User className="w-4 h-4 text-primary/70" />
+                      )}
+                      <span className="font-medium">
+                        {target.target_scope === 'group' 
+                          ? 'Group' 
+                          : member?.full_name || 'Unknown'}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {achieved}/{target.target_points} pts
+                      </span>
                     </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                    {!isSessionClosed && (
+                      <div className="flex items-center gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7"
+                          onClick={() => openEdit(target)}
+                        >
+                          <Edit2 className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-destructive"
+                          onClick={() => setDeleteTargetId(target.id)}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </ScrollArea>
         )}
 
         {/* Edit Dialog */}

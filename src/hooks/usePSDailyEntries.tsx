@@ -188,23 +188,76 @@ export function usePSDailyEntries(sessionId?: string, userId?: string) {
   });
 
   // Mark entry as attempt (effort, not completion - does NOT count toward target)
+  // Also: increment attempt_count and create a new pending entry for the next day
   const attemptEntry = useMutation({
     mutationFn: async (entryId: string) => {
-      const { data, error } = await supabase
+      // First, fetch the current entry to get its data
+      const { data: currentEntry, error: fetchError } = await supabase
+        .from('ps_daily_entries')
+        .select('*')
+        .eq('id', entryId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Update the current entry to 'attempt' and increment attempt_count
+      const newAttemptCount = (currentEntry.attempt_count || 0) + 1;
+      
+      const { data: updatedEntry, error: updateError } = await supabase
         .from('ps_daily_entries')
         .update({
           status: 'attempt',
+          attempt_count: newAttemptCount,
         })
         .eq('id', entryId)
         .select()
         .single();
 
-      if (error) throw error;
-      return data;
+      if (updateError) throw updateError;
+
+      // Calculate next day's date
+      const currentDate = new Date(currentEntry.entry_date);
+      currentDate.setDate(currentDate.getDate() + 1);
+      const nextDate = currentDate.toISOString().split('T')[0];
+
+      // Get next s_no for the session
+      const { data: entries } = await supabase
+        .from('ps_daily_entries')
+        .select('s_no')
+        .eq('session_id', currentEntry.session_id)
+        .order('s_no', { ascending: false })
+        .limit(1);
+      
+      const nextSNo = entries && entries.length > 0 
+        ? (entries[0] as any).s_no + 1 
+        : 1;
+
+      // Create a new pending entry for the next day with same data
+      const { error: insertError } = await supabase
+        .from('ps_daily_entries')
+        .insert({
+          s_no: nextSNo,
+          session_id: currentEntry.session_id,
+          user_id: currentEntry.user_id,
+          entry_date: nextDate,
+          entry_time: currentEntry.entry_time,
+          skill_name: currentEntry.skill_name,
+          reward_points: currentEntry.reward_points,
+          attempt_count: newAttemptCount,
+          entered_by: user!.id,
+          status: 'pending',
+        });
+
+      if (insertError) throw insertError;
+
+      return updatedEntry;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ps-daily-entries'] });
-      toast({ title: 'Entry Marked as Attempt', description: 'Effort recorded. Does not count toward target.' });
+      toast({ 
+        title: 'Entry Marked as Attempt', 
+        description: 'Effort recorded. A new pending entry created for tomorrow.' 
+      });
     },
     onError: (error: Error) => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });

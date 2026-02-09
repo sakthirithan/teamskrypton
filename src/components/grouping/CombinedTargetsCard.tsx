@@ -21,9 +21,9 @@ interface CombinedTargetsCardProps {
 
 function getStatusColor(status: string): string {
   switch (status) {
-    case 'on_track': return 'text-green-600 bg-green-500/10 border-green-500/20';
-    case 'at_risk': return 'text-yellow-600 bg-yellow-500/10 border-yellow-500/20';
-    case 'behind': return 'text-red-600 bg-red-500/10 border-red-500/20';
+    case 'on_track': return 'text-emerald-600 bg-emerald-500/10 border-emerald-500/30';
+    case 'at_risk': return 'text-amber-600 bg-amber-500/10 border-amber-500/30';
+    case 'behind': return 'text-red-600 bg-red-500/10 border-red-500/30';
     default: return 'text-muted-foreground bg-muted';
   }
 }
@@ -82,20 +82,22 @@ export function CombinedTargetsCard({
       <CardContent className="space-y-4">
         {/* Individual Target */}
         {hasIndividualTarget && (
-          <div className="space-y-2">
+          <div className="space-y-2 p-3 rounded-lg bg-secondary/30">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <User className="w-4 h-4 text-blue-500" />
+                <div className="p-1.5 rounded-md bg-primary/10">
+                  <User className="w-3.5 h-3.5 text-primary" />
+                </div>
                 <span className="text-sm font-medium">Individual Target</span>
               </div>
               <Badge variant="outline" className={getStatusColor(individualStatus)}>
                 {TARGET_STATUS_LABELS[individualStatus]}
               </Badge>
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <div className="flex justify-between text-xs text-muted-foreground">
-                <span>{achievedPoints} / {individualTargetPoints} pts</span>
-                <span>{individualProgress.toFixed(0)}%</span>
+                <span className="tabular-nums">{achievedPoints} / {individualTargetPoints} pts</span>
+                <span className="font-medium tabular-nums">{individualProgress.toFixed(0)}%</span>
               </div>
               <Progress 
                 value={individualProgress} 
@@ -107,20 +109,22 @@ export function CombinedTargetsCard({
         
         {/* Group Target */}
         {hasGroupTarget && (
-          <div className="space-y-2">
+          <div className="space-y-2 p-3 rounded-lg bg-secondary/30">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-purple-500" />
+                <div className="p-1.5 rounded-md bg-accent/10">
+                  <Users className="w-3.5 h-3.5 text-accent" />
+                </div>
                 <span className="text-sm font-medium">Group Target</span>
               </div>
               <Badge variant="outline" className={getStatusColor(groupStatus)}>
                 {TARGET_STATUS_LABELS[groupStatus]}
               </Badge>
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <div className="flex justify-between text-xs text-muted-foreground">
-                <span>{groupAchievedPoints} / {groupTargetPoints} pts</span>
-                <span>{groupProgress.toFixed(0)}%</span>
+                <span className="tabular-nums">{groupAchievedPoints} / {groupTargetPoints} pts</span>
+                <span className="font-medium tabular-nums">{groupProgress.toFixed(0)}%</span>
               </div>
               <Progress 
                 value={groupProgress} 
