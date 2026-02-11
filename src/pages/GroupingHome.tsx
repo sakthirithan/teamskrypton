@@ -111,7 +111,7 @@ const GroupingHome = () => {
             <TargetActionPanel session={viewingSession} />
             
             {/* Alerts for leadership - session-bound */}
-            {isLeadership && <GroupingAlertsPanel session={viewingSession} />}
+            <GroupingAlertsPanel session={viewingSession} />
           </div>
         </div>
       </main>
