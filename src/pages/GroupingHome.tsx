@@ -8,7 +8,6 @@ import { SessionManagementPanel } from '@/components/grouping/SessionManagementP
 import { GroupingAlertsPanel } from '@/components/grouping/GroupingAlertsPanel';
 import { GroupingNotesPanel } from '@/components/grouping/GroupingNotesPanel';
 import { BulkEntryCreation } from '@/components/grouping/BulkEntryCreation';
-import { LoginActivityPanel } from '@/components/grouping/LoginActivityPanel';
 import { SessionCard } from '@/components/grouping/SessionCard';
 import { useGroupingSessions } from '@/hooks/useGroupingSessions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -87,9 +86,6 @@ const GroupingHome = () => {
           <div className="space-y-4 sm:space-y-6 order-2">
             {/* Session Management for TL/VC only */}
             {isCaptainOrVice && <SessionManagementPanel />}
-            
-            {/* Login Activity Panel - Team Manager or Team Captain */}
-            {(role === 'team_manager' || role === 'team_captain') && <LoginActivityPanel />}
             
             {/* Bulk Entry Creation for Leadership - Only in active sessions */}
             {isLeadership && viewingSession && !isSessionClosed && (
