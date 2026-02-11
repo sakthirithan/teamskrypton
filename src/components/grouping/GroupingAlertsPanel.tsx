@@ -54,8 +54,16 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
   const { activeSession } = useGroupingSessions();
   
   // Check if user is TL or TM (full action access)
-  const isTLorTM = role === 'team_captain' || role === 'team_manager';
+  const isLeads = role === 'team_captain' ||role === 'team_manager' || role === 'strategist' || role === 'vice_captain';
   
+  //Check if user is Team Member
+  // Team members (non-leadership)
+const isTeamMember = !isLeads;
+
+// Read-only completed visibility (members + leads)
+const canViewCompleted = true;
+
+
   // Use passed session or fall back to active session
   const viewingSession = session || activeSession;
   
@@ -256,6 +264,9 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
 
   // Check if session is closed (read-only alerts)
   const isSessionClosed = viewingSession.status === 'closed';
+  // Mutations & export only for leadership
+  const canMutateEntries = isLeads && !isSessionClosed;
+  const canExport = isLeads;
 
   const totalDays = calculateSessionDays(
     viewingSession.start_date,
@@ -285,12 +296,12 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
 
   // 🔔 ALERTS
   const alerts: {
-    type: 'behind' | 'pending' | 'deadline' | 'completed' | 'attempt';
+    type: 'pending' | 'deadline' | 'completed' | 'attempt';
     message: string;
     users?: Profile[];
   }[] = [];
 
-  // 🚨 BEHIND TARGET ALERTS
+  // 🚨 TARGET ALERTS
   targets.forEach((target) => {
     if (target.target_scope !== 'individual' || !target.user_id) return;
 
@@ -304,14 +315,6 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
       daysRemaining,
       totalDays
     );
-
-    if (status === 'behind') {
-      const member = teamMembers.find(m => m.user_id === target.user_id);
-      alerts.push({
-        type: 'behind',
-        message: `${member?.full_name || 'Unknown'} is behind target`,
-      });
-    }
   });
 
   // ⏳ PENDING ENTRIES ALERT
@@ -348,6 +351,7 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
   }
 
   // ⚡ ATTEMPT ENTRIES ALERT
+  
   const attemptEntries = entries.filter(e => e.status === 'attempt');
 
   if (attemptEntries.length > 0) {
@@ -363,7 +367,7 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
 
   // Search + date filtering
   const filterEntries = (list: typeof entries) => {
-    let filtered = filterEntriesByDate(list);
+    const filtered = filterEntriesByDate(list);
 
     if (!searchText.trim()) return filtered;
 
@@ -543,6 +547,7 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
         <Table>
           <TableHeader>
             <TableRow>
+              {canMutateEntries && (
               <TableHead className="w-10">
                 <Checkbox
                   checked={filteredList.length > 0 && selectedIds.size === filteredList.length}
@@ -550,13 +555,14 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
                   disabled={isSessionClosed}
                 />
               </TableHead>
+              )}
               <TableHead>User</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Time</TableHead>
               <TableHead>Skill</TableHead>
               <TableHead className="text-right">Points</TableHead>
               <TableHead className="text-right">Attempts</TableHead>
-              {isTLorTM && <TableHead className="text-right">Action</TableHead>}
+              {canMutateEntries && <TableHead className="text-right">Action</TableHead>}
             </TableRow>
           </TableHeader>
 
@@ -566,6 +572,7 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
 
               return (
                 <TableRow key={entry.id} className={selectedIds.has(entry.id) ? 'bg-muted/50' : ''}>
+                  {canMutateEntries && (
                   <TableCell>
                     <Checkbox
                       checked={selectedIds.has(entry.id)}
@@ -573,6 +580,7 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
                       disabled={isSessionClosed}
                     />
                   </TableCell>
+                  )}
                   <TableCell>{member?.full_name || 'Unknown'}</TableCell>
                   <TableCell>{entry.entry_date ? format(new Date(entry.entry_date), 'dd-MM-yyyy') : '-'}</TableCell>
                   <TableCell className="text-muted-foreground">
@@ -581,7 +589,7 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
                   <TableCell>{entry.skill_name}</TableCell>
                   <TableCell className="text-right">{entry.reward_points}</TableCell>
                   <TableCell className="text-right">{entry.attempt_count}</TableCell>
-                  {isTLorTM && (
+                  {canMutateEntries && (
                     <TableCell className="text-right">
                       <Button
                         size="icon"
@@ -636,14 +644,14 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
                 <div
                   key={index}
                   onClick={() => {
-                    if (alert.type === 'pending') openDialog('pending');
+                    if(isLeads){
+                      if (alert.type === 'pending') openDialog('pending');
+                      if (alert.type === 'attempt') openDialog('attempt');
+                    }
                     if (alert.type === 'completed') openDialog('completed');
-                    if (alert.type === 'attempt') openDialog('attempt');
                   }}
                   className={`flex items-start gap-2 p-2 rounded-lg text-sm cursor-pointer ${
-                    alert.type === 'behind'
-                      ? 'bg-red-500/10 text-red-700 dark:text-red-400'
-                      : alert.type === 'pending'
+                    alert.type === 'pending'
                       ? 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400'
                       : alert.type === 'completed'
                       ? 'bg-green-500/10 text-green-700 dark:text-green-400'
@@ -652,7 +660,7 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
                       : 'bg-orange-500/10 text-orange-700 dark:text-orange-400'
                   }`}
                 >
-                  {alert.type === 'behind' && <TrendingDown className="w-4 h-4 mt-0.5" />}
+                  
                   {alert.type === 'pending' && <Clock className="w-4 h-4 mt-0.5" />}
                   {alert.type === 'completed' && <CheckCircle2 className="w-4 h-4 mt-0.5" />}
                   {alert.type === 'attempt' && <Zap className="w-4 h-4 mt-0.5" />}
@@ -691,10 +699,12 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
               className="flex-1"
             />
             <div className="flex gap-2 flex-wrap">
+              {canExport && (
               <Button size="sm" variant="outline" onClick={() => handleExport('pending', 'xlsx')}>
                 <Download className="w-4 h-4 mr-1" />
                 Export
               </Button>
+              )}
               {selectedPendingIds.size > 0 && !isSessionClosed && (
                 <>
                   <Button
@@ -716,7 +726,7 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
                     <Zap className="w-4 h-4 mr-1" />
                     Attempt ({selectedPendingIds.size})
                   </Button>
-                  {isTLorTM && (
+                  {isLeads && (
                     <Button
                       size="sm"
                       variant="destructive"
@@ -748,6 +758,11 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
                 <CheckCircle2 className="w-5 h-5 text-green-600" />
                 Completed PS Daily Entries
               </span>
+              {isTeamMember && (
+              <Badge variant="outline" className="text-xs">
+                Read only
+              </Badge>
+            )}
               {selectedCompletedIds.size > 0 && (
                 <Badge variant="secondary">{selectedCompletedIds.size} selected</Badge>
               )}
@@ -764,11 +779,14 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
               className="flex-1"
             />
             <div className="flex gap-2 flex-wrap">
+              {/*Completed Export Logic  */}
+              {canExport && (
               <Button size="sm" variant="outline" onClick={() => handleExport('completed', 'xlsx')}>
                 <Download className="w-4 h-4 mr-1" />
                 Export
               </Button>
-              {selectedCompletedIds.size > 0 && !isSessionClosed && isTLorTM && (
+              )}
+              {selectedCompletedIds.size > 0 && !isSessionClosed && isLeads && (
                 <>
                   <Button
                     size="sm"
@@ -829,7 +847,7 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
                 <Download className="w-4 h-4 mr-1" />
                 Export
               </Button>
-              {selectedAttemptIds.size > 0 && !isSessionClosed && isTLorTM && (
+              {selectedAttemptIds.size > 0 && !isSessionClosed && isLeads && (
                 <>
                   <Button
                     size="sm"
