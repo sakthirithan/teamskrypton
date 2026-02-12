@@ -56,12 +56,6 @@ export function GroupingAlertsPanel({ session }: GroupingAlertsPanelProps) {
   // Check if user is TL or TM (full action access)
   const isLeads = role === 'team_captain' ||role === 'team_manager' || role === 'strategist' || role === 'vice_captain';
   
-  //Check if user is Team Member
-  // Team members (non-leadership)
-const isTeamMember = !isLeads;
-
-// Read-only completed visibility (members + leads)
-const canViewCompleted = true;
 
 
   // Use passed session or fall back to active session
@@ -260,7 +254,7 @@ const canViewCompleted = true;
     },
   });
 
-  if (!isLeadership || !viewingSession) return null;
+  if (!viewingSession) return null;
 
   // Check if session is closed (read-only alerts)
   const isSessionClosed = viewingSession.status === 'closed';
@@ -644,10 +638,10 @@ const canViewCompleted = true;
                 <div
                   key={index}
                   onClick={() => {
-                    if(isLeads){
+                    // if(isLeads){
                       if (alert.type === 'pending') openDialog('pending');
                       if (alert.type === 'attempt') openDialog('attempt');
-                    }
+                    // }
                     if (alert.type === 'completed') openDialog('completed');
                   }}
                   className={`flex items-start gap-2 p-2 rounded-lg text-sm cursor-pointer ${
@@ -758,11 +752,6 @@ const canViewCompleted = true;
                 <CheckCircle2 className="w-5 h-5 text-green-600" />
                 Completed PS Daily Entries
               </span>
-              {isTeamMember && (
-              <Badge variant="outline" className="text-xs">
-                Read only
-              </Badge>
-            )}
               {selectedCompletedIds.size > 0 && (
                 <Badge variant="secondary">{selectedCompletedIds.size} selected</Badge>
               )}
@@ -780,12 +769,10 @@ const canViewCompleted = true;
             />
             <div className="flex gap-2 flex-wrap">
               {/*Completed Export Logic  */}
-              {canExport && (
               <Button size="sm" variant="outline" onClick={() => handleExport('completed', 'xlsx')}>
                 <Download className="w-4 h-4 mr-1" />
                 Export
               </Button>
-              )}
               {selectedCompletedIds.size > 0 && !isSessionClosed && isLeads && (
                 <>
                   <Button
