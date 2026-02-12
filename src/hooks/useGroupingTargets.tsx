@@ -82,6 +82,20 @@ export function useGroupingTargets(sessionId?: string) {
     },
   });
 
+  // Get Targets For User
+  const getTargetsForUser = (targetUserId?: string) => {
+  if (!targetUserId) return [];
+
+  return (
+    targetsQuery.data?.filter(
+      t =>
+        t.target_scope === 'group' ||
+        (t.target_scope === 'individual' && t.user_id === targetUserId)
+    ) || []
+  );
+};
+
+
   const updateTarget = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<GroupingTarget> & { id: string }) => {
       const { data, error } = await supabase
@@ -124,6 +138,7 @@ export function useGroupingTargets(sessionId?: string) {
   return {
     targets: targetsQuery.data || [],
     myTargets,
+    getTargetsForUser,
     isLoading: targetsQuery.isLoading,
     error: targetsQuery.error,
     createTarget,

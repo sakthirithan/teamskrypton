@@ -26,7 +26,7 @@ import {
   Search
 } from 'lucide-react';
 import { useGroupingSessions, GroupingSession } from '@/hooks/useGroupingSessions';
-import { useGroupingTargets } from '@/hooks/useGroupingTargets';
+import { useGroupingTargets, GroupingTarget } from '@/hooks/useGroupingTargets';
 import { usePSDailyEntries, PSDailyEntry } from '@/hooks/usePSDailyEntries';
 import { useUserPoints } from '@/hooks/useUserPoints';
 import { MySpaceAlertsPanel } from '@/components/grouping/MySpaceAlertsPanel';
@@ -100,7 +100,10 @@ const GroupingMe = () => {
     ? sessions.find(s => s.id === selectedSessionId) || activeSession
     : activeSession;
   
-  const { myTargets } = useGroupingTargets(viewingSession?.id);
+  const { getTargetsForUser } = useGroupingTargets(viewingSession?.id);
+
+  const viewedUserTargets = getTargetsForUser(viewingUserId);
+
   const { 
     entries, 
     createEntry, 
@@ -114,6 +117,10 @@ const GroupingMe = () => {
     getAttemptCount 
   } = usePSDailyEntries(viewingSession?.id, viewingUserId);
 
+  const {
+    entries: sessionEntries
+  } = usePSDailyEntries(viewingSession?.id);
+
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefresh = useCallback(async () => {
@@ -123,6 +130,28 @@ const GroupingMe = () => {
     await queryClient.invalidateQueries({ queryKey: ['grouping-sessions'] });
     setIsRefreshing(false);
   }, [queryClient]);
+
+  //useGroupingTargets constraint
+    const { data: viewedIndividualTarget } = useQuery({
+    queryKey: ['viewed-individual-target', viewingSession?.id, viewingUserId],
+    queryFn: async () => {
+      if (!viewingSession?.id || !viewingUserId) return null;
+
+      const { data, error } = await supabase
+        .from('grouping_targets')
+        .select('*')
+        .eq('session_id', viewingSession.id)
+        .eq('target_scope', 'individual')
+        .eq('user_id', viewingUserId)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data as GroupingTarget | null;
+    },
+    enabled: !!viewingSession && !!viewingUserId && isViewingOther,
+  });
+
+
 
   // Fetch the profile of the user being viewed
   const { data: viewedProfile } = useQuery({
@@ -201,11 +230,14 @@ const GroupingMe = () => {
   if (!user) return null;
 
   // Get targets for the viewed user
-  const viewedUserTargets = myTargets.filter(t => 
-    t.target_scope === 'individual' && t.user_id === viewingUserId
+  const myIndividualTarget = viewedUserTargets.find(
+    t => t.target_scope === 'individual'
   );
-  const myIndividualTarget = viewedUserTargets[0];
-  const groupTarget = myTargets.find(t => t.target_scope === 'group');
+
+  const groupTarget = viewedUserTargets.find(
+    t => t.target_scope === 'group'
+  );
+
   
   // Only completed entries count toward target
   const myAchievedPoints = getTotalPoints(viewingUserId);
@@ -475,6 +507,13 @@ const GroupingMe = () => {
     .reduce((sum, e) => sum + e.reward_points, 0);
   const attemptCount = getAttemptCount(viewingUserId);
 
+  // ✅ Group achieved points = sum of ALL completed entries in session
+  const groupAchievedPoints = sessionEntries
+  .filter(e => e.status === 'completed')
+  .reduce((sum, e) => sum + e.reward_points, 0);
+
+
+
   return (
     <TooltipProvider>
     <div className="min-h-screen bg-background">
@@ -631,7 +670,7 @@ const GroupingMe = () => {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-muted-foreground">Group</p>
-                        <p className="text-2xl font-bold">{groupTarget?.achieved_points || 0}</p>
+                        <p className="text-2xl font-bold">{groupAchievedPoints || 0}</p>
                         <p className="text-xs text-muted-foreground">
                           of {groupTarget?.target_points || 0} pts
                         </p>
@@ -648,7 +687,7 @@ const GroupingMe = () => {
                 individualTarget={myIndividualTarget}
                 groupTarget={groupTarget}
                 achievedPoints={myAchievedPoints}
-                groupAchievedPoints={groupTarget?.achieved_points || 0}
+                groupAchievedPoints={groupAchievedPoints}
               />
 
               {/* PS Daily Entries */}
