@@ -230,6 +230,7 @@ export const UserListPanel = memo(function UserListPanel({ onClose }: UserListPa
       fetchUsers();
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to approve user';
+      console.log(errorMessage, "Error Founded Here");
       toast({
         variant: 'destructive',
         title: 'Approval Failed',
