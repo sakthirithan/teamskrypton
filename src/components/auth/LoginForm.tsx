@@ -94,7 +94,7 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
         description: 'You have successfully logged in.',
       });
 
-      navigate('/');
+      navigate('/grouping/home');
     } catch (error: any) {
       toast({
         variant: 'destructive',
