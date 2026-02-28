@@ -28,6 +28,7 @@ interface TeamMember {
     current_status: TaskStatus | null;
     created_at: string;
     phone_number: string | null;
+    register_number: string | null;
   };
   role: KryptonRole | null;
   taskStats: {
@@ -115,6 +116,7 @@ const Team = () => {
           current_status: p.current_status as TaskStatus | null,
           created_at: p.created_at,
           phone_number: p.phone_number,
+          register_number: p.register_number,
         },
         role: roleMap.get(p.user_id) || null,
         taskStats: taskStatsMap.get(p.user_id) || { total: 0, completed: 0, inProgress: false },
@@ -149,6 +151,20 @@ const Team = () => {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to update phone number' });
     } else {
       toast({ title: 'Phone Updated' });
+      fetchMembers();
+    }
+  };
+
+  const handleUpdateRegisterNumber = async (userId: string, registerNumber: string) => {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ register_number : registerNumber })
+      .eq('user_id', userId);
+
+    if (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to update register number' });
+    } else {
+      toast({ title: 'Register Number Updated' });
       fetchMembers();
     }
   };
@@ -433,6 +449,7 @@ const Team = () => {
                 taskStats={member.taskStats}
                 canEditPhone={isCaptainOrVice}
                 onUpdatePhone={isCaptainOrVice ? (phone) => handleUpdatePhone(member.profile.user_id, phone) : undefined}
+                onUpdateRegisterNumber={isCaptainOrVice ? (registerNumber) => handleUpdateRegisterNumber(member.profile.user_id, registerNumber) : undefined}
                 onClick={() => {
                   // Grouping mode navigation
                   if (mode === 'grouping') {

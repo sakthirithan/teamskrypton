@@ -11,12 +11,14 @@ import { useUserPoints } from '@/hooks/useUserPoints';
 import { useGroupingTargets, GroupingTarget } from '@/hooks/useGroupingTargets';
 import { useGroupingSessions } from '@/hooks/useGroupingSessions';
 import { usePSDailyEntries } from '@/hooks/usePSDailyEntries';
+import { IdCard } from 'lucide-react';
 import { 
   calculateSessionDays, 
   calculateDaysRemaining, 
   calculateTargetStatus,
   TARGET_STATUS_LABELS 
 } from '@/lib/groupingConstants';
+import { supabase } from '@/integrations/supabase/client';
 interface KryptonIdCardProps {
   profile: {
     user_id: string;
@@ -27,6 +29,7 @@ interface KryptonIdCardProps {
     current_status: TaskStatus | null;
     created_at: string;
     phone_number?: string | null;
+    register_number?: string | null;
   };
   role: KryptonRole | null;
   taskStats?: {
@@ -34,6 +37,11 @@ interface KryptonIdCardProps {
     completed: number;
     inProgress: boolean;
   };
+
+  onUpdateRegisterNumber?: (registerNumber: string) => Promise<void>;
+  canEditRegisterNumber?: boolean;
+
+
   onClick?: () => void;
   onViewProfile?: () => void;
   onUpdatePhone?: (phone: string) => Promise<void>;
@@ -192,16 +200,18 @@ function getDerivedStatus(
 }
 
 export function KryptonIdCard({ 
-  profile, 
-  role, 
+  profile,
+  role,
   taskStats,
-  onClick, 
-  onViewProfile, 
+  onClick,
+  onViewProfile,
   onUpdatePhone,
+  onUpdateRegisterNumber,
   onToggleStatus,
-  compact, 
+  compact,
   showProfileIcon,
   canEditPhone,
+  canEditRegisterNumber,
   isOwnProfile,
   manualStatusOverride
 }: KryptonIdCardProps) {
@@ -209,12 +219,15 @@ export function KryptonIdCard({
   const { getUserPoints } = useUserPoints();
   const [isEditingPhone, setIsEditingPhone] = useState(false);
   const [phoneValue, setPhoneValue] = useState(profile.phone_number || '');
+  const [isEditingRegisterNumber, setIsEditingRegisterNumber] = useState(false);
+  const [registerNumberValue, setRegisterNumberValue] = useState(profile.register_number || '');
   const [isSaving, setIsSaving] = useState(false);
   const [isTogglingStatus, setIsTogglingStatus] = useState(false);
 
   const derivedStatus = getDerivedStatus(taskStats, manualStatusOverride);
   const isGroupingMode = mode === 'grouping';
   const userPoints = getUserPoints(profile.user_id);
+  
 
   const handleToggleStatus = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -235,6 +248,31 @@ export function KryptonIdCard({
       setIsEditingPhone(false);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSaveRegisterNumber = async () => {
+    if (!onUpdateRegisterNumber) return;
+    setIsSaving(true);
+    try {
+      await onUpdateRegisterNumber(registerNumberValue);
+      setIsEditingRegisterNumber(false);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleUpdateRegisterNumber = async (
+    userId: string,
+    registerNumber: string
+  ) => {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ register_number: registerNumber })
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error(error);
     }
   };
 
@@ -367,6 +405,49 @@ export function KryptonIdCard({
                       }}
                       className="p-1 hover:bg-muted rounded"
                       title="Edit phone number"
+                    >
+                      <Pencil className="w-3 h-3 text-muted-foreground" />
+                    </button>
+                  )}
+                </span>
+              )}
+            </div>
+
+            {/* Register Number */}
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground flex items-center gap-1">
+                <IdCard className="w-3 h-3" /> Register Number
+              </span>
+
+              {isEditingRegisterNumber ? (
+                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                  <Input 
+                    value={registerNumberValue}
+                    onChange={(e) => setRegisterNumberValue(e.target.value)}
+                    className="h-6 w-28 text-xs px-1"
+                    placeholder="Register Number"
+                  />
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    className="h-6 w-6 p-0"
+                    onClick={handleSaveRegisterNumber}
+                    disabled={isSaving}
+                  >
+                    <CheckCircle className="w-3 h-3 text-green-600" />
+                  </Button>
+                </div>
+              ) : (
+                <span className="font-medium flex items-center gap-1">
+                  {profile.register_number || '-'}
+                  {canEditRegisterNumber && onUpdateRegisterNumber && (
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsEditingRegisterNumber(true);
+                      }}
+                      className="p-1 hover:bg-muted rounded"
+                      title="Edit register number"
                     >
                       <Pencil className="w-3 h-3 text-muted-foreground" />
                     </button>
