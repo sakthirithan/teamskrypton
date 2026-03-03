@@ -9,6 +9,7 @@ import { GroupingAlertsPanel } from '@/components/grouping/GroupingAlertsPanel';
 import { GroupingNotesPanel } from '@/components/grouping/GroupingNotesPanel';
 import { BulkEntryCreation } from '@/components/grouping/BulkEntryCreation';
 import { SessionCard } from '@/components/grouping/SessionCard';
+import { GoogleSheetConfigPanel } from '@/components/googlesheet/GoogleSheetConfigPanel';
 import { useGroupingSessions } from '@/hooks/useGroupingSessions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -109,6 +110,9 @@ const GroupingHome = () => {
             
             {/* Target Action Panel - session-bound */}
             <TargetActionPanel session={viewingSession} />
+            
+            {/* Google Sheet Config - Leadership only */}
+            {isLeadership && <GoogleSheetConfigPanel />}
             
             {/* Alerts for leadership - session-bound */}
             <GroupingAlertsPanel session={viewingSession} />

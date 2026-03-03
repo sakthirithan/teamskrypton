@@ -36,6 +36,7 @@ import { BulkEntryCreation } from '@/components/grouping/BulkEntryCreation';
 import { TestModeSettingsPanel } from '@/components/guest/TestModeSettingsPanel';
 import { ReadOnlyWorkspaceIndicator } from '@/components/grouping/ReadOnlyWorkspaceIndicator';
 import { CombinedTargetsCard } from '@/components/grouping/CombinedTargetsCard';
+import { GoogleSheetDataCard } from '@/components/googlesheet/GoogleSheetDataCard';
 import { PointsDisplay } from '@/components/points/PointsDisplay';
 import { ROLE_LABELS, KryptonRole } from '@/lib/constants';
 import { 
@@ -689,6 +690,9 @@ const GroupingMe = () => {
                 achievedPoints={myAchievedPoints}
                 groupAchievedPoints={groupAchievedPoints}
               />
+
+              {/* Live Google Sheet Data */}
+              <GoogleSheetDataCard mode="personal" />
 
               {/* PS Daily Entries */}
               <Card>
