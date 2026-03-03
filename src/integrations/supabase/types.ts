@@ -99,6 +99,95 @@ export type Database = {
           },
         ]
       }
+      google_sheet_cache: {
+        Row: {
+          cell_value: string | null
+          column_name: string
+          config_id: string
+          fetched_at: string
+          id: string
+          row_index: number | null
+          user_id: string | null
+        }
+        Insert: {
+          cell_value?: string | null
+          column_name: string
+          config_id: string
+          fetched_at?: string
+          id?: string
+          row_index?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          cell_value?: string | null
+          column_name?: string
+          config_id?: string
+          fetched_at?: string
+          id?: string
+          row_index?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_sheet_cache_config_id_fkey"
+            columns: ["config_id"]
+            isOneToOne: false
+            referencedRelation: "google_sheet_configs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      google_sheet_configs: {
+        Row: {
+          configured_by: string
+          created_at: string
+          enabled: boolean
+          fixed_row_number: number | null
+          id: string
+          last_synced_at: string | null
+          refresh_interval: number
+          row_logic_type: string
+          sheet_id: string
+          sheet_name: string
+          sheet_url: string
+          tracked_columns: string[]
+          updated_at: string
+          username_column: string | null
+        }
+        Insert: {
+          configured_by: string
+          created_at?: string
+          enabled?: boolean
+          fixed_row_number?: number | null
+          id?: string
+          last_synced_at?: string | null
+          refresh_interval?: number
+          row_logic_type?: string
+          sheet_id: string
+          sheet_name?: string
+          sheet_url: string
+          tracked_columns?: string[]
+          updated_at?: string
+          username_column?: string | null
+        }
+        Update: {
+          configured_by?: string
+          created_at?: string
+          enabled?: boolean
+          fixed_row_number?: number | null
+          id?: string
+          last_synced_at?: string | null
+          refresh_interval?: number
+          row_logic_type?: string
+          sheet_id?: string
+          sheet_name?: string
+          sheet_url?: string
+          tracked_columns?: string[]
+          updated_at?: string
+          username_column?: string | null
+        }
+        Relationships: []
+      }
       grouping_note_replies: {
         Row: {
           content: string
@@ -341,6 +430,7 @@ export type Database = {
           is_direct_access: boolean | null
           is_test: boolean | null
           phone_number: string | null
+          register_number: string | null
           simulated_role: Database["public"]["Enums"]["krypton_role"] | null
           updated_at: string
           user_id: string
@@ -359,6 +449,7 @@ export type Database = {
           is_direct_access?: boolean | null
           is_test?: boolean | null
           phone_number?: string | null
+          register_number?: string | null
           simulated_role?: Database["public"]["Enums"]["krypton_role"] | null
           updated_at?: string
           user_id: string
@@ -377,6 +468,7 @@ export type Database = {
           is_direct_access?: boolean | null
           is_test?: boolean | null
           phone_number?: string | null
+          register_number?: string | null
           simulated_role?: Database["public"]["Enums"]["krypton_role"] | null
           updated_at?: string
           user_id?: string

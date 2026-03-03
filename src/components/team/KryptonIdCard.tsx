@@ -268,7 +268,7 @@ export function KryptonIdCard({
   ) => {
     const { error } = await supabase
       .from('profiles')
-      .update({ register_number: registerNumber })
+      .update({ register_number: registerNumber } as any)
       .eq('user_id', userId);
 
     if (error) {
