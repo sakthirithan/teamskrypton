@@ -9,7 +9,7 @@ import { GroupingAlertsPanel } from '@/components/grouping/GroupingAlertsPanel';
 import { GroupingNotesPanel } from '@/components/grouping/GroupingNotesPanel';
 import { BulkEntryCreation } from '@/components/grouping/BulkEntryCreation';
 import { SessionCard } from '@/components/grouping/SessionCard';
-import { GoogleSheetConfigPanel } from '@/components/googlesheet/GoogleSheetConfigPanel';
+
 import { useGroupingSessions } from '@/hooks/useGroupingSessions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -47,7 +47,7 @@ const GroupingHome = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="container mx-auto px-3 sm:px-6 py-4 sm:py-6 safe-area-bottom">
+      <main className="container mx-auto px-3 sm:px-6 py-4 sm:py-6 safe-area-bottom page-enter">
         
         {/* PBL-style layout: Left 2/3, Right 1/3 */}
         <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 sm:gap-6">
@@ -65,14 +65,14 @@ const GroupingHome = () => {
                 </TabsTrigger>
               </TabsList>
               {/* Session Selector Card - visible to all */}
-              <Tabs className="mb-4">
+              <div className="mb-4">
                 <SessionCard 
                   sessions={sessions}
                   activeSession={activeSession}
                   selectedSession={viewingSession}
                   onSessionChange={setSelectedSessionId}
                 />
-              </Tabs>
+              </div>
               <TabsContent value="targets" className="mt-0">
                 <GroupingPanel session={viewingSession} />
               </TabsContent>
@@ -110,9 +110,6 @@ const GroupingHome = () => {
             
             {/* Target Action Panel - session-bound */}
             <TargetActionPanel session={viewingSession} />
-            
-            {/* Google Sheet Config - Leadership only */}
-            {isLeadership && <GoogleSheetConfigPanel />}
             
             {/* Alerts for leadership - session-bound */}
             <GroupingAlertsPanel session={viewingSession} />

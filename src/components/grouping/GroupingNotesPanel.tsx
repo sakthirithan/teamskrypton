@@ -136,14 +136,16 @@ export function GroupingNotesPanel() {
   }
 
   return (
-    <Card>
+    <Card className="overflow-hidden">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
-          <MessageSquare className="w-4 h-4" />
+          <div className="p-1.5 rounded-lg bg-primary/10">
+            <MessageSquare className="w-4 h-4 text-primary" />
+          </div>
           Notes & Discussion
           <RefreshButton onClick={handleRefresh} isRefreshing={isRefreshing} />
           {notes.length > 0 && (
-            <Badge variant="secondary" className="ml-auto">
+            <Badge variant="secondary" className="ml-auto tabular-nums">
               {notes.length}
             </Badge>
           )}
@@ -151,12 +153,12 @@ export function GroupingNotesPanel() {
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Create Note */}
-        <div className="space-y-2">
+        <div className="space-y-2 p-3 rounded-xl bg-muted/30 border border-border/40">
           <Textarea
             value={newNote}
             onChange={(e) => setNewNote(e.target.value)}
             placeholder="Share an update, question, or announcement..."
-            className="min-h-[80px] resize-none"
+            className="min-h-[80px] resize-none bg-background"
           />
           <div className="flex items-center justify-between">
             <p className="text-xs text-muted-foreground">
@@ -176,30 +178,31 @@ export function GroupingNotesPanel() {
 
         {/* Notes List */}
         {notes.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">
-            No notes yet. Start a discussion!
-          </p>
+          <div className="text-center py-8 text-muted-foreground">
+            <MessageSquare className="w-10 h-10 mx-auto mb-3 opacity-30" />
+            <p className="text-sm">No notes yet. Start a discussion!</p>
+          </div>
         ) : (
-          <div className="space-y-4 max-h-[400px] overflow-y-auto">
+          <div className="space-y-3 max-h-[500px] overflow-y-auto scrollbar-thin pr-1">
             {notes.map((note) => {
               const replies = getRepliesForNote(note.id);
               const isCreator = note.created_by === user?.id;
               const isEditing = editingNote === note.id;
               
               return (
-                <div key={note.id} className="p-3 rounded-lg border bg-card">
+                <div key={note.id} className="p-3 rounded-xl border bg-card/50 hover:bg-card transition-colors">
                   {/* Note Header */}
                   <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
-                        <User className="w-3 h-3 text-primary" />
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <User className="w-3.5 h-3.5 text-primary" />
                       </div>
-                      <span className="text-sm font-medium">{getMemberName(note.created_by)}</span>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-sm font-medium truncate">{getMemberName(note.created_by)}</span>
+                      <span className="text-xs text-muted-foreground shrink-0">
                         {formatDistanceToNow(new Date(note.created_at), { addSuffix: true })}
                       </span>
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 shrink-0">
                       <Badge variant="outline" className="text-xs">
                         <Clock className="w-3 h-3 mr-1" />
                         {getTimeRemaining(note.expires_at)}
@@ -245,27 +248,27 @@ export function GroupingNotesPanel() {
                       </div>
                     </div>
                   ) : (
-                    <p className="text-sm whitespace-pre-wrap">{note.content}</p>
+                    <p className="text-sm whitespace-pre-wrap leading-relaxed">{note.content}</p>
                   )}
 
                   {/* Replies */}
                   {replies.length > 0 && (
-                    <div className="mt-3 pl-4 border-l-2 border-muted space-y-2">
+                    <div className="mt-3 pl-4 border-l-2 border-primary/20 space-y-2">
                       {replies.map((reply) => {
                         const isReplyCreator = reply.created_by === user?.id;
                         const isEditingThisReply = editingReply === reply.id;
                         
                         return (
-                          <div key={reply.id} className="p-2 rounded bg-muted/50">
+                          <div key={reply.id} className="p-2.5 rounded-lg bg-muted/40">
                             <div className="flex items-center justify-between gap-2 mb-1">
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-medium">{getMemberName(reply.created_by)}</span>
-                                <span className="text-xs text-muted-foreground">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="text-xs font-medium truncate">{getMemberName(reply.created_by)}</span>
+                                <span className="text-xs text-muted-foreground shrink-0">
                                   {formatDistanceToNow(new Date(reply.created_at), { addSuffix: true })}
                                 </span>
                               </div>
                               {isReplyCreator && (
-                                <div className="flex items-center gap-0.5">
+                                <div className="flex items-center gap-0.5 shrink-0">
                                   <Button
                                     size="icon"
                                     variant="ghost"

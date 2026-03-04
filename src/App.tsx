@@ -16,7 +16,17 @@ import GroupingHome from "./pages/GroupingHome";
 import GroupingMe from "./pages/GroupingMe";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30 * 1000, // 30s stale time for low-network
+      gcTime: 10 * 60 * 1000, // 10min garbage collection
+      retry: 2,
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 
 const App = () => (
