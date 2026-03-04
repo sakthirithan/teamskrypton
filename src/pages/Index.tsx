@@ -34,7 +34,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="container mx-auto px-3 sm:px-6 py-4 sm:py-6 safe-area-bottom">
+      <main className="container mx-auto px-3 sm:px-6 py-4 sm:py-6 safe-area-bottom page-enter">
         {/* Mobile: Stack layout, Desktop: Grid layout */}
         <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Main content - Today's Task ALWAYS FIRST */}

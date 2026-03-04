@@ -9,6 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { RefreshButton } from '@/components/ui/RefreshIconButton';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   calculateTargetStatus, 
   calculateSessionDays, 
@@ -31,7 +32,6 @@ export function GroupingPanel({ session }: GroupingPanelProps) {
   const queryClient = useQueryClient();
   const [isRefreshing, setIsRefreshing] = useState(false);
   
-  // Use passed session (controlled by Home's SessionCard)
   const viewingSession = session;
   const isViewingHistory = viewingSession && viewingSession.status === 'closed';
   
@@ -46,7 +46,6 @@ export function GroupingPanel({ session }: GroupingPanelProps) {
     setIsRefreshing(false);
   }, [queryClient]);
 
-  // Fetch team members
   const { data: teamMembers = [] } = useQuery({
     queryKey: ['team-members-names'],
     queryFn: async () => {
@@ -58,6 +57,7 @@ export function GroupingPanel({ session }: GroupingPanelProps) {
       return data as Profile[];
     },
     enabled: !!user,
+    staleTime: 5 * 60 * 1000,
   });
 
   const getMemberName = (userId: string | null) => {
@@ -65,10 +65,8 @@ export function GroupingPanel({ session }: GroupingPanelProps) {
     return teamMembers.find(m => m.user_id === userId)?.full_name || 'Unknown';
   };
 
-  // Calculate user's achieved points from COMPLETED entries only
   const getUserAchievedPoints = (userId: string | null) => {
     if (!userId) {
-      // Group target - sum all completed entries
       return entries
         .filter(e => e.status === 'completed')
         .reduce((sum, e) => sum + e.reward_points, 0);
@@ -90,8 +88,8 @@ export function GroupingPanel({ session }: GroupingPanelProps) {
   const getStatusBadge = (achieved: number, target: number) => {
     const status = calculateTargetStatus(achieved, target, daysRemaining, totalDays);
     const statusConfig = {
-      on_track: { icon: TrendingUp, class: 'bg-green-500/10 text-green-600 border-green-500/20' },
-      at_risk: { icon: Minus, class: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20' },
+      on_track: { icon: TrendingUp, class: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
+      at_risk: { icon: Minus, class: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
       behind: { icon: TrendingDown, class: 'bg-red-500/10 text-red-600 border-red-500/20' },
     };
     const config = statusConfig[status];
@@ -115,10 +113,12 @@ export function GroupingPanel({ session }: GroupingPanelProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-8 text-muted-foreground">
-            <Target className="w-12 h-12 mx-auto mb-3 opacity-50" />
-            <p>No active session</p>
-            <p className="text-sm">Wait for leadership to create a session.</p>
+          <div className="text-center py-10 text-muted-foreground">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-muted/50 flex items-center justify-center">
+              <Target className="w-8 h-8 opacity-40" />
+            </div>
+            <p className="font-medium">No active session</p>
+            <p className="text-sm mt-1">Wait for leadership to create a session.</p>
           </div>
         </CardContent>
       </Card>
@@ -126,24 +126,23 @@ export function GroupingPanel({ session }: GroupingPanelProps) {
   }
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="overflow-hidden">
+      <CardHeader className="pb-3">
         <CardTitle className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <span className="flex items-center gap-2">
-            <Target className="w-5 h-5" />
-            {viewingSession && (
-              <>Session #{viewingSession.session_number}: {viewingSession.name}</>
-            )}
+          <span className="flex items-center gap-2 text-base">
+            <div className="p-1.5 rounded-lg bg-primary/10">
+              <Target className="w-4 h-4 text-primary" />
+            </div>
+            <span className="font-semibold">
+              Session #{viewingSession.session_number}: {viewingSession.name}
+            </span>
             <RefreshButton onClick={handleRefresh} isRefreshing={isRefreshing} />
           </span>
           <div className="flex items-center gap-2">
-            {/* Session is controlled from Home's SessionCard - no local selector */}
             {isViewingHistory ? (
-              <Badge variant="secondary">
-                Closed
-              </Badge>
+              <Badge variant="secondary" className="text-xs">Closed</Badge>
             ) : viewingSession ? (
-              <Badge variant="secondary">
+              <Badge variant="outline" className="text-xs tabular-nums">
                 {daysRemaining} days left
               </Badge>
             ) : null}
@@ -152,76 +151,78 @@ export function GroupingPanel({ session }: GroupingPanelProps) {
       </CardHeader>
       <CardContent>
         {isViewingHistory && (
-          <div className="mb-4 p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground">
-            <History className="w-4 h-4 inline mr-2" />
+          <div className="mb-4 p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground flex items-center gap-2">
+            <History className="w-4 h-4 shrink-0" />
             Session is controlled from Home. Targets update automatically.
           </div>
         )}
         
         {displayTargets.length === 0 ? (
-          <div className="text-center py-6 text-muted-foreground">
-            <p>No targets assigned yet.</p>
+          <div className="text-center py-8 text-muted-foreground">
+            <p className="text-sm">No targets assigned yet.</p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {displayTargets.map((target) => {
-              const achievedPoints = getUserAchievedPoints(target.user_id);
-              const progress = target.target_points > 0 
-                ? Math.min(100, (achievedPoints / target.target_points) * 100)
-                : 0;
+          <ScrollArea className="max-h-[500px] scrollbar-thin">
+            <div className="space-y-3 pr-1">
+              {displayTargets.map((target) => {
+                const achievedPoints = getUserAchievedPoints(target.user_id);
+                const progress = target.target_points > 0 
+                  ? Math.min(100, (achievedPoints / target.target_points) * 100)
+                  : 0;
 
-              return (
-                <div
-                  key={target.id}
-                  className="p-4 rounded-lg border bg-card hover:shadow-sm transition-shadow"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      {target.target_scope === 'group' ? (
-                        <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center">
-                          <Users className="w-4 h-4 text-blue-500" />
+                return (
+                  <div
+                    key={target.id}
+                    className="p-4 rounded-xl border bg-card/50 hover:bg-card transition-colors"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        {target.target_scope === 'group' ? (
+                          <div className="w-9 h-9 rounded-xl bg-accent/10 flex items-center justify-center">
+                            <Users className="w-4 h-4 text-accent" />
+                          </div>
+                        ) : (
+                          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                            <User className="w-4 h-4 text-emerald-600" />
+                          </div>
+                        )}
+                        <div>
+                          <p className="font-medium text-sm">
+                            {target.target_scope === 'group' 
+                              ? 'Group Target' 
+                              : getMemberName(target.user_id)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {target.target_scope === 'group' ? 'Whole Team' : 'Individual'}
+                          </p>
                         </div>
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center">
-                          <User className="w-4 h-4 text-green-500" />
-                        </div>
-                      )}
-                      <div>
-                        <p className="font-medium">
-                          {target.target_scope === 'group' 
-                            ? 'Group Target' 
-                            : getMemberName(target.user_id)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {target.target_scope === 'group' ? 'Whole Team' : 'Individual'}
-                        </p>
                       </div>
+                      {getStatusBadge(achievedPoints, target.target_points)}
                     </div>
-                    {getStatusBadge(achievedPoints, target.target_points)}
-                  </div>
 
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Progress</span>
-                      <span className="font-medium">
-                        {achievedPoints} / {target.target_points} pts
-                      </span>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Progress</span>
+                        <span className="font-medium tabular-nums">
+                          {achievedPoints} / {target.target_points} pts
+                        </span>
+                      </div>
+                      <Progress value={progress} className="h-2" />
+                      <p className="text-xs text-right text-muted-foreground tabular-nums">
+                        {progress.toFixed(1)}% complete
+                      </p>
                     </div>
-                    <Progress value={progress} className="h-2" />
-                    <p className="text-xs text-right text-muted-foreground">
-                      {progress.toFixed(1)}% complete
-                    </p>
-                  </div>
 
-                  {target.notes && (
-                    <p className="mt-2 text-xs text-muted-foreground italic">
-                      {target.notes}
-                    </p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                    {target.notes && (
+                      <p className="mt-2 text-xs text-muted-foreground italic border-t pt-2">
+                        {target.notes}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </ScrollArea>
         )}
       </CardContent>
     </Card>

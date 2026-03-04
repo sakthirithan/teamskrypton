@@ -36,7 +36,8 @@ import { BulkEntryCreation } from '@/components/grouping/BulkEntryCreation';
 import { TestModeSettingsPanel } from '@/components/guest/TestModeSettingsPanel';
 import { ReadOnlyWorkspaceIndicator } from '@/components/grouping/ReadOnlyWorkspaceIndicator';
 import { CombinedTargetsCard } from '@/components/grouping/CombinedTargetsCard';
-import { GoogleSheetDataCard } from '@/components/googlesheet/GoogleSheetDataCard';
+import { ProductivityInsights } from '@/components/grouping/ProductivityInsights';
+import { QuickEntryWidget } from '@/components/grouping/QuickEntryWidget';
 import { PointsDisplay } from '@/components/points/PointsDisplay';
 import { ROLE_LABELS, KryptonRole } from '@/lib/constants';
 import { 
@@ -519,39 +520,38 @@ const GroupingMe = () => {
     <TooltipProvider>
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="container mx-auto px-3 sm:px-6 py-4 sm:py-6 safe-area-bottom">
-        <div className="space-y-6">
+      <main className="container mx-auto px-3 sm:px-6 py-4 sm:py-6 safe-area-bottom page-enter">
+        <div className="space-y-4 sm:space-y-6">
           {/* Profile Header with Role-Based Features */}
-          <Card>
-            <CardHeader>
+          <Card className="overflow-hidden">
+            <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                  <User className="w-6 h-6 text-primary" />
+                <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <User className="w-5 h-5 text-primary" />
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-xl font-bold">{displayProfile?.full_name || 'Loading...'}</h2>
+                    <h2 className="text-lg font-bold truncate">{displayProfile?.full_name || 'Loading...'}</h2>
                     {isViewingOther && !isTL && (
-                      <Badge variant="outline" className="flex items-center gap-1">
+                      <Badge variant="outline" className="flex items-center gap-1 text-xs">
                         <Eye className="w-3 h-3" />
                         Read-Only
                       </Badge>
                     )}
                     {isViewingOther && isTL && (
-                      <Badge variant="default" className="flex items-center gap-1 bg-primary">
+                      <Badge variant="default" className="flex items-center gap-1 text-xs">
                         <Edit2 className="w-3 h-3" />
                         Full Access
                       </Badge>
                     )}
                     {isSessionClosed && (
-                      <Badge variant="secondary" className="flex items-center gap-1">
+                      <Badge variant="secondary" className="flex items-center gap-1 text-xs">
                         <Lock className="w-3 h-3" />
-                        Closed Session
+                        Closed
                       </Badge>
                     )}
                   </div>
                   
-                  {/* User Role Badge - Show below name */}
                   {displayRole && (
                     <div className="flex items-center gap-2 mt-1">
                       <Badge variant="outline" className="flex items-center gap-1 text-xs">
@@ -561,7 +561,7 @@ const GroupingMe = () => {
                     </div>
                   )}
                   
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     {isViewingOther ? `${displayProfile?.full_name}'s Grouping Space` : 'My Grouping Space'}
                   </p>
                 </div>
@@ -606,83 +606,76 @@ const GroupingMe = () => {
                 />
               )}
 
-              {/* Points Card - Common to both modes */}
-              <Card className="bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-800/20 border-amber-200 dark:border-amber-800">
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-amber-200 dark:bg-amber-900/50 flex items-center justify-center">
-                      <Coins className="w-6 h-6 text-amber-600 dark:text-amber-400" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-amber-700/80 dark:text-amber-400/80">Total Points</p>
-                      <PointsDisplayInline userId={viewingUserId} />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Session Overview Stats */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Card>
-                  <CardContent className="pt-6">
+              {/* Points & Stats Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <Card className="overflow-hidden">
+                  <CardContent className="pt-4 pb-3 px-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-muted-foreground">Completed</p>
-                        <p className="text-2xl font-bold text-green-600">{myAchievedPoints}</p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">Completed</p>
+                        <p className="text-xl font-bold tabular-nums text-emerald-600">{myAchievedPoints}</p>
+                        <p className="text-xs text-muted-foreground tabular-nums">
                           of {myIndividualTarget?.target_points || 0} pts
                         </p>
                       </div>
-                      <CheckCircle className="w-8 h-8 text-green-500 opacity-50" />
+                      <div className="p-2 rounded-xl bg-emerald-500/10">
+                        <CheckCircle className="w-5 h-5 text-emerald-500" />
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
 
-                <Card>
-                  <CardContent className="pt-6">
+                <Card className="overflow-hidden">
+                  <CardContent className="pt-4 pb-3 px-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-muted-foreground">Pending</p>
-                        <p className="text-2xl font-bold text-yellow-600">{pendingCount}</p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">Pending</p>
+                        <p className="text-xl font-bold tabular-nums text-amber-600">{pendingCount}</p>
+                        <p className="text-xs text-muted-foreground tabular-nums">
                           {pendingPointsSum} pts waiting
                         </p>
                       </div>
-                      <Clock className="w-8 h-8 text-yellow-500 opacity-50" />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Days Left</p>
-                        <p className="text-2xl font-bold">{daysRemaining}</p>
-                        <p className="text-xs text-muted-foreground">of {totalDays} total</p>
+                      <div className="p-2 rounded-xl bg-amber-500/10">
+                        <Clock className="w-5 h-5 text-amber-500" />
                       </div>
-                      <Calendar className="w-8 h-8 text-primary opacity-50" />
                     </div>
                   </CardContent>
                 </Card>
 
-                <Card>
-                  <CardContent className="pt-6">
+                <Card className="overflow-hidden">
+                  <CardContent className="pt-4 pb-3 px-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-muted-foreground">Group</p>
-                        <p className="text-2xl font-bold">{groupAchievedPoints || 0}</p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">Days Left</p>
+                        <p className="text-xl font-bold tabular-nums">{daysRemaining}</p>
+                        <p className="text-xs text-muted-foreground tabular-nums">of {totalDays} total</p>
+                      </div>
+                      <div className="p-2 rounded-xl bg-primary/10">
+                        <Calendar className="w-5 h-5 text-primary" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="overflow-hidden">
+                  <CardContent className="pt-4 pb-3 px-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Group</p>
+                        <p className="text-xl font-bold tabular-nums">{groupAchievedPoints || 0}</p>
+                        <p className="text-xs text-muted-foreground tabular-nums">
                           of {groupTarget?.target_points || 0} pts
                         </p>
                       </div>
-                      <Target className="w-8 h-8 text-blue-500 opacity-50" />
+                      <div className="p-2 rounded-xl bg-accent/10">
+                        <Target className="w-5 h-5 text-accent" />
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
               </div>
 
-              {/* Combined Targets Card - Shows Individual + Group Targets */}
+              {/* Combined Targets Card */}
               <CombinedTargetsCard
                 session={viewingSession}
                 individualTarget={myIndividualTarget}
@@ -691,14 +684,24 @@ const GroupingMe = () => {
                 groupAchievedPoints={groupAchievedPoints}
               />
 
-              {/* Live Google Sheet Data */}
-              <GoogleSheetDataCard mode="personal" />
+              {/* Productivity Insights - NEW */}
+              <ProductivityInsights
+                entries={entries}
+                session={viewingSession}
+                targetPoints={myIndividualTarget?.target_points || 0}
+                achievedPoints={myAchievedPoints}
+              />
+
+              {/* Quick Entry Widget - NEW */}
+              {canAddEntry && viewingSession && viewingUserId && (
+                <QuickEntryWidget session={viewingSession} userId={viewingUserId} />
+              )}
 
               {/* PS Daily Entries */}
-              <Card>
-                <CardHeader>
+              <Card className="overflow-hidden">
+                <CardHeader className="pb-3">
                   <CardTitle className="flex items-center justify-between flex-wrap gap-2">
-                    <span className="flex items-center gap-2">
+                    <span className="flex items-center gap-2 text-base">
                       PS Daily Entries
                       <RefreshButton onClick={handleRefresh} isRefreshing={isRefreshing} />
                     </span>
@@ -921,7 +924,7 @@ const GroupingMe = () => {
                       {entries.length === 0 ? 'No entries yet. Add your first PS entry.' : 'No entries match the current filter.'}
                     </p>
                   ) : (
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto max-h-[500px] overflow-y-auto scrollbar-thin">
                       <Table>
                         <TableHeader>
                           <TableRow>
