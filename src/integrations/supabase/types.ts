@@ -380,6 +380,50 @@ export type Database = {
         }
         Relationships: []
       }
+      milestones: {
+        Row: {
+          created_at: string
+          description: string | null
+          due_date: string | null
+          id: string
+          name: string
+          project_id: string
+          sort_order: number
+          status: Database["public"]["Enums"]["milestone_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          name: string
+          project_id: string
+          sort_order?: number
+          status?: Database["public"]["Enums"]["milestone_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          name?: string
+          project_id?: string
+          sort_order?: number
+          status?: Database["public"]["Enums"]["milestone_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "milestones_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       points_history: {
         Row: {
           created_at: string
@@ -473,6 +517,178 @@ export type Database = {
           updated_at?: string
           user_id?: string
           user_type?: Database["public"]["Enums"]["test_user_type"]
+        }
+        Relationships: []
+      }
+      project_activity: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          id: string
+          project_id: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          project_id: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          project_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_activity_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_members: {
+        Row: {
+          id: string
+          joined_at: string
+          project_id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string
+          project_id: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string
+          project_id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_members_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_tasks: {
+        Row: {
+          assigned_to: string | null
+          completed_at: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          due_date: string | null
+          id: string
+          milestone_id: string
+          priority: Database["public"]["Enums"]["priority_level"]
+          project_id: string
+          status: Database["public"]["Enums"]["project_task_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          milestone_id: string
+          priority?: Database["public"]["Enums"]["priority_level"]
+          project_id: string
+          status?: Database["public"]["Enums"]["project_task_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          milestone_id?: string
+          priority?: Database["public"]["Enums"]["priority_level"]
+          project_id?: string
+          status?: Database["public"]["Enums"]["project_task_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_tasks_milestone_id_fkey"
+            columns: ["milestone_id"]
+            isOneToOne: false
+            referencedRelation: "milestones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          created_at: string
+          deadline: string | null
+          description: string | null
+          id: string
+          is_test: boolean | null
+          name: string
+          owner_id: string
+          priority: Database["public"]["Enums"]["priority_level"]
+          start_date: string
+          status: Database["public"]["Enums"]["project_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          is_test?: boolean | null
+          name: string
+          owner_id: string
+          priority?: Database["public"]["Enums"]["priority_level"]
+          start_date?: string
+          status?: Database["public"]["Enums"]["project_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          is_test?: boolean | null
+          name?: string
+          owner_id?: string
+          priority?: Database["public"]["Enums"]["priority_level"]
+          start_date?: string
+          status?: Database["public"]["Enums"]["project_status"]
+          updated_at?: string
         }
         Relationships: []
       }
@@ -893,6 +1109,15 @@ export type Database = {
         | "strategist"
         | "team_manager"
         | "team_member"
+      milestone_status: "not_started" | "in_progress" | "completed" | "overdue"
+      priority_level: "low" | "medium" | "high" | "critical"
+      project_status:
+        | "planning"
+        | "active"
+        | "on_hold"
+        | "completed"
+        | "archived"
+      project_task_status: "todo" | "in_progress" | "review" | "done"
       registration_status: "pending" | "approved" | "rejected"
       task_status: "idle" | "working" | "completed" | "pending"
       test_user_type: "real" | "primary_test" | "secondary_test"
@@ -1039,6 +1264,16 @@ export const Constants = {
         "team_manager",
         "team_member",
       ],
+      milestone_status: ["not_started", "in_progress", "completed", "overdue"],
+      priority_level: ["low", "medium", "high", "critical"],
+      project_status: [
+        "planning",
+        "active",
+        "on_hold",
+        "completed",
+        "archived",
+      ],
+      project_task_status: ["todo", "in_progress", "review", "done"],
       registration_status: ["pending", "approved", "rejected"],
       task_status: ["idle", "working", "completed", "pending"],
       test_user_type: ["real", "primary_test", "secondary_test"],
