@@ -1,45 +1,45 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Krypton Space Design System - Clean, Modern, Professional */
+/* TeamSkrypton Design System — Zoho-Inspired Professional */
 
 @layer base {
   :root {
-    /* Background & Text - Clean and spacious */
-    --background: 220 20% 98%;
+    /* Background — Soft slate canvas */
+    --background: 210 20% 98%;
     --foreground: 222 47% 11%;
 
-    /* Cards - Crisp white with depth */
+    /* Cards — Crisp white */
     --card: 0 0% 100%;
     --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    /* Primary - Bold indigo */
-    --primary: 238 75% 58%;
+    /* Primary — Zoho Professional Blue */
+    --primary: 217 91% 50%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary - Subtle neutral */
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 220 13% 40%;
+    /* Secondary — Neutral slate */
+    --secondary: 210 16% 95%;
+    --secondary-foreground: 215 19% 35%;
 
-    /* Muted - Labels, hints */
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 10% 50%;
+    /* Muted */
+    --muted: 210 16% 95%;
+    --muted-foreground: 215 14% 50%;
 
-    /* Accent - Interaction highlights */
-    --accent: 238 75% 58%;
+    /* Accent */
+    --accent: 217 91% 50%;
     --accent-foreground: 0 0% 100%;
 
-    /* Destructive - Clear, not alarming */
+    /* Destructive */
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Success, Warning, Info */
+    /* Semantic Colors */
     --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
     --warning: 38 92% 50%;
@@ -47,15 +47,15 @@
     --info: 199 89% 48%;
     --info-foreground: 0 0% 100%;
 
-    /* Borders & Inputs - Refined */
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 238 75% 58%;
+    /* Borders */
+    --border: 214 14% 90%;
+    --input: 214 14% 90%;
+    --ring: 217 91% 50%;
 
-    --radius: 0.625rem;
+    --radius: 0.5rem;
 
-    /* Role-based colors */
-    --role-captain: 238 75% 58%;
+    /* Role colors */
+    --role-captain: 217 91% 50%;
     --role-vice-captain: 221 83% 53%;
     --role-strategist: 199 89% 48%;
     --role-manager: 38 92% 50%;
@@ -63,70 +63,82 @@
 
     /* Status */
     --status-idle: 215 14% 45%;
-    --status-working: 217 91% 60%;
+    --status-working: 217 91% 55%;
     --status-completed: 142 71% 45%;
     --status-pending: 38 92% 50%;
 
+    /* Project status */
+    --project-planning: 215 14% 50%;
+    --project-active: 217 91% 50%;
+    --project-on-hold: 38 92% 50%;
+    --project-completed: 142 71% 45%;
+
+    /* Priority */
+    --priority-low: 215 14% 55%;
+    --priority-medium: 217 91% 50%;
+    --priority-high: 25 95% 53%;
+    --priority-critical: 0 72% 51%;
+
     /* Sidebar */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 222 47% 11%;
-    --sidebar-primary: 238 75% 58%;
+    --sidebar-foreground: 215 19% 35%;
+    --sidebar-primary: 217 91% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 14% 96%;
+    --sidebar-accent: 210 16% 96%;
     --sidebar-accent-foreground: 222 47% 11%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 238 75% 58%;
+    --sidebar-border: 214 14% 92%;
+    --sidebar-ring: 217 91% 50%;
 
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(238 75% 58%), hsl(258 70% 55%));
-    --gradient-accent: linear-gradient(135deg, hsl(238 75% 58%), hsl(199 89% 48%));
+    --gradient-primary: linear-gradient(135deg, hsl(217 91% 50%), hsl(217 91% 40%));
+    --gradient-accent: linear-gradient(135deg, hsl(217 91% 50%), hsl(199 89% 48%));
     --gradient-success: linear-gradient(135deg, hsl(142 71% 45%), hsl(158 64% 42%));
 
-    /* Shadows - Subtle depth */
+    /* Shadows */
     --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
-    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
-    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 10px 10px -5px rgba(0, 0, 0, 0.03);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.07), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.07), 0 10px 10px -5px rgba(0, 0, 0, 0.03);
   }
 
   .dark {
-    --background: 224 71% 4%;
+    --background: 222 47% 6%;
     --foreground: 213 31% 91%;
 
-    --card: 224 71% 6%;
+    --card: 222 47% 8%;
     --card-foreground: 213 31% 91%;
 
-    --popover: 224 71% 6%;
+    --popover: 222 47% 8%;
     --popover-foreground: 213 31% 91%;
 
-    --primary: 238 75% 65%;
+    --primary: 217 91% 60%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 222 47% 11%;
+    --secondary: 222 30% 14%;
     --secondary-foreground: 215 20% 65%;
 
-    --muted: 223 47% 11%;
+    --muted: 222 30% 14%;
     --muted-foreground: 215 20% 65%;
 
-    --accent: 238 75% 65%;
+    --accent: 217 91% 60%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 63% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 216 34% 17%;
-    --input: 216 34% 17%;
-    --ring: 238 75% 65%;
+    --border: 222 30% 18%;
+    --input: 222 30% 18%;
+    --ring: 217 91% 60%;
 
-    --sidebar-background: 224 71% 4%;
+    --sidebar-background: 222 47% 6%;
     --sidebar-foreground: 213 31% 91%;
-    --sidebar-primary: 238 75% 65%;
+    --sidebar-primary: 217 91% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 47% 11%;
+    --sidebar-accent: 222 30% 14%;
     --sidebar-accent-foreground: 213 31% 91%;
-    --sidebar-border: 216 34% 17%;
-    --sidebar-ring: 238 75% 65%;
+    --sidebar-border: 222 30% 18%;
+    --sidebar-ring: 217 91% 60%;
 
     --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.25), 0 1px 2px rgba(0, 0, 0, 0.2);
@@ -155,9 +167,9 @@
 }
 
 @layer components {
-  /* Card Styles - Enhanced depth and clarity */
+  /* Card Styles */
   .krypton-card {
-    @apply bg-card rounded-xl border border-border/60 transition-all duration-200;
+    @apply bg-card rounded-lg border border-border/60 transition-all duration-200;
     box-shadow: var(--shadow-sm);
   }
 
@@ -166,7 +178,7 @@
   }
 
   .krypton-card-elevated {
-    @apply bg-card rounded-xl border border-border/40;
+    @apply bg-card rounded-lg border border-border/40;
     box-shadow: var(--shadow-md);
   }
 
@@ -175,9 +187,9 @@
     background: var(--gradient-primary);
   }
 
-  /* Status Badges - Enhanced */
+  /* Status Badges */
   .status-badge {
-    @apply inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium;
+    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium;
   }
 
   .status-idle {
@@ -201,37 +213,18 @@
 
   /* Role Badges */
   .role-badge {
-    @apply inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold uppercase tracking-wider;
+    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold uppercase tracking-wider;
   }
   
-  .role-captain {
-    background-color: hsl(var(--role-captain));
-    @apply text-white;
-  }
-
-  .role-vice-captain {
-    background-color: hsl(var(--role-vice-captain));
-    @apply text-white;
-  }
-
-  .role-strategist {
-    background-color: hsl(var(--role-strategist));
-    @apply text-white;
-  }
-
-  .role-manager {
-    background-color: hsl(var(--role-manager));
-    @apply text-white;
-  }
-
-  .role-member {
-    background-color: hsl(var(--role-member));
-    @apply text-white;
-  }
+  .role-captain { background-color: hsl(var(--role-captain)); @apply text-white; }
+  .role-vice-captain { background-color: hsl(var(--role-vice-captain)); @apply text-white; }
+  .role-strategist { background-color: hsl(var(--role-strategist)); @apply text-white; }
+  .role-manager { background-color: hsl(var(--role-manager)); @apply text-white; }
+  .role-member { background-color: hsl(var(--role-member)); @apply text-white; }
 
   /* Glass Effect */
   .glass-card {
-    @apply bg-card/80 backdrop-blur-md border border-border/50 rounded-xl;
+    @apply bg-card/80 backdrop-blur-md border border-border/50 rounded-lg;
   }
 
   /* Gradient text */
@@ -247,9 +240,9 @@
     @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
 
-  /* Stat Card - Enhanced */
+  /* Stat Card */
   .stat-card {
-    @apply p-4 rounded-xl bg-gradient-to-br from-card to-secondary/20 border border-border/40;
+    @apply p-4 rounded-lg bg-card border border-border/50;
     box-shadow: var(--shadow-xs);
   }
 
@@ -277,17 +270,17 @@
 
   /* Page Enter */
   .page-enter {
-    animation: page-fade-in 0.25s ease-out;
+    animation: page-fade-in 0.2s ease-out;
   }
 
   @keyframes page-fade-in {
-    0% { opacity: 0; transform: translateY(4px); }
+    0% { opacity: 0; transform: translateY(3px); }
     100% { opacity: 1; transform: translateY(0); }
   }
 
-  /* Skeleton loading for low-network */
+  /* Skeleton loading */
   .skeleton-loader {
-    @apply animate-pulse rounded-md bg-muted;
+    @apply animate-pulse rounded bg-muted;
   }
 
   /* Smooth scroll container */
@@ -297,11 +290,27 @@
     scroll-behavior: smooth;
   }
 
-  /* Panel scroll for cards/panels */
+  /* Panel scroll */
   .panel-scroll {
     @apply overflow-y-auto;
     -webkit-overflow-scrolling: touch;
     max-height: calc(100vh - 12rem);
+  }
+
+  /* Project Health Indicators */
+  .health-healthy {
+    background-color: hsl(var(--success) / 0.12);
+    color: hsl(var(--success));
+  }
+
+  .health-risk {
+    background-color: hsl(var(--warning) / 0.12);
+    color: hsl(var(--warning));
+  }
+
+  .health-delayed {
+    background-color: hsl(var(--destructive) / 0.12);
+    color: hsl(var(--destructive));
   }
 }
 
@@ -310,18 +319,15 @@
     text-wrap: balance;
   }
   
-  /* Touch Target - Accessibility */
   .touch-target {
     min-height: 44px;
     min-width: 44px;
   }
   
-  /* Mobile Card */
   .mobile-card {
     @apply p-4 rounded-lg border bg-card;
   }
   
-  /* Hide scrollbars */
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -331,7 +337,6 @@
     display: none;
   }
 
-  /* Thin scrollbar for compact areas */
   .scrollbar-thin {
     scrollbar-width: thin;
     scrollbar-color: hsl(var(--border)) transparent;
@@ -347,12 +352,10 @@
     border-radius: 2px;
   }
 
-  /* Tabular Numbers */
   .tabular-nums {
     font-variant-numeric: tabular-nums;
   }
 
-  /* Low-network friendly loading state */
   .loading-skeleton {
     @apply animate-pulse bg-muted rounded;
   }
@@ -369,7 +372,6 @@
   h3 { font-size: 1.125rem; }
 }
 
-/* Mobile Container */
 @media (max-width: 768px) {
   .container {
     padding-left: 1rem;

@@ -62,9 +62,10 @@ export function Header() {
         { path: '/grouping/me', label: 'My Space', icon: Target },
       ]
     : [
-        { path: '/', label: 'Home', icon: Home },
+        { path: '/pbl/dashboard', label: 'Dashboard', icon: Home },
+        { path: '/pbl/projects', label: 'Projects', icon: LayoutDashboard },
+        { path: '/pbl/analytics', label: 'Analytics', icon: Target },
         { path: '/team', label: 'Team', icon: Users },
-        { path: '/my-space', label: 'My Space', icon: LayoutDashboard },
       ];
 
   useEffect(() => {
