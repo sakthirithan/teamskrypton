@@ -602,6 +602,19 @@ const Team = () => {
             </div>
           </DialogContent>
         </Dialog>
+      </div>
+    </>
+  );
+
+  if (isPBL) {
+    return <PBLLayout title="Team Directory">{content}</PBLLayout>;
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Header />
+      <main className="container mx-auto px-6 py-6">
+        {content}
       </main>
     </div>
   );
