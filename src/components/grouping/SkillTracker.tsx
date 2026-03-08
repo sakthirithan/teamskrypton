@@ -230,6 +230,11 @@ export function SkillTracker({ session, userId, isReadOnly = false }: SkillTrack
           </CardContent>
         </Card>
       ))}
+
+      {/* AI Skill Recommendations */}
+      {!isReadOnly && (
+        <AISkillRecommendations userId={userId} sessionId={session.id} />
+      )}
     </div>
   );
 }
