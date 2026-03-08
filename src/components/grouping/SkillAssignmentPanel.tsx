@@ -41,10 +41,10 @@ export function SkillAssignmentPanel({ userId, userName, isSelfMode = false }: S
   const [domain, setDomain] = useState<SkillDomain | 'custom'>('general');
   const [customDomain, setCustomDomain] = useState('');
 
-  // All users can delete/edit their own skills; leadership can manage anyone's
-  const isSelfOrLeadership = (user?.id === userId) || isLeadership;
-  const canDelete = isSelfOrLeadership;
-  const canCreate = isSelfOrLeadership;
+  // Once skills are set, only leadership can edit/delete
+  const canDelete = isLeadership;
+  // Users can create if they have no skills yet; leadership can always create
+  const canCreate = isLeadership || (isSelfMode && skills.length === 0);
 
   const handleAssign = async () => {
     if (!skillName.trim()) return;
