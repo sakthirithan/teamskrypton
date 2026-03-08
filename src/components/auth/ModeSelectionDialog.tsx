@@ -52,35 +52,34 @@ export function ModeSelectionDialog({ open, onSelectMode, onCancel, disableAutoS
     }
   };
 
-  // Auto-select Grouping after 60 seconds of inactivity (only if not disabled)
+  // Auto-select Grouping after timeout (only if not disabled)
   useEffect(() => {
-  if (!open || disableAutoSelect) {
-    clearTimers();
-    return;
-  }
+    if (!open || disableAutoSelect) {
+      clearTimers();
+      return;
+    }
 
-  // Reset state when dialog opens
-  setSelectedMode(null);
-  setIsConfirming(false);
-  setCountdown(AUTO_SELECT_TIMEOUT);
+    // Reset state only when dialog first opens
+    setSelectedMode(null);
+    setIsConfirming(false);
+    setCountdown(AUTO_SELECT_TIMEOUT);
 
-  countdownRef.current = setInterval(() => {
-    setCountdown(prev => (prev <= 1 ? 0 : prev - 1));
-  }, 1000);
+    countdownRef.current = setInterval(() => {
+      setCountdown(prev => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
 
-  timerRef.current = setTimeout(() => {
-    if (selectedMode) return; // ✅ guard
+    timerRef.current = setTimeout(() => {
+      setSelectedMode('grouping');
+      setIsConfirming(true);
+      setTimeout(() => {
+        onSelectMode('grouping');
+      }, 300);
+    }, AUTO_SELECT_TIMEOUT * 1000);
 
-    setSelectedMode('grouping');
-    setIsConfirming(true);
-
-    setTimeout(() => {
-      onSelectMode('grouping');
-    }, 300);
-  }, AUTO_SELECT_TIMEOUT * 1000);
-
-  return () => clearTimers();
-}, [open, disableAutoSelect, onSelectMode, selectedMode]);
+    return () => clearTimers();
+    // Only re-run when dialog opens/closes or autoSelect changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, disableAutoSelect]);
 
   // Reset auto-select timer when user interacts (only if not disabled)
   const resetAutoSelect = () => {
