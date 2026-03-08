@@ -2,12 +2,14 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useAppMode } from '@/hooks/useAppMode';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { KryptonIdCard } from '@/components/team/KryptonIdCard';
-import { CheckCircle, BarChart3, ArrowLeft, Clock, AlertTriangle, ExternalLink } from 'lucide-react';
+import { MemberProjectsPanel } from '@/components/pbl/MemberProjectsPanel';
+import { CheckCircle, BarChart3, ArrowLeft, Clock, AlertTriangle, ExternalLink, FolderKanban } from 'lucide-react';
 import { format } from 'date-fns';
 import { KryptonRole, TaskStatus } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
@@ -17,6 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { CalendarIcon } from 'lucide-react';
 import { isSameDay } from 'date-fns';
 import { Download, Trash2 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 
 const formatDuration = (minutes?: number | null) => {
