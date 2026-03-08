@@ -55,16 +55,15 @@ const GroupingHome = () => {
           {/* Main content area */}
           <div className="lg:col-span-2 space-y-4 sm:space-y-6 order-1">
             {isLeadership ? (
-              /* LEADERSHIP: Skill-first layout with 3 tabs */
               <Tabs defaultValue="skills" className="w-full">
                 <TabsList className="grid w-full grid-cols-4 mb-4">
                   <TabsTrigger value="skills" className="flex items-center gap-2">
                     <BookOpen className="w-4 h-4" />
                     <span className="hidden sm:inline">Skills</span>
                   </TabsTrigger>
-                  <TabsTrigger value="targets" className="flex items-center gap-2">
-                    <Target className="w-4 h-4" />
-                    <span className="hidden sm:inline">Targets</span>
+                  <TabsTrigger value="ps" className="flex items-center gap-2">
+                    <ClipboardList className="w-4 h-4" />
+                    <span className="hidden sm:inline">PS</span>
                   </TabsTrigger>
                   <TabsTrigger value="reflections" className="flex items-center gap-2">
                     <NotebookPen className="w-4 h-4" />
@@ -99,9 +98,31 @@ const GroupingHome = () => {
                   )}
                 </TabsContent>
 
-                {/* Targets Tab */}
-                <TabsContent value="targets" className="mt-0">
-                  <GroupingPanel session={viewingSession} />
+                {/* PS Tab - All PS related: Targets, Bulk Entry, Target Actions, Alerts */}
+                <TabsContent value="ps" className="mt-0">
+                  <div className="space-y-4">
+                    <GroupingPanel session={viewingSession} />
+                    
+                    {viewingSession && !isSessionClosed && (
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="flex items-center gap-2 text-base">
+                            <ClipboardList className="w-4 h-4" />
+                            PS Quick Actions
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <BulkEntryCreation session={viewingSession} />
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Create PS entries for multiple members at once
+                          </p>
+                        </CardContent>
+                      </Card>
+                    )}
+                    
+                    <TargetActionPanel session={viewingSession} />
+                    <GroupingAlertsPanel session={viewingSession} />
+                  </div>
                 </TabsContent>
 
                 {/* Reflections Tab */}
@@ -115,12 +136,12 @@ const GroupingHome = () => {
                 </TabsContent>
               </Tabs>
             ) : (
-              /* TEAM MEMBERS: Original layout - Targets first */
-              <Tabs defaultValue="targets" className="w-full">
+              /* TEAM MEMBERS */
+              <Tabs defaultValue="ps" className="w-full">
                 <TabsList className="grid w-full grid-cols-3 mb-4">
-                  <TabsTrigger value="targets" className="flex items-center gap-2">
-                    <Target className="w-4 h-4" />
-                    Targets
+                  <TabsTrigger value="ps" className="flex items-center gap-2">
+                    <ClipboardList className="w-4 h-4" />
+                    PS
                   </TabsTrigger>
                   <TabsTrigger value="reflections" className="flex items-center gap-2">
                     <NotebookPen className="w-4 h-4" />
@@ -139,8 +160,12 @@ const GroupingHome = () => {
                     onSessionChange={setSelectedSessionId}
                   />
                 </div>
-                <TabsContent value="targets" className="mt-0">
-                  <GroupingPanel session={viewingSession} />
+                <TabsContent value="ps" className="mt-0">
+                  <div className="space-y-4">
+                    <GroupingPanel session={viewingSession} />
+                    <TargetActionPanel session={viewingSession} />
+                    <GroupingAlertsPanel session={viewingSession} />
+                  </div>
                 </TabsContent>
                 <TabsContent value="reflections" className="mt-0">
                   <AllReflectionsPanel />
@@ -156,32 +181,6 @@ const GroupingHome = () => {
           <div className="space-y-4 sm:space-y-6 order-2">
             {/* Session Management for TL/VC only */}
             {isCaptainOrVice && <SessionManagementPanel />}
-            
-            {/* Bulk Entry Creation - lower priority for leadership */}
-            {isLeadership && viewingSession && !isSessionClosed && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center justify-between">
-                    <span className="flex items-center gap-2 text-base">
-                      <ClipboardList className="w-4 h-4" />
-                      PS Quick Actions
-                    </span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <BulkEntryCreation session={viewingSession} />
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Create PS entries for multiple members at once
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-            
-            {/* Target Action Panel */}
-            <TargetActionPanel session={viewingSession} />
-            
-            {/* Alerts */}
-            <GroupingAlertsPanel session={viewingSession} />
           </div>
         </div>
       </main>
