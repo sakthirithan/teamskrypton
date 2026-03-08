@@ -80,6 +80,7 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
     });
     setEditingBlock(null);
     setForm({ title: '', description: '', resource_url: '' });
+    onFlowchartUpdate?.();
   };
 
   const handleAddLink = async () => {
