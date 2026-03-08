@@ -618,7 +618,7 @@ const Team = () => {
       </TabsContent>
       <TabsContent value="leaderboard" className="mt-0">
         {(() => {
-          const activeS = members.length > 0 ? sessions?.find((s: any) => s.status === 'active') : null;
+          const activeS = activeSession || null;
           return activeS ? <SkillLeaderboard sessionId={activeS.id} /> : (
             <div className="py-12 text-center text-muted-foreground text-sm">No active session for leaderboard.</div>
           );
