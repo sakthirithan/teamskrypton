@@ -5,12 +5,14 @@ import { PBLLayout } from '@/components/pbl/PBLLayout';
 import { ProjectHealthWidget } from '@/components/pbl/ProjectHealthWidget';
 import { ProjectCard } from '@/components/pbl/ProjectCard';
 import { CreateProjectDialog } from '@/components/pbl/CreateProjectDialog';
+import { NotificationsPanel } from '@/components/pbl/NotificationsPanel';
 import { useProjects, useAllProfiles } from '@/hooks/useProjects';
 import { useSessionPersistence } from '@/hooks/useSessionPersistence';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Plus, FolderKanban } from 'lucide-react';
+import { useState } from 'react';
 import { useState } from 'react';
 
 const PBLDashboard = () => {
