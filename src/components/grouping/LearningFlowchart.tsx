@@ -301,6 +301,8 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
           </div>
         </DialogContent>
       </Dialog>
+      {/* Weekly Reflections */}
+      <SkillReflectionPanel trackId={trackId} isReadOnly={isReadOnly} />
     </div>
   );
 }
