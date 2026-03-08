@@ -15,6 +15,7 @@ interface LearningFlowchartProps {
   sessionId: string;
   userId: string;
   isReadOnly?: boolean;
+  onFlowchartUpdate?: () => void;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof CheckCircle }> = {
@@ -33,7 +34,7 @@ type TimelineItem =
   | { kind: 'step'; data: FlowchartBlock; created_at: string }
   | { kind: 'link'; data: SkillDevLink; created_at: string };
 
-export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = false }: LearningFlowchartProps) {
+export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = false, onFlowchartUpdate }: LearningFlowchartProps) {
   const { useFlowchartBlocks, createBlock, updateBlock, deleteBlock } = useSkillTracks(sessionId, userId);
   const { data: blocks = [], isLoading } = useFlowchartBlocks(trackId);
   const { links, addLink, removeLink } = useSkillDevLinks(trackId);
@@ -65,6 +66,7 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
     });
     setForm({ title: '', description: '', resource_url: '' });
     setIsAddOpen(false);
+    onFlowchartUpdate?.();
   };
 
   const handleUpdate = async () => {
@@ -78,6 +80,7 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
     });
     setEditingBlock(null);
     setForm({ title: '', description: '', resource_url: '' });
+    onFlowchartUpdate?.();
   };
 
   const handleAddLink = async () => {
@@ -99,6 +102,7 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
       skill_track_id: trackId,
       status: order[nextIdx],
     });
+    onFlowchartUpdate?.();
   };
 
   const openEdit = (block: FlowchartBlock) => {

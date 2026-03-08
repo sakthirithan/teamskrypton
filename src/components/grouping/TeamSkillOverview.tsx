@@ -3,10 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
-import { BookOpen, Users, Flame, Trophy, TrendingUp, Star, ThumbsUp } from 'lucide-react';
-import { useSkillTracks } from '@/hooks/useSkillTracks';
+import { BookOpen, Users, TrendingUp, Star } from 'lucide-react';
 import { useMemberSkills } from '@/hooks/useMemberSkills';
-import { useSkillEndorsements } from '@/hooks/useSkillEndorsements';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { GroupingSession } from '@/hooks/useGroupingSessions';
@@ -21,8 +19,6 @@ interface MemberSkillSummary {
   fullName: string;
   trackCount: number;
   primarySkill: string | null;
-  streakDays: number;
-  endorsementCount: number;
   portfolioCount: number;
 }
 
@@ -30,7 +26,6 @@ export function TeamSkillOverview({ session }: TeamSkillOverviewProps) {
   const navigate = useNavigate();
   const { allSkills } = useMemberSkills();
 
-  // Fetch all profiles
   const { data: profiles = [] } = useQuery({
     queryKey: ['all-profiles-for-skill-overview'],
     queryFn: async () => {
@@ -43,7 +38,6 @@ export function TeamSkillOverview({ session }: TeamSkillOverviewProps) {
     },
   });
 
-  // Fetch all skill tracks for this session
   const { data: allTracks = [] } = useQuery({
     queryKey: ['all-skill-tracks', session.id],
     queryFn: async () => {
@@ -57,37 +51,10 @@ export function TeamSkillOverview({ session }: TeamSkillOverviewProps) {
     enabled: !!session.id,
   });
 
-  // Fetch all streaks for this session
-  const { data: allStreaks = [] } = useQuery({
-    queryKey: ['all-skill-streaks', session.id],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('skill_streaks' as any)
-        .select('*')
-        .eq('session_id', session.id);
-      return (data as any[]) || [];
-    },
-    enabled: !!session.id,
-  });
-
-  // Fetch all endorsements
-  const { data: allEndorsements = [] } = useQuery({
-    queryKey: ['all-endorsements-overview'],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('skill_endorsements' as any)
-        .select('*');
-      return (data as any[]) || [];
-    },
-  });
-
-  // Build per-member summaries
   const memberSummaries: MemberSkillSummary[] = useMemo(() => {
     return profiles.map(p => {
       const userTracks = allTracks.filter(t => t.user_id === p.user_id);
       const primaryTrack = userTracks.find(t => t.is_primary);
-      const streak = allStreaks.find((s: any) => s.user_id === p.user_id);
-      const endorsementCount = allEndorsements.filter((e: any) => e.endorsed_user_id === p.user_id).length;
       const portfolioCount = allSkills.filter(s => s.user_id === p.user_id).length;
 
       return {
@@ -95,35 +62,30 @@ export function TeamSkillOverview({ session }: TeamSkillOverviewProps) {
         fullName: p.full_name,
         trackCount: userTracks.length,
         primarySkill: primaryTrack?.skill_name || null,
-        streakDays: streak?.current_streak || 0,
-        endorsementCount,
         portfolioCount,
       };
-    }).sort((a, b) => b.trackCount - a.trackCount || b.streakDays - a.streakDays);
-  }, [profiles, allTracks, allStreaks, allEndorsements, allSkills]);
+    }).sort((a, b) => b.trackCount - a.trackCount);
+  }, [profiles, allTracks, allSkills]);
 
-  // Aggregate stats
   const stats = useMemo(() => {
     const totalTracks = allTracks.length;
     const activeLearners = new Set(allTracks.map(t => t.user_id)).size;
     const totalMembers = profiles.length;
-    const avgTracks = totalMembers > 0 ? (totalTracks / totalMembers).toFixed(1) : '0';
-    const totalEndorsements = allEndorsements.length;
-    const topStreak = allStreaks.reduce((max: number, s: any) => Math.max(max, s.current_streak || 0), 0);
     const activeRate = totalMembers > 0 ? Math.round((activeLearners / totalMembers) * 100) : 0;
+    const totalPortfolio = allSkills.length;
 
-    return { totalTracks, activeLearners, totalMembers, avgTracks, totalEndorsements, topStreak, activeRate };
-  }, [allTracks, profiles, allEndorsements, allStreaks]);
+    return { totalTracks, activeLearners, totalMembers, activeRate, totalPortfolio };
+  }, [allTracks, profiles, allSkills]);
 
   return (
     <div className="space-y-4">
-      {/* Stats Overview */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-3">
         <Card>
           <CardContent className="p-3 text-center">
             <BookOpen className="w-5 h-5 mx-auto mb-1 text-primary" />
             <p className="text-2xl font-bold">{stats.totalTracks}</p>
-            <p className="text-[10px] text-muted-foreground">Total Tracks</p>
+            <p className="text-[10px] text-muted-foreground">Skill Tracks</p>
           </CardContent>
         </Card>
         <Card>
@@ -135,21 +97,14 @@ export function TeamSkillOverview({ session }: TeamSkillOverviewProps) {
         </Card>
         <Card>
           <CardContent className="p-3 text-center">
-            <Flame className="w-5 h-5 mx-auto mb-1 text-orange-500" />
-            <p className="text-2xl font-bold">{stats.topStreak}</p>
-            <p className="text-[10px] text-muted-foreground">Top Streak</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-3 text-center">
-            <ThumbsUp className="w-5 h-5 mx-auto mb-1 text-green-500" />
-            <p className="text-2xl font-bold">{stats.totalEndorsements}</p>
-            <p className="text-[10px] text-muted-foreground">Endorsements</p>
+            <Star className="w-5 h-5 mx-auto mb-1 text-amber-500" />
+            <p className="text-2xl font-bold">{stats.totalPortfolio}</p>
+            <p className="text-[10px] text-muted-foreground">Portfolio Skills</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Learning Activity Rate */}
+      {/* Activity Rate */}
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-2">
@@ -163,7 +118,7 @@ export function TeamSkillOverview({ session }: TeamSkillOverviewProps) {
         </CardContent>
       </Card>
 
-      {/* Member Skills Table */}
+      {/* Member List */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -196,22 +151,9 @@ export function TeamSkillOverview({ session }: TeamSkillOverviewProps) {
                       )}
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-3 shrink-0">
-                    {member.streakDays > 0 && (
-                      <Badge variant="outline" className="text-[9px] bg-orange-500/10 text-orange-600 border-orange-500/20">
-                        🔥 {member.streakDays}d
-                      </Badge>
-                    )}
-                    <div className="text-right">
-                      <p className="text-sm font-semibold">{member.trackCount}</p>
-                      <p className="text-[9px] text-muted-foreground">tracks</p>
-                    </div>
-                    {member.endorsementCount > 0 && (
-                      <Badge variant="outline" className="text-[9px] bg-green-500/10 text-green-600 border-green-500/20">
-                        👍 {member.endorsementCount}
-                      </Badge>
-                    )}
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-semibold">{member.trackCount}</p>
+                    <p className="text-[9px] text-muted-foreground">tracks</p>
                   </div>
                 </div>
               ))}
