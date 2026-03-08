@@ -79,7 +79,7 @@ export function SkillTracker({ session, userId, isReadOnly = false }: SkillTrack
         <h3 className="text-lg font-semibold flex items-center gap-2">
           <BookOpen className="w-5 h-5 text-primary" />
           Skill Development Tracker
-          {streak && streak.current_streak > 0 && (
+          {isLeadership && streak && streak.current_streak > 0 && (
             <Badge variant="outline" className="text-xs bg-orange-500/10 text-orange-600 border-orange-500/20">
               🔥 {streak.current_streak}d streak
             </Badge>
