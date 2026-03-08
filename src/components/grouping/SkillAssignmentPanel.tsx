@@ -78,13 +78,14 @@ export function SkillAssignmentPanel({ userId, userName, isSelfMode = false }: S
             <GraduationCap className="w-4 h-4 text-primary" />
             Skills — {isSelfMode ? 'My Skills' : userName}
           </span>
-          <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" variant="outline">
-                <Plus className="w-4 h-4 mr-1" />
-                {isSelfMode ? 'Add Skill' : 'Assign'}
-              </Button>
-            </DialogTrigger>
+          {canCreate && (
+            <Dialog open={isOpen} onOpenChange={setIsOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline">
+                  <Plus className="w-4 h-4 mr-1" />
+                  {isSelfMode ? 'Add Skill' : 'Assign'}
+                </Button>
+              </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>{isSelfMode ? 'Add Your Skill' : `Assign Skill to ${userName}`}</DialogTitle>
