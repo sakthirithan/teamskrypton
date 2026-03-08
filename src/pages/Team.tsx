@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -8,6 +8,7 @@ import { PBLLayout } from '@/components/pbl/PBLLayout';
 import { KryptonIdCard } from '@/components/team/KryptonIdCard';
 import { SkillWiseMemberList } from '@/components/team/SkillWiseMemberList';
 import { SkillLeaderboard } from '@/components/grouping/SkillLeaderboard';
+import { useGroupingSessions } from '@/hooks/useGroupingSessions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -46,6 +47,7 @@ const Team = () => {
   const { user, isLoading, isLeadership, isCaptainOrVice, role } = useAuth();
   const { mode, isGroupingMode } = useAppMode();
   const { toast } = useToast();
+  const { activeSession } = useGroupingSessions();
   const navigate = useNavigate();
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [isFetching, setIsFetching] = useState(true);
@@ -617,7 +619,7 @@ const Team = () => {
       </TabsContent>
       <TabsContent value="leaderboard" className="mt-0">
         {(() => {
-          const activeS = members.length > 0 ? sessions?.find((s: any) => s.status === 'active') : null;
+          const activeS = activeSession || null;
           return activeS ? <SkillLeaderboard sessionId={activeS.id} /> : (
             <div className="py-12 text-center text-muted-foreground text-sm">No active session for leaderboard.</div>
           );
