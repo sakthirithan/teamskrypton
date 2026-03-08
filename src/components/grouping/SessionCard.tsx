@@ -37,15 +37,7 @@ export function SessionCard({
   const viewingSession = selectedSession || activeSession;
   
   if (!viewingSession) {
-    return (
-      <Card className="border-dashed">
-        <CardContent className="py-8 text-center text-muted-foreground">
-          <Target className="w-12 h-12 mx-auto mb-3 opacity-50" />
-          <p className="font-medium">No Active Session</p>
-          <p className="text-sm">Wait for leadership to create a session.</p>
-        </CardContent>
-      </Card>
-    );
+    return null;
   }
 
   const totalDays = calculateSessionDays(viewingSession.start_date, viewingSession.end_date);
@@ -65,59 +57,48 @@ export function SessionCard({
   };
 
   return (
-    <Card className={isHistorical ? 'border-muted bg-muted/20' : 'border-primary/30 bg-primary/5'}>
-      <CardContent className="py-4">
-        <div className="flex items-start justify-between gap-4">
+    <Card className={`${isHistorical ? 'border-muted bg-muted/20' : 'border-primary/20 bg-primary/5'}`}>
+      <CardContent className="py-3 px-4">
+        <div className="flex items-start justify-between gap-3">
           {/* Session Info */}
-          <div className="flex-1 space-y-3">
-            <div className="flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-primary" />
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-lg">
-                  Session #{viewingSession.session_number}
-                </span>
-                {isHistorical ? (
-                  <Badge variant="outline" className="bg-muted text-muted-foreground">
-                    <Lock className="w-3 h-3 mr-1" />
-                    Closed
-                  </Badge>
-                ) : (
-                  <Badge variant="default" className="bg-green-500/10 text-green-600 border-green-500/30">
-                    Active
-                  </Badge>
-                )}
-              </div>
+          <div className="flex-1 min-w-0 space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Calendar className="w-4 h-4 text-primary shrink-0" />
+              <span className="font-semibold text-sm">
+                Session #{viewingSession.session_number}
+              </span>
+              {isHistorical ? (
+                <Badge variant="outline" className="bg-muted text-muted-foreground text-[10px] px-1.5 py-0">
+                  <Lock className="w-2.5 h-2.5 mr-0.5" />
+                  Closed
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30 text-[10px] px-1.5 py-0">
+                  Active
+                </Badge>
+              )}
             </div>
 
-            <p className="text-sm text-muted-foreground font-medium">
-              {viewingSession.name}
-            </p>
-
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+              <span className="font-medium text-foreground/80">{viewingSession.name}</span>
+              <span className="text-muted-foreground/40">•</span>
               <span>
-                {format(new Date(viewingSession.start_date), 'MMM d')} - {format(new Date(viewingSession.end_date), 'MMM d, yyyy')}
+                {format(new Date(viewingSession.start_date), 'MMM d')} – {format(new Date(viewingSession.end_date), 'MMM d, yyyy')}
               </span>
+              <span className="text-muted-foreground/40">•</span>
               <span className="font-medium text-foreground">
-                {isHistorical ? `${totalDays} days` : `${daysRemaining} days left`}
+                {isHistorical ? `${totalDays}d total` : `${daysRemaining}d left`}
               </span>
             </div>
 
             {/* Progress bar */}
-            <div className="space-y-1">
-              <div className="h-2 bg-muted rounded-full overflow-hidden">
-                <div 
-                  className={`h-full rounded-full transition-all ${
-                    isHistorical ? 'bg-muted-foreground' : 'bg-primary'
-                  }`}
-                  style={{ width: `${isHistorical ? 100 : progressPercent}%` }}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {isHistorical 
-                  ? 'Session completed' 
-                  : `Day ${daysElapsed} of ${totalDays}`
-                }
-              </p>
+            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+              <div 
+                className={`h-full rounded-full transition-all ${
+                  isHistorical ? 'bg-muted-foreground/50' : 'bg-primary'
+                }`}
+                style={{ width: `${isHistorical ? 100 : progressPercent}%` }}
+              />
             </div>
           </div>
 
@@ -187,9 +168,9 @@ export function SessionCard({
 
         {/* Read-only indicator for historical sessions */}
         {isHistorical && (
-          <div className="mt-3 p-2 rounded bg-muted/50 text-sm text-muted-foreground flex items-center gap-2">
-            <Lock className="w-4 h-4" />
-            <span>Viewing historical data. Changes are not allowed.</span>
+          <div className="mt-2 px-2.5 py-1.5 rounded-md bg-muted/50 text-xs text-muted-foreground flex items-center gap-1.5">
+            <Lock className="w-3 h-3 shrink-0" />
+            <span>Read-only — viewing historical data</span>
           </div>
         )}
       </CardContent>

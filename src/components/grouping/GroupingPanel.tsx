@@ -107,25 +107,7 @@ export function GroupingPanel({ session }: GroupingPanelProps) {
   };
 
   if (!viewingSession) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Target className="w-5 h-5" />
-            Grouping Targets
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-10 text-muted-foreground">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-muted/50 flex items-center justify-center">
-              <Target className="w-8 h-8 opacity-40" />
-            </div>
-            <p className="font-medium">No active session</p>
-            <p className="text-sm mt-1">Wait for leadership to create a session.</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
+    return null;
   }
 
   return (
