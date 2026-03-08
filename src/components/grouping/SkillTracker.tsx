@@ -220,6 +220,7 @@ export function SkillTracker({ session, userId, isReadOnly = false }: SkillTrack
                       sessionId={session.id}
                       userId={userId}
                       isReadOnly={isReadOnly}
+                      onFlowchartUpdate={() => recordWeekActivity.mutate()}
                     />
                   </div>
                 )}
