@@ -1,11 +1,11 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Star, BookOpen, Trash2, ChevronDown, ChevronRight, BarChart3 } from 'lucide-react';
+import { Plus, Star, BookOpen, Trash2, ChevronDown, ChevronRight, BarChart3, Calendar } from 'lucide-react';
 import { useSkillTracks, SkillTrack } from '@/hooks/useSkillTracks';
 import { useSkillStreaks } from '@/hooks/useSkillStreaks';
 import { LearningFlowchart } from '@/components/grouping/LearningFlowchart';
@@ -33,7 +33,6 @@ export function SkillTracker({ session, userId, isReadOnly = false }: SkillTrack
   const [customSkill, setCustomSkill] = useState('');
   const [expandedTrack, setExpandedTrack] = useState<string | null>(null);
 
-  // Group tracks by week
   const tracksByWeek = useMemo(() => {
     const grouped: Record<string, SkillTrack[]> = {};
     tracks.forEach(t => {
@@ -58,7 +57,6 @@ export function SkillTracker({ session, userId, isReadOnly = false }: SkillTrack
   };
 
   const handleSetPrimary = async (track: SkillTrack) => {
-    // Unset other primaries for same week
     const sameWeekTracks = tracks.filter(t => t.week_start === track.week_start && t.id !== track.id && t.is_primary);
     for (const t of sameWeekTracks) {
       await updateTrack.mutateAsync({ id: t.id, is_primary: false });
@@ -67,96 +65,109 @@ export function SkillTracker({ session, userId, isReadOnly = false }: SkillTrack
   };
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <h3 className="text-lg font-semibold flex items-center gap-2">
-          <BookOpen className="w-5 h-5 text-primary" />
-          Skill Development Tracker
-          {isLeadership && streak && streak.current_streak > 0 && (
-            <Badge variant="outline" className="text-xs bg-orange-500/10 text-orange-600 border-orange-500/20">
-              🔥 {streak.current_streak}w streak
-            </Badge>
-          )}
-        </h3>
-        <div className="flex items-center gap-2">
-          {isLeadership && (
-            <Button size="sm" variant="outline" onClick={() => setShowAnalytics(!showAnalytics)}>
-              <BarChart3 className="w-4 h-4 mr-1" />
-              {showAnalytics ? 'Hide' : 'Analytics'}
-            </Button>
-          )}
-          {isLeadership && (
-            <SkillHistoryExport sessionId={session.id} userId={userId} userName={userId} />
-          )}
-          {!isReadOnly && (
-            <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm">
-                  <Plus className="w-4 h-4 mr-1" />
-                  Add Skill
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Add Skill Track</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 pt-4">
-                  {suggestions.length > 0 && (
-                    <div className="space-y-2">
-                      <Label>Suggested Skills</Label>
-                      <div className="flex flex-wrap gap-2">
-                        {suggestions.map(s => (
-                          <Badge
-                            key={s.id}
-                            variant={skillName === s.name ? 'default' : 'outline'}
-                            className="cursor-pointer"
-                            onClick={() => { setSkillName(s.name); setCustomSkill(''); }}
-                          >
-                            {s.name}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
+    <div className="space-y-5">
+      {/* Header Card */}
+      <Card className="overflow-hidden">
+        <CardHeader className="pb-3 bg-gradient-to-r from-primary/5 via-transparent to-[hsl(var(--info))]/5">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-[hsl(var(--info))] flex items-center justify-center">
+                <BookOpen className="w-4.5 h-4.5 text-primary-foreground" />
+              </div>
+              <div>
+                <CardTitle className="text-base flex items-center gap-2">
+                  Skill Development Tracker
+                  {isLeadership && streak && streak.current_streak > 0 && (
+                    <Badge variant="outline" className="text-[10px] bg-[hsl(var(--warning))]/10 text-[hsl(var(--warning))] border-[hsl(var(--warning))]/20 gap-0.5">
+                      🔥 {streak.current_streak}w streak
+                    </Badge>
                   )}
-                  <div className="space-y-2">
-                    <Label>Or enter custom skill</Label>
-                    <Input
-                      value={customSkill}
-                      onChange={e => { setCustomSkill(e.target.value); setSkillName(''); }}
-                      placeholder="e.g., React, Machine Learning, Docker"
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input type="checkbox" id="isPrimary" checked={isPrimary} onChange={e => setIsPrimary(e.target.checked)} className="rounded" />
-                    <Label htmlFor="isPrimary" className="cursor-pointer">
-                      <Star className="w-3 h-3 inline mr-1 text-amber-500" />
-                      Mark as primary focus this week
-                    </Label>
-                  </div>
-                  <Button onClick={handleAdd} className="w-full" disabled={(!skillName && !customSkill.trim()) || createTrack.isPending}>
-                    {createTrack.isPending ? 'Adding...' : 'Add Skill Track'}
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-          )}
-        </div>
-      </div>
+                </CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {tracks.length} skill{tracks.length !== 1 ? 's' : ''} tracked across {weekKeys.length} week{weekKeys.length !== 1 ? 's' : ''}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {isLeadership && (
+                <Button size="sm" variant="outline" onClick={() => setShowAnalytics(!showAnalytics)} className="h-8 text-xs gap-1.5">
+                  <BarChart3 className="w-3.5 h-3.5" />
+                  {showAnalytics ? 'Hide' : 'Analytics'}
+                </Button>
+              )}
+              {isLeadership && (
+                <SkillHistoryExport sessionId={session.id} userId={userId} userName={userId} />
+              )}
+              {!isReadOnly && (
+                <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" className="h-8 text-xs gap-1.5">
+                      <Plus className="w-3.5 h-3.5" />
+                      Add Skill
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add Skill Track</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 pt-4">
+                      {suggestions.length > 0 && (
+                        <div className="space-y-2">
+                          <Label>Suggested Skills</Label>
+                          <div className="flex flex-wrap gap-2">
+                            {suggestions.map(s => (
+                              <Badge
+                                key={s.id}
+                                variant={skillName === s.name ? 'default' : 'outline'}
+                                className="cursor-pointer hover:bg-primary/10 transition-colors"
+                                onClick={() => { setSkillName(s.name); setCustomSkill(''); }}
+                              >
+                                {s.name}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <div className="space-y-2">
+                        <Label>Or enter custom skill</Label>
+                        <Input
+                          value={customSkill}
+                          onChange={e => { setCustomSkill(e.target.value); setSkillName(''); }}
+                          placeholder="e.g., React, Machine Learning, Docker"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input type="checkbox" id="isPrimary" checked={isPrimary} onChange={e => setIsPrimary(e.target.checked)} className="rounded" />
+                        <Label htmlFor="isPrimary" className="cursor-pointer">
+                          <Star className="w-3 h-3 inline mr-1 text-[hsl(var(--warning))]" />
+                          Mark as primary focus this week
+                        </Label>
+                      </div>
+                      <Button onClick={handleAdd} className="w-full" disabled={(!skillName && !customSkill.trim()) || createTrack.isPending}>
+                        {createTrack.isPending ? 'Adding...' : 'Add Skill Track'}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
 
       {/* Analytics Panel */}
-      {showAnalytics && (
-        <SkillProgressAnalytics session={session} userId={userId} />
-      )}
+      {showAnalytics && <SkillProgressAnalytics session={session} userId={userId} />}
 
       {/* Empty state */}
       {tracks.length === 0 && (
         <Card>
-          <CardContent className="py-8 text-center">
-            <BookOpen className="w-10 h-10 mx-auto mb-3 text-muted-foreground/50" />
-            <p className="text-muted-foreground">No skill tracks yet.</p>
+          <CardContent className="py-10 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/10 to-[hsl(var(--info))]/10 flex items-center justify-center mx-auto mb-4">
+              <BookOpen className="w-7 h-7 text-primary/40" />
+            </div>
+            <p className="text-sm font-medium text-muted-foreground">No skill tracks yet</p>
             {!isReadOnly && (
-              <p className="text-sm text-muted-foreground mt-1">Add your first skill to start tracking your learning journey.</p>
+              <p className="text-xs text-muted-foreground/70 mt-1">Add your first skill to start tracking your learning journey</p>
             )}
           </CardContent>
         </Card>
@@ -164,58 +175,60 @@ export function SkillTracker({ session, userId, isReadOnly = false }: SkillTrack
 
       {/* Tracks grouped by week */}
       {weekKeys.map(week => (
-        <Card key={week}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+        <Card key={week} className="overflow-hidden">
+          <CardHeader className="pb-2 bg-secondary/30">
+            <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5" />
               Week of {format(new Date(week), 'MMM dd, yyyy')}
+              <Badge variant="secondary" className="text-[10px] ml-auto h-4">
+                {tracksByWeek[week].length} skill{tracksByWeek[week].length !== 1 ? 's' : ''}
+              </Badge>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="pt-3 space-y-2">
             {tracksByWeek[week].map(track => (
-              <div key={track.id} className="border rounded-lg">
-                {/* Track header */}
+              <div key={track.id} className="rounded-xl border hover:border-primary/20 transition-all duration-200 overflow-hidden">
                 <div
-                  className="flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/50 transition-colors"
+                  className="flex items-center gap-3 p-3.5 cursor-pointer hover:bg-secondary/30 transition-colors"
                   onClick={() => setExpandedTrack(expandedTrack === track.id ? null : track.id)}
                 >
                   {expandedTrack === track.id ? (
-                    <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <ChevronDown className="w-4 h-4 text-primary shrink-0" />
                   ) : (
                     <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
                   )}
-                  <span className="font-medium flex-1">{track.skill_name}</span>
+                  <span className="font-medium text-sm flex-1">{track.skill_name}</span>
                   {track.is_primary && (
-                    <Badge variant="default" className="bg-amber-500/10 text-amber-600 border-amber-500/20">
-                      <Star className="w-3 h-3 mr-1 fill-amber-500" />
+                    <Badge variant="default" className="bg-[hsl(var(--warning))]/10 text-[hsl(var(--warning))] border-[hsl(var(--warning))]/20 gap-0.5 text-[10px]">
+                      <Star className="w-3 h-3 fill-[hsl(var(--warning))]" />
                       Primary
                     </Badge>
                   )}
                   {!isReadOnly && (
-                    <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-7 w-7"
+                        className="h-7 w-7 hover:bg-[hsl(var(--warning))]/10"
                         onClick={() => handleSetPrimary(track)}
                         title={track.is_primary ? 'Remove primary' : 'Set as primary'}
                       >
-                        <Star className={`w-3 h-3 ${track.is_primary ? 'fill-amber-500 text-amber-500' : 'text-muted-foreground'}`} />
+                        <Star className={`w-3.5 h-3.5 ${track.is_primary ? 'fill-[hsl(var(--warning))] text-[hsl(var(--warning))]' : 'text-muted-foreground'}`} />
                       </Button>
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-7 w-7 text-destructive hover:text-destructive"
+                        className="h-7 w-7 text-destructive/60 hover:text-destructive hover:bg-destructive/10"
                         onClick={() => deleteTrack.mutate(track.id)}
                       >
-                        <Trash2 className="w-3 h-3" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </div>
                   )}
                 </div>
 
-                {/* Expanded: Flowchart */}
                 {expandedTrack === track.id && (
-                  <div className="border-t px-3 pb-3 pt-2">
+                  <div className="border-t bg-secondary/10 px-3.5 pb-3.5 pt-3">
                     <LearningFlowchart
                       trackId={track.id}
                       sessionId={session.id}
@@ -232,9 +245,7 @@ export function SkillTracker({ session, userId, isReadOnly = false }: SkillTrack
       ))}
 
       {/* AI Skill Recommendations */}
-      {!isReadOnly && (
-        <AISkillRecommendations userId={userId} sessionId={session.id} />
-      )}
+      {!isReadOnly && <AISkillRecommendations userId={userId} sessionId={session.id} />}
     </div>
   );
 }
