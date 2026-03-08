@@ -284,7 +284,22 @@ const MemberProfile = () => {
 
 
 
-  const profileContent = (
+  // PBL mode: only project-related content
+  const pblContent = (
+    <>
+      <div className="flex items-center gap-2 mb-4">
+        <Button variant="ghost" onClick={() => navigate('/team')}>
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Team
+        </Button>
+        <RefreshButton onClick={handleManualRefresh} isRefreshing={isRefreshing} />
+      </div>
+      <MemberProjectsPanel memberId={userId!} memberName={member.profile.full_name} />
+    </>
+  );
+
+  // Grouping mode: full profile with ID card, tasks, alerts, logs
+  const groupingContent = (
     <>
       <div className="flex items-center gap-2 mb-4">
         <Button variant="ghost" onClick={() => navigate('/team')}>
@@ -295,11 +310,8 @@ const MemberProfile = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Sidebar - Krypton ID */}
         <div className="lg:col-span-1">
           <KryptonIdCard profile={member.profile} role={member.role} />
-
-          {/* Productivity Summary */}
           <Card className="mt-6">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg font-display">
@@ -328,19 +340,7 @@ const MemberProfile = () => {
           </Card>
         </div>
 
-        {/* Main Content - Tabbed */}
         <div className="lg:col-span-3 space-y-6">
-          <Tabs defaultValue={mode === 'grouping' ? 'tasks' : 'projects'} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-4">
-              <TabsTrigger value="projects" className="flex items-center gap-2">
-                <FolderKanban className="w-4 h-4" />
-                Projects
-              </TabsTrigger>
-              <TabsTrigger value="tasks" className="flex items-center gap-2">
-                <Clock className="w-4 h-4" />
-                Exec Tasks
-              </TabsTrigger>
-            </TabsList>
 
             {/* Projects Tab */}
             <TabsContent value="projects" className="mt-0 space-y-6">
