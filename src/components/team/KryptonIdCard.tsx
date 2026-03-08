@@ -55,15 +55,6 @@ function getRoleBgClass(role: KryptonRole | null): string {
   }
 }
 
-function getStatusColor(status: string): string {
-  switch (status) {
-    case 'on_track': return 'text-green-600 bg-green-500/10 border-green-500/20';
-    case 'at_risk': return 'text-yellow-600 bg-yellow-500/10 border-yellow-500/20';
-    case 'behind': return 'text-red-600 bg-red-500/10 border-red-500/20';
-    default: return 'text-muted-foreground bg-muted';
-  }
-}
-
 // Grouping Targets Section for ID Card
 function GroupingTargetsSection({ userId }: { userId: string }) {
   const { activeSession } = useGroupingSessions();
