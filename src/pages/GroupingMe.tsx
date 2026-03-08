@@ -1117,6 +1117,9 @@ const GroupingMe = () => {
                   )}
                 </CardContent>
               </Card>
+
+                </TabsContent>
+              </Tabs>
             </>
           )}
         </div>
