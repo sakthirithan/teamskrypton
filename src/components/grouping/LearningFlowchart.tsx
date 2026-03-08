@@ -400,7 +400,10 @@ function LinkBlock({ link, isReadOnly, onDelete }: {
               {typeConfig.label}
             </Badge>
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5 truncate">{link.url}</p>
+          <a href={link.url} target="_blank" rel="noopener noreferrer"
+            className="text-xs text-muted-foreground mt-0.5 truncate block underline hover:text-primary cursor-pointer z-10 relative">
+            {link.url}
+          </a>
         </div>
 
         {!isReadOnly && (
