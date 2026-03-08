@@ -114,7 +114,7 @@ export function SkillAssignmentPanel({ userId, userName, isSelfMode = false }: S
 
                 <div className="space-y-2">
                   <Label>Domain</Label>
-                  <Select value={domain} onValueChange={v => setDomain(v as SkillDomain)}>
+                  <Select value={domain} onValueChange={v => setDomain(v as SkillDomain | 'custom')}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -122,8 +122,17 @@ export function SkillAssignmentPanel({ userId, userName, isSelfMode = false }: S
                       {(Object.entries(SKILL_DOMAIN_LABELS) as [SkillDomain, string][]).map(([key, label]) => (
                         <SelectItem key={key} value={key}>{label}</SelectItem>
                       ))}
+                      <SelectItem value="custom">✨ Custom Domain</SelectItem>
                     </SelectContent>
                   </Select>
+                  {domain === 'custom' && (
+                    <Input
+                      value={customDomain}
+                      onChange={e => setCustomDomain(e.target.value)}
+                      placeholder="Enter your custom domain name"
+                      className="mt-2"
+                    />
+                  )}
                 </div>
 
                 {/* Limits info */}
