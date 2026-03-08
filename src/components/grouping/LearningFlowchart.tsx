@@ -34,7 +34,7 @@ type TimelineItem =
   | { kind: 'step'; data: FlowchartBlock; created_at: string }
   | { kind: 'link'; data: SkillDevLink; created_at: string };
 
-export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = false }: LearningFlowchartProps) {
+export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = false, onFlowchartUpdate }: LearningFlowchartProps) {
   const { useFlowchartBlocks, createBlock, updateBlock, deleteBlock } = useSkillTracks(sessionId, userId);
   const { data: blocks = [], isLoading } = useFlowchartBlocks(trackId);
   const { links, addLink, removeLink } = useSkillDevLinks(trackId);
