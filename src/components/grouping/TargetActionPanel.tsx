@@ -468,7 +468,7 @@ export function TargetActionPanel({ session }: TargetActionPanelProps) {
             {isSessionClosed ? 'No targets in this closed session.' : 'No targets yet. Create your first target.'}
           </p>
         ) : (
-          <ScrollArea className="max-h-[400px] pr-3">
+          <ScrollArea className="max-h-[50vh] pr-3" style={{ overflowY: 'auto' }}>
             <div className="space-y-2">
               {targets.map((target) => {
                 const member = teamMembers.find(m => m.user_id === target.user_id);
