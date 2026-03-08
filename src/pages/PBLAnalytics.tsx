@@ -8,7 +8,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { BarChart3, Users, TrendingUp, Award, CheckCircle2, Clock, ListTodo } from 'lucide-react';
+import { BarChart3, Users, TrendingUp, Award, CheckCircle2, Clock, ListTodo, AlertTriangle, GanttChart } from 'lucide-react';
+import { differenceInDays } from 'date-fns';
 
 const PBLAnalytics = () => {
   const { user, isLoading: authLoading } = useAuth();
@@ -106,6 +107,36 @@ const PBLAnalytics = () => {
           <h2 className="text-lg font-semibold">Performance Analytics</h2>
         </div>
 
+        {/* Summary KPIs */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold text-primary">{projects.length}</p>
+              <p className="text-xs text-muted-foreground">Total Projects</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold text-[hsl(var(--success))]">{allTasks.filter(t => t.status === 'done').length}</p>
+              <p className="text-xs text-muted-foreground">Tasks Completed</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold text-[hsl(var(--warning))]">{allTasks.filter(t => t.status === 'in_progress').length}</p>
+              <p className="text-xs text-muted-foreground">In Progress</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold text-destructive">
+                {allTasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'done').length}
+              </p>
+              <p className="text-xs text-muted-foreground">Overdue Tasks</p>
+            </CardContent>
+          </Card>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Project Completion Rates */}
           <Card>
@@ -185,6 +216,53 @@ const PBLAnalytics = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Upcoming Deadlines */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Clock className="w-4 h-4 text-[hsl(var(--warning))]" />
+              Upcoming Deadlines (Next 7 Days)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {(() => {
+              const now = new Date();
+              const upcoming = allTasks
+                .filter(t => t.due_date && t.status !== 'done')
+                .filter(t => {
+                  const days = differenceInDays(new Date(t.due_date!), now);
+                  return days >= 0 && days <= 7;
+                })
+                .sort((a, b) => new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime());
+              
+              if (upcoming.length === 0) {
+                return <p className="text-xs text-muted-foreground text-center py-4">No upcoming deadlines</p>;
+              }
+
+              return (
+                <div className="space-y-2">
+                  {upcoming.map(task => {
+                    const proj = projects.find(p => p.id === task.project_id);
+                    const daysLeft = differenceInDays(new Date(task.due_date!), now);
+                    return (
+                      <div key={task.id} className="flex items-center gap-3 py-1.5 border-b border-border/50 last:border-0">
+                        <div className={`w-2 h-2 rounded-full ${daysLeft <= 1 ? 'bg-destructive' : daysLeft <= 3 ? 'bg-[hsl(var(--warning))]' : 'bg-primary'}`} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium truncate">{task.title}</p>
+                          <p className="text-[10px] text-muted-foreground">{proj?.name}</p>
+                        </div>
+                        <Badge variant="outline" className={`text-[10px] ${daysLeft <= 1 ? 'border-destructive/30 text-destructive' : ''}`}>
+                          {daysLeft === 0 ? 'Today' : `${daysLeft}d left`}
+                        </Badge>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </CardContent>
+        </Card>
       </div>
     </PBLLayout>
   );

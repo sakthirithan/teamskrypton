@@ -4,12 +4,11 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   LayoutDashboard,
   FolderKanban,
-  Milestone as MilestoneIcon,
-  ListTodo,
   Users,
   BarChart3,
-  Settings,
   ChevronLeft,
+  FileText,
+  Bell,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -31,6 +30,8 @@ import { ROLE_LABELS } from '@/lib/constants';
 const mainNavItems = [
   { title: 'Dashboard', url: '/pbl/dashboard', icon: LayoutDashboard },
   { title: 'Projects', url: '/pbl/projects', icon: FolderKanban },
+  { title: 'Documentation', url: '/pbl/docs', icon: FileText },
+  { title: 'Notifications', url: '/pbl/notifications', icon: Bell },
   { title: 'Analytics', url: '/pbl/analytics', icon: BarChart3 },
   { title: 'Team', url: '/team', icon: Users },
 ];
