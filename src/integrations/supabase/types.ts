@@ -820,6 +820,115 @@ export type Database = {
         }
         Relationships: []
       }
+      skill_flowchart_blocks: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          resource_url: string | null
+          skill_track_id: string
+          sort_order: number
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          resource_url?: string | null
+          skill_track_id: string
+          sort_order?: number
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          resource_url?: string | null
+          skill_track_id?: string
+          sort_order?: number
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skill_flowchart_blocks_skill_track_id_fkey"
+            columns: ["skill_track_id"]
+            isOneToOne: false
+            referencedRelation: "skill_tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      skill_suggestions: {
+        Row: {
+          category: string | null
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          name: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      skill_tracks: {
+        Row: {
+          created_at: string
+          id: string
+          is_primary: boolean
+          session_id: string
+          skill_name: string
+          updated_at: string
+          user_id: string
+          week_start: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          session_id: string
+          skill_name: string
+          updated_at?: string
+          user_id: string
+          week_start: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          session_id?: string
+          skill_name?: string
+          updated_at?: string
+          user_id?: string
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skill_tracks_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "grouping_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_alerts: {
         Row: {
           created_at: string
