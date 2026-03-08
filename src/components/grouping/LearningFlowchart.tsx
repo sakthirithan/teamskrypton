@@ -102,6 +102,7 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
       skill_track_id: trackId,
       status: order[nextIdx],
     });
+    onFlowchartUpdate?.();
   };
 
   const openEdit = (block: FlowchartBlock) => {
