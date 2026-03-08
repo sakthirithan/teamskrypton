@@ -80,16 +80,14 @@ export function SessionCard({
               </div>
             </div>
 
-            <p className="text-sm text-muted-foreground font-medium">
-              {viewingSession.name}
-            </p>
-
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+              <span className="font-medium">{viewingSession.name}</span>
+              <span className="text-muted-foreground/60">•</span>
               <span>
-                {format(new Date(viewingSession.start_date), 'MMM d')} - {format(new Date(viewingSession.end_date), 'MMM d, yyyy')}
+                {format(new Date(viewingSession.start_date), 'MMM d')} – {format(new Date(viewingSession.end_date), 'MMM d, yyyy')}
               </span>
-              <span className="font-medium text-foreground">
-                {isHistorical ? `${totalDays} days` : `${daysRemaining} days left`}
+              <span className="font-medium text-foreground text-xs">
+                {isHistorical ? `${totalDays}d total` : `${daysRemaining}d left`}
               </span>
             </div>
 
