@@ -229,6 +229,20 @@ const GroupingHome = () => {
                     <NoSessionPlaceholder />
                   )}
                 </TabsContent>
+                <TabsContent value="leaderboard" className="mt-0">
+                  {viewingSession ? (
+                    <SkillLeaderboard sessionId={viewingSession.id} />
+                  ) : (
+                    <NoSessionPlaceholder />
+                  )}
+                </TabsContent>
+                <TabsContent value="challenges" className="mt-0">
+                  {viewingSession ? (
+                    <SkillChallengesPanel sessionId={viewingSession.id} />
+                  ) : (
+                    <NoSessionPlaceholder />
+                  )}
+                </TabsContent>
                 <TabsContent value="reflections" className="mt-0">
                   <AllReflectionsPanel />
                 </TabsContent>
