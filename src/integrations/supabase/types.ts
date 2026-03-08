@@ -693,6 +693,8 @@ export type Database = {
           joined_at: string
           project_id: string
           role: string
+          role_label: string | null
+          share_percentage: number
           user_id: string
         }
         Insert: {
@@ -700,6 +702,8 @@ export type Database = {
           joined_at?: string
           project_id: string
           role?: string
+          role_label?: string | null
+          share_percentage?: number
           user_id: string
         }
         Update: {
@@ -707,6 +711,8 @@ export type Database = {
           joined_at?: string
           project_id?: string
           role?: string
+          role_label?: string | null
+          share_percentage?: number
           user_id?: string
         }
         Relationships: [
