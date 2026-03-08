@@ -1,4 +1,4 @@
-import { User, Eye, Phone, Pencil, CheckCircle, Power, Target, Coins, Users } from 'lucide-react';
+import { User, Eye, Phone, Pencil, CheckCircle, Power, Coins, Users } from 'lucide-react';
 import { MemberSkillsBadges } from '@/components/grouping/MemberSkillsBadges';
 import { ROLE_LABELS, KryptonRole, TaskStatus } from '@/lib/constants';
 import { format } from 'date-fns';
@@ -6,19 +6,9 @@ import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { useAppMode } from '@/hooks/useAppMode';
 import { useUserPoints } from '@/hooks/useUserPoints';
-import { useGroupingTargets, GroupingTarget } from '@/hooks/useGroupingTargets';
-import { useGroupingSessions } from '@/hooks/useGroupingSessions';
-import { usePSDailyEntries } from '@/hooks/usePSDailyEntries';
 import { IdCard } from 'lucide-react';
-import { 
-  calculateSessionDays, 
-  calculateDaysRemaining, 
-  calculateTargetStatus,
-  TARGET_STATUS_LABELS 
-} from '@/lib/groupingConstants';
 import { supabase } from '@/integrations/supabase/client';
 interface KryptonIdCardProps {
   profile: {
