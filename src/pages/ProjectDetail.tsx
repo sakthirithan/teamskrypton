@@ -5,6 +5,7 @@ import { PBLLayout } from '@/components/pbl/PBLLayout';
 import { MilestonePanel } from '@/components/pbl/MilestonePanel';
 import { TaskBoard } from '@/components/pbl/TaskBoard';
 import { ActivityFeed } from '@/components/pbl/ActivityFeed';
+import { EditProjectDialog } from '@/components/pbl/EditProjectDialog';
 import {
   useProject,
   useMilestones,
@@ -12,21 +13,19 @@ import {
   useProjectMembers,
   useProjectActivity,
   useAllProfiles,
-  useUpdateProject,
   useAddProjectMember,
   useRemoveProjectMember,
   calculateProjectHealth,
-  ProjectStatus,
 } from '@/hooks/useProjects';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar, Users, ArrowLeft, Flag, Plus, X, UserPlus } from 'lucide-react';
+import { Calendar, Users, ArrowLeft, Pencil, UserPlus, X } from 'lucide-react';
 import { format } from 'date-fns';
 
-const statusLabels: Record<ProjectStatus, string> = {
+const statusLabels: Record<string, string> = {
   planning: 'Planning',
   active: 'Active',
   on_hold: 'On Hold',
@@ -44,12 +43,12 @@ const ProjectDetail = () => {
   const { data: members = [] } = useProjectMembers(projectId);
   const { data: activities = [] } = useProjectActivity(projectId);
   const { data: profiles = [] } = useAllProfiles();
-  const updateProject = useUpdateProject();
   const addMember = useAddProjectMember();
   const removeMember = useRemoveProjectMember();
 
   const [selectedMilestone, setSelectedMilestone] = useState<string | null>(null);
   const [showAddMember, setShowAddMember] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/auth');
@@ -89,29 +88,13 @@ const ProjectDetail = () => {
       <div className="space-y-6 max-w-7xl mx-auto">
         {/* Back + Header */}
         <div className="flex items-start gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="mt-1 shrink-0">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/pbl/projects')} className="mt-1 shrink-0">
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-xl font-bold">{project.name}</h1>
-              {isLeadership ? (
-                <Select
-                  value={project.status}
-                  onValueChange={(v: ProjectStatus) => updateProject.mutate({ id: project.id, status: v })}
-                >
-                  <SelectTrigger className="h-7 w-auto text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(statusLabels).map(([k, v]) => (
-                      <SelectItem key={k} value={k} className="text-xs">{v}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Badge variant="secondary">{statusLabels[project.status]}</Badge>
-              )}
+              <Badge variant="secondary">{statusLabels[project.status]}</Badge>
               <Badge
                 variant="outline"
                 className={
@@ -122,6 +105,12 @@ const ProjectDetail = () => {
               >
                 {health.label === 'healthy' ? '🟢' : health.label === 'risk' ? '🟡' : '🔴'} Health: {health.score}%
               </Badge>
+              {isLeadership && (
+                <Button variant="ghost" size="sm" onClick={() => setEditOpen(true)} className="h-7 text-xs">
+                  <Pencil className="w-3.5 h-3.5 mr-1" />
+                  Edit
+                </Button>
+              )}
             </div>
             {project.description && (
               <p className="text-sm text-muted-foreground mt-1">{project.description}</p>
@@ -194,7 +183,7 @@ const ProjectDetail = () => {
                   </Select>
                 )}
                 {memberProfiles.map(m => (
-                  <div key={m.id} className="flex items-center justify-between py-1">
+                  <div key={m.id} className="flex items-center justify-between py-1 group">
                     <div className="flex items-center gap-2">
                       <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary text-[10px] font-semibold">
                         {m.full_name.charAt(0).toUpperCase()}
@@ -244,6 +233,14 @@ const ProjectDetail = () => {
           </div>
         </div>
       </div>
+
+      {/* Edit Project Dialog */}
+      <EditProjectDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        project={project}
+        onDeleted={() => navigate('/pbl/projects')}
+      />
     </PBLLayout>
   );
 };
