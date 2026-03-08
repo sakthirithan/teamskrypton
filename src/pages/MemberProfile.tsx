@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { KryptonIdCard } from '@/components/team/KryptonIdCard';
 import { MemberProjectsPanel } from '@/components/pbl/MemberProjectsPanel';
-import { CheckCircle, BarChart3, ArrowLeft, Clock, AlertTriangle, ExternalLink, FolderKanban } from 'lucide-react';
+import { CheckCircle, BarChart3, ArrowLeft, Clock, AlertTriangle, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import { KryptonRole, TaskStatus } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
