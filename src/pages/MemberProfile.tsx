@@ -573,6 +573,7 @@ const MemberProfile = () => {
               </TabsContent>
             </Tabs>
           </div>
+        </div>
       </main>
     </div>
   );
