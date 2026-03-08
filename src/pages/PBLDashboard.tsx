@@ -96,53 +96,61 @@ const PBLDashboard = () => {
           allMilestones={allMilestones}
         />
 
-        {/* Projects Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <FolderKanban className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold">Projects</h2>
-          </div>
-          {isLeadership && (
-            <Button size="sm" onClick={() => setCreateOpen(true)}>
-              <Plus className="w-4 h-4 mr-1" />
-              New Project
-            </Button>
-          )}
-        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Projects Section */}
+          <div className="lg:col-span-2 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FolderKanban className="w-5 h-5 text-primary" />
+                <h2 className="text-lg font-semibold">Projects</h2>
+              </div>
+              {isLeadership && (
+                <Button size="sm" onClick={() => setCreateOpen(true)}>
+                  <Plus className="w-4 h-4 mr-1" />
+                  New Project
+                </Button>
+              )}
+            </div>
 
-        {/* Projects Grid */}
-        {projectsLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="h-48 rounded-lg skeleton-loader" />
-            ))}
-          </div>
-        ) : activeProjects.length === 0 ? (
-          <div className="text-center py-16 border border-dashed border-border rounded-lg">
-            <FolderKanban className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-            <h3 className="font-semibold mb-1">No projects yet</h3>
-            <p className="text-sm text-muted-foreground mb-4">Create your first project to get started</p>
-            {isLeadership && (
-              <Button onClick={() => setCreateOpen(true)}>
-                <Plus className="w-4 h-4 mr-1" />
-                Create Project
-              </Button>
+            {projectsLoading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="h-48 rounded-lg skeleton-loader" />
+                ))}
+              </div>
+            ) : activeProjects.length === 0 ? (
+              <div className="text-center py-16 border border-dashed border-border rounded-lg">
+                <FolderKanban className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                <h3 className="font-semibold mb-1">No projects yet</h3>
+                <p className="text-sm text-muted-foreground mb-4">Create your first project to get started</p>
+                {isLeadership && (
+                  <Button onClick={() => setCreateOpen(true)}>
+                    <Plus className="w-4 h-4 mr-1" />
+                    Create Project
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {activeProjects.map(project => (
+                  <ProjectCard
+                    key={project.id}
+                    project={project}
+                    tasks={getProjectTasks(project.id)}
+                    milestones={getProjectMilestones(project.id)}
+                    memberCount={getMemberCount(project.id)}
+                    onClick={() => navigate(`/pbl/projects/${project.id}`)}
+                  />
+                ))}
+              </div>
             )}
           </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {activeProjects.map(project => (
-              <ProjectCard
-                key={project.id}
-                project={project}
-                tasks={getProjectTasks(project.id)}
-                milestones={getProjectMilestones(project.id)}
-                memberCount={getMemberCount(project.id)}
-                onClick={() => navigate(`/pbl/projects/${project.id}`)}
-              />
-            ))}
+
+          {/* Right: Notifications */}
+          <div className="lg:col-span-1">
+            <NotificationsPanel userId={user.id} />
           </div>
-        )}
+        </div>
       </div>
 
       <CreateProjectDialog open={createOpen} onOpenChange={setCreateOpen} />
