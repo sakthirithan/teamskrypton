@@ -393,7 +393,7 @@ function LinkBlock({ link, isReadOnly, onDelete }: {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <a href={link.url} target="_blank" rel="noopener noreferrer"
-              className="font-medium text-sm text-primary hover:underline truncate">
+              className="font-medium text-sm text-primary underline hover:opacity-80 truncate cursor-pointer z-10 relative">
               {link.title}
             </a>
             <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
