@@ -107,6 +107,36 @@ const PBLAnalytics = () => {
           <h2 className="text-lg font-semibold">Performance Analytics</h2>
         </div>
 
+        {/* Summary KPIs */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold text-primary">{projects.length}</p>
+              <p className="text-xs text-muted-foreground">Total Projects</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold text-[hsl(var(--success))]">{allTasks.filter(t => t.status === 'done').length}</p>
+              <p className="text-xs text-muted-foreground">Tasks Completed</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold text-[hsl(var(--warning))]">{allTasks.filter(t => t.status === 'in_progress').length}</p>
+              <p className="text-xs text-muted-foreground">In Progress</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold text-destructive">
+                {allTasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'done').length}
+              </p>
+              <p className="text-xs text-muted-foreground">Overdue Tasks</p>
+            </CardContent>
+          </Card>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Project Completion Rates */}
           <Card>
