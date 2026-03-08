@@ -380,6 +380,39 @@ export type Database = {
         }
         Relationships: []
       }
+      member_skills: {
+        Row: {
+          assigned_by: string
+          created_at: string
+          domain: Database["public"]["Enums"]["skill_domain"]
+          id: string
+          skill_name: string
+          skill_type: Database["public"]["Enums"]["skill_type"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assigned_by: string
+          created_at?: string
+          domain?: Database["public"]["Enums"]["skill_domain"]
+          id?: string
+          skill_name: string
+          skill_type: Database["public"]["Enums"]["skill_type"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assigned_by?: string
+          created_at?: string
+          domain?: Database["public"]["Enums"]["skill_domain"]
+          id?: string
+          skill_name?: string
+          skill_type?: Database["public"]["Enums"]["skill_type"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       milestones: {
         Row: {
           created_at: string
@@ -1228,6 +1261,13 @@ export type Database = {
         | "archived"
       project_task_status: "todo" | "in_progress" | "review" | "done"
       registration_status: "pending" | "approved" | "rejected"
+      skill_domain:
+        | "ai_data"
+        | "software_dev"
+        | "research"
+        | "ui_ux"
+        | "general"
+      skill_type: "primary" | "secondary" | "specialization"
       task_status: "idle" | "working" | "completed" | "pending"
       test_user_type: "real" | "primary_test" | "secondary_test"
     }
@@ -1384,6 +1424,8 @@ export const Constants = {
       ],
       project_task_status: ["todo", "in_progress", "review", "done"],
       registration_status: ["pending", "approved", "rejected"],
+      skill_domain: ["ai_data", "software_dev", "research", "ui_ux", "general"],
+      skill_type: ["primary", "secondary", "specialization"],
       task_status: ["idle", "working", "completed", "pending"],
       test_user_type: ["real", "primary_test", "secondary_test"],
     },
