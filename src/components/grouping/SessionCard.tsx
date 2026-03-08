@@ -137,7 +137,7 @@ export function SessionCard({
                     View historical session data
                   </p>
                 </div>
-                <ScrollArea className="max-h-[200px]">
+                <ScrollArea className="max-h-[300px] overflow-y-auto">
                   <div className="p-1">
                     {sessions.map((session) => {
                       const isActive = session.id === activeSession?.id;
