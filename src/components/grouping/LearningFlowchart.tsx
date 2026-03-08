@@ -15,6 +15,7 @@ interface LearningFlowchartProps {
   sessionId: string;
   userId: string;
   isReadOnly?: boolean;
+  onFlowchartUpdate?: () => void;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof CheckCircle }> = {
