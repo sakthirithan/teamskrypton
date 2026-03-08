@@ -15,10 +15,13 @@ import {
   SkillType, 
   SkillDomain 
 } from '@/hooks/useMemberSkills';
+import { useAuth } from '@/hooks/useAuth';
 
 interface SkillAssignmentPanelProps {
   userId: string;
   userName: string;
+  /** If true, only self-assign (user creating own skills). If false, leadership mode. */
+  isSelfMode?: boolean;
 }
 
 function getSkillTypeColor(type: SkillType): string {
@@ -29,12 +32,16 @@ function getSkillTypeColor(type: SkillType): string {
   }
 }
 
-export function SkillAssignmentPanel({ userId, userName }: SkillAssignmentPanelProps) {
+export function SkillAssignmentPanel({ userId, userName, isSelfMode = false }: SkillAssignmentPanelProps) {
+  const { user, isLeadership } = useAuth();
   const { skills, getByType, canAdd, assignSkill, removeSkill } = useMemberSkills(userId);
   const [isOpen, setIsOpen] = useState(false);
   const [skillName, setSkillName] = useState('');
   const [skillType, setSkillType] = useState<SkillType>('primary');
   const [domain, setDomain] = useState<SkillDomain>('general');
+
+  // Only leadership can delete skills
+  const canDelete = isLeadership;
 
   const handleAssign = async () => {
     if (!skillName.trim()) return;
@@ -44,6 +51,7 @@ export function SkillAssignmentPanel({ userId, userName }: SkillAssignmentPanelP
       skill_name: skillName.trim(),
       skill_type: skillType,
       domain,
+      assigned_by: user?.id,
     });
     setSkillName('');
     setIsOpen(false);
@@ -59,18 +67,18 @@ export function SkillAssignmentPanel({ userId, userName }: SkillAssignmentPanelP
         <CardTitle className="flex items-center justify-between">
           <span className="flex items-center gap-2 text-base">
             <GraduationCap className="w-4 h-4 text-primary" />
-            Skills — {userName}
+            Skills — {isSelfMode ? 'My Skills' : userName}
           </span>
           <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
               <Button size="sm" variant="outline">
                 <Plus className="w-4 h-4 mr-1" />
-                Assign
+                {isSelfMode ? 'Add Skill' : 'Assign'}
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Assign Skill to {userName}</DialogTitle>
+                <DialogTitle>{isSelfMode ? 'Add Your Skill' : `Assign Skill to ${userName}`}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 pt-4">
                 <div className="space-y-2">
@@ -116,6 +124,11 @@ export function SkillAssignmentPanel({ userId, userName }: SkillAssignmentPanelP
                 <div className="text-xs text-muted-foreground space-y-1 bg-muted/50 rounded-lg p-3">
                   <p className="font-medium">Limits per member:</p>
                   <p>• Primary: max 2 • Secondary: max 2 • Specialization: max 3</p>
+                  {!isLeadership && (
+                    <p className="text-amber-600 dark:text-amber-400 mt-1">
+                      ⚠ Only leadership can remove skills once added.
+                    </p>
+                  )}
                 </div>
 
                 <Button 
@@ -123,7 +136,7 @@ export function SkillAssignmentPanel({ userId, userName }: SkillAssignmentPanelP
                   className="w-full" 
                   disabled={!skillName.trim() || !canAdd(skillType) || assignSkill.isPending}
                 >
-                  {assignSkill.isPending ? 'Assigning...' : 'Assign Skill'}
+                  {assignSkill.isPending ? 'Adding...' : isSelfMode ? 'Add Skill' : 'Assign Skill'}
                 </Button>
               </div>
             </DialogContent>
@@ -133,21 +146,18 @@ export function SkillAssignmentPanel({ userId, userName }: SkillAssignmentPanelP
       <CardContent>
         {skills.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">
-            No skills assigned yet. Click "Assign" to add skills for this member.
+            No skills assigned yet. Click "{isSelfMode ? 'Add Skill' : 'Assign'}" to add skills.
           </p>
         ) : (
           <div className="space-y-3">
-            {/* Primary */}
             {primarySkills.length > 0 && (
-              <SkillGroup type="primary" skills={primarySkills} onRemove={id => removeSkill.mutate(id)} />
+              <SkillGroup type="primary" skills={primarySkills} onRemove={canDelete ? (id => removeSkill.mutate(id)) : undefined} />
             )}
-            {/* Secondary */}
             {secondarySkills.length > 0 && (
-              <SkillGroup type="secondary" skills={secondarySkills} onRemove={id => removeSkill.mutate(id)} />
+              <SkillGroup type="secondary" skills={secondarySkills} onRemove={canDelete ? (id => removeSkill.mutate(id)) : undefined} />
             )}
-            {/* Specializations */}
             {specSkills.length > 0 && (
-              <SkillGroup type="specialization" skills={specSkills} onRemove={id => removeSkill.mutate(id)} />
+              <SkillGroup type="specialization" skills={specSkills} onRemove={canDelete ? (id => removeSkill.mutate(id)) : undefined} />
             )}
           </div>
         )}
@@ -159,7 +169,7 @@ export function SkillAssignmentPanel({ userId, userName }: SkillAssignmentPanelP
 function SkillGroup({ type, skills, onRemove }: { 
   type: SkillType; 
   skills: { id: string; skill_name: string; domain: string }[]; 
-  onRemove: (id: string) => void;
+  onRemove?: (id: string) => void;
 }) {
   return (
     <div>
@@ -168,15 +178,17 @@ function SkillGroup({ type, skills, onRemove }: {
       </p>
       <div className="flex flex-wrap gap-2">
         {skills.map(skill => (
-          <Badge key={skill.id} variant="outline" className={`gap-1.5 pr-1 ${getSkillTypeColor(type)}`}>
+          <Badge key={skill.id} variant="outline" className={`gap-1.5 ${onRemove ? 'pr-1' : ''} ${getSkillTypeColor(type)}`}>
             <Sparkles className="w-3 h-3" />
             {skill.skill_name}
-            <button
-              onClick={() => onRemove(skill.id)}
-              className="ml-1 p-0.5 rounded hover:bg-destructive/10 transition-colors"
-            >
-              <Trash2 className="w-3 h-3 text-destructive/70" />
-            </button>
+            {onRemove && (
+              <button
+                onClick={() => onRemove(skill.id)}
+                className="ml-1 p-0.5 rounded hover:bg-destructive/10 transition-colors"
+              >
+                <Trash2 className="w-3 h-3 text-destructive/70" />
+              </button>
+            )}
           </Badge>
         ))}
       </div>

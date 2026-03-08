@@ -73,7 +73,7 @@ export function useMemberSkills(userId?: string) {
   });
 
   const assignSkill = useMutation({
-    mutationFn: async (params: { user_id: string; skill_name: string; skill_type: SkillType; domain: SkillDomain }) => {
+    mutationFn: async (params: { user_id: string; skill_name: string; skill_type: SkillType; domain: SkillDomain; assigned_by?: string }) => {
       if (!user) throw new Error('Not authenticated');
       const { data, error } = await supabase
         .from('member_skills')
@@ -82,7 +82,7 @@ export function useMemberSkills(userId?: string) {
           skill_name: params.skill_name,
           skill_type: params.skill_type,
           domain: params.domain,
-          assigned_by: user.id,
+          assigned_by: params.assigned_by || user.id,
         })
         .select()
         .single();
