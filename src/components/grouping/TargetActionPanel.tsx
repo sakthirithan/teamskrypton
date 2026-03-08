@@ -284,6 +284,7 @@ export function TargetActionPanel({ session }: TargetActionPanelProps) {
                 );
               })}
             </div>
+            </ScrollArea>
           )}
         </CardContent>
       </Card>
