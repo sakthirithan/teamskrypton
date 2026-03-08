@@ -24,20 +24,13 @@ interface SkillTrackerProps {
 export function SkillTracker({ session, userId, isReadOnly = false }: SkillTrackerProps) {
   const { isLeadership } = useAuth();
   const { tracks, suggestions, createTrack, deleteTrack, updateTrack } = useSkillTracks(session.id, userId);
-  const { streak, recordActivity } = useSkillStreaks(session.id, userId);
+  const { streak, recordWeekActivity } = useSkillStreaks(session.id, userId);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [skillName, setSkillName] = useState('');
   const [isPrimary, setIsPrimary] = useState(false);
   const [customSkill, setCustomSkill] = useState('');
   const [expandedTrack, setExpandedTrack] = useState<string | null>(null);
-
-  // Record streak activity when user interacts
-  useEffect(() => {
-    if (tracks.length > 0 && !isReadOnly) {
-      recordActivity.mutate();
-    }
-  }, [tracks.length]); // eslint-disable-line
 
   // Group tracks by week
   const tracksByWeek = useMemo(() => {
