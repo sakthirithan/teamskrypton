@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Target, Plus, Users, User, Trash2, Edit2 } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Target, Plus, Users, User, Trash2, Edit2, Eye } from 'lucide-react';
 import { useGroupingSessions } from '@/hooks/useGroupingSessions';
 import { useGroupingTargets, GroupingTarget } from '@/hooks/useGroupingTargets';
 import { useAuth } from '@/hooks/useAuth';
