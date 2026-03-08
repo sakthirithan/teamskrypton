@@ -117,10 +117,14 @@ const GroupingHome = () => {
             ) : (
               /* TEAM MEMBERS: Original layout - Targets first */
               <Tabs defaultValue="targets" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-4">
+                <TabsList className="grid w-full grid-cols-3 mb-4">
                   <TabsTrigger value="targets" className="flex items-center gap-2">
                     <Target className="w-4 h-4" />
                     Targets
+                  </TabsTrigger>
+                  <TabsTrigger value="reflections" className="flex items-center gap-2">
+                    <NotebookPen className="w-4 h-4" />
+                    Reflections
                   </TabsTrigger>
                   <TabsTrigger value="notes" className="flex items-center gap-2">
                     <MessageSquare className="w-4 h-4" />
@@ -137,6 +141,9 @@ const GroupingHome = () => {
                 </div>
                 <TabsContent value="targets" className="mt-0">
                   <GroupingPanel session={viewingSession} />
+                </TabsContent>
+                <TabsContent value="reflections" className="mt-0">
+                  <AllReflectionsPanel />
                 </TabsContent>
                 <TabsContent value="notes" className="mt-0">
                   <GroupingNotesPanel />
