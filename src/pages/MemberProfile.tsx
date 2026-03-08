@@ -284,308 +284,318 @@ const MemberProfile = () => {
 
 
 
+  const profileContent = (
+    <>
+      <div className="flex items-center gap-2 mb-4">
+        <Button variant="ghost" onClick={() => navigate('/team')}>
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Team
+        </Button>
+        <RefreshButton onClick={handleManualRefresh} isRefreshing={isRefreshing} />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Sidebar - Krypton ID */}
+        <div className="lg:col-span-1">
+          <KryptonIdCard profile={member.profile} role={member.role} />
+
+          {/* Productivity Summary */}
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg font-display">
+                <BarChart3 className="w-5 h-5" />
+                Productivity
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Tasks Accepted</span>
+                <span className="font-semibold">{stats.accepted}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Completed</span>
+                <span className="font-semibold text-[hsl(var(--status-completed))]">{stats.completed}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Missed Deadline</span>
+                <span className="font-semibold text-[hsl(var(--status-pending))]">{stats.missed}</span>
+              </div>
+              <div className="flex justify-between border-t pt-4">
+                <span className="text-muted-foreground">Avg. Completion</span>
+                <span className="font-semibold">{formatDuration(stats.avgTime)}</span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Main Content - Tabbed */}
+        <div className="lg:col-span-3 space-y-6">
+          <Tabs defaultValue={mode === 'grouping' ? 'tasks' : 'projects'} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsTrigger value="projects" className="flex items-center gap-2">
+                <FolderKanban className="w-4 h-4" />
+                Projects
+              </TabsTrigger>
+              <TabsTrigger value="tasks" className="flex items-center gap-2">
+                <Clock className="w-4 h-4" />
+                Exec Tasks
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Projects Tab */}
+            <TabsContent value="projects" className="mt-0 space-y-6">
+              <MemberProjectsPanel memberId={userId!} memberName={member.profile.full_name} />
+            </TabsContent>
+
+            {/* Tasks Tab (original execution tasks) */}
+            <TabsContent value="tasks" className="mt-0 space-y-6">
+              {/* Alerts Panel (Read-only view) */}
+              <Card className={totalAlerts > 0 ? 'border-[hsl(var(--status-pending))]/50' : ''}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 font-display text-[hsl(var(--status-pending))]">
+                    <AlertTriangle className="w-5 h-5" />
+                    Alerts
+                    {totalAlerts > 0 && (
+                      <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-[hsl(var(--status-pending))]/20">
+                        {totalAlerts}
+                      </span>
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {totalAlerts === 0 ? (
+                    <p className="text-center text-muted-foreground py-4">No alerts - you're on track!</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {pendingTasks.map(task => (
+                        <div key={task.id} className="p-4 rounded-lg border border-[hsl(var(--status-pending))]/30 bg-[hsl(var(--status-pending))]/5">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h5 className="font-semibold">{task.title}</h5>
+                              <p className="text-sm text-muted-foreground">
+                                Deadline: {format(new Date(task.deadline), 'MMM dd, HH:mm')}
+                              </p>
+                            </div>
+                            <span className="status-badge status-pending">Pending</span>
+                          </div>
+                        </div>
+                      ))}
+                      {approvals.map(approval => (
+                        <div key={approval.id} className="p-4 rounded-lg border bg-muted/30">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h5 className="font-semibold">{approval.task_title}</h5>
+                              <p className="text-sm text-muted-foreground mb-2">
+                                Reason submitted: {format(new Date(approval.created_at), 'MMM dd, HH:mm')}
+                              </p>
+                              {approval.reason && (
+                                <p className="text-sm bg-background p-2 rounded border italic">
+                                  "{approval.reason}"
+                                </p>
+                              )}
+                            </div>
+                            <span className="px-2 py-1 text-xs rounded bg-amber-500/20 text-amber-700">
+                              Awaiting Approval
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* In Progress Tasks */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 font-display">
+                    <Clock className="w-5 h-5 text-[hsl(var(--status-working))]" />
+                    In Progress
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {inProgressTasks.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-4">No tasks in progress</p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Task</TableHead>
+                          <TableHead>Assigned By</TableHead>
+                          <TableHead>Started</TableHead>
+                          <TableHead>Deadline</TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {inProgressTasks.map((task) => (
+                          <TableRow key={task.id}>
+                            <TableCell className="font-medium">{task.title}</TableCell>
+                            <TableCell>
+                              {task.assigner_name ? (
+                                <span>
+                                  {task.assigner_name}
+                                  {task.assigner_role && (
+                                    <span className="text-xs text-muted-foreground ml-1">
+                                      ({task.assigner_role})
+                                    </span>
+                                  )}
+                                </span>
+                              ) : '-'}
+                            </TableCell>
+                            <TableCell>{task.accepted_at ? format(new Date(task.accepted_at), 'HH:mm') : '-'}</TableCell>
+                            <TableCell>{format(new Date(task.deadline), 'MMM dd, HH:mm')}</TableCell>
+                            <TableCell><span className="status-badge status-working">Working</span></TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Personal Log */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between font-display">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-5 h-5 text-[hsl(var(--status-completed))]" />
+                      Personal Log
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            <CalendarIcon className="w-4 h-4 mr-2" />
+                            {selectedLogDate ? format(selectedLogDate, 'MMM dd') : 'All Dates'}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="p-0" align="end">
+                          <Calendar
+                            mode="single"
+                            selected={selectedLogDate}
+                            onSelect={setSelectedLogDate}
+                            initialFocus
+                          />
+                          {selectedLogDate && (
+                            <div className="p-2 border-t">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="w-full"
+                                onClick={() => setSelectedLogDate(undefined)}
+                              >
+                                Clear filter
+                              </Button>
+                            </div>
+                          )}
+                        </PopoverContent>
+                      </Popover>
+
+                      <Button variant="outline" size="sm" onClick={() => setShowExportDialog(true)}>
+                        <Download className="w-4 h-4 mr-2" />
+                        Export
+                      </Button>
+                    </div>
+                  </CardTitle>
+
+                </CardHeader>
+                <CardContent>
+                  {completedTasks.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-4">
+                      No completed tasks yet.
+                    </p>
+                    ) : filteredCompletedTasks.length === 0 ? (
+                      <p className="text-center text-muted-foreground py-4">
+                        No completed tasks on this date.
+                      </p>
+                    ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Task</TableHead>
+                          <TableHead>Assigned By</TableHead>
+                          <TableHead>Start</TableHead>
+                          <TableHead>End</TableHead>
+                          <TableHead>Duration</TableHead>
+                          <TableHead>Docs</TableHead>
+                          {isCaptainOrVice && <TableHead>Actions</TableHead>}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredCompletedTasks.slice(0, 20).map((task) => (
+                          <TableRow key={task.id}>
+                            <TableCell>{task.completed_at ? format(new Date(task.completed_at), 'MMM dd') : '-'}</TableCell>
+                            <TableCell className="font-medium">{task.title}</TableCell>
+                            <TableCell>
+                              {task.assigner_name ? (
+                                <span>
+                                  {task.assigner_name}
+                                  {task.assigner_role && (
+                                    <span className="text-xs text-muted-foreground ml-1">
+                                      ({task.assigner_role})
+                                    </span>
+                                  )}
+                                </span>
+                              ) : '-'}
+                            </TableCell>
+                            <TableCell>{task.accepted_at ? format(new Date(task.accepted_at), 'HH:mm') : '-'}</TableCell>
+                            <TableCell>{task.completed_at ? format(new Date(task.completed_at), 'HH:mm') : '-'}</TableCell>
+                            <TableCell>{formatDuration(task.duration_minutes)}</TableCell>
+
+                            <TableCell>
+                              {taskDocs.has(task.id) ? (
+                                <a 
+                                  href={taskDocs.get(task.id)} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-primary hover:underline flex items-center gap-1"
+                                >
+                                  <ExternalLink className="w-3 h-3" />
+                                  View
+                                </a>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            {isCaptainOrVice && (
+                              <TableCell>
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost"
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0"
+                                  onClick={() => setDeleteConfirmTask(task)}
+                                  title="Reset/Delete Task"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
+    </>
+  );
+
+  if (isPBL) {
+    return <PBLLayout title={member.profile.full_name}>{profileContent}</PBLLayout>;
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
       <main className="container mx-auto px-6 py-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Button variant="ghost" onClick={() => navigate('/team')}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Team
-          </Button>
-          <RefreshButton onClick={handleManualRefresh} isRefreshing={isRefreshing} />
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Sidebar - Krypton ID */}
-          <div className="lg:col-span-1">
-            <KryptonIdCard profile={member.profile} role={member.role} />
-
-            {/* Productivity Summary */}
-            <Card className="mt-6">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg font-display">
-                  <BarChart3 className="w-5 h-5" />
-                  Productivity
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Tasks Accepted</span>
-                  <span className="font-semibold">{stats.accepted}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Completed</span>
-                  <span className="font-semibold text-[hsl(var(--status-completed))]">{stats.completed}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Missed Deadline</span>
-                  <span className="font-semibold text-[hsl(var(--status-pending))]">{stats.missed}</span>
-                </div>
-                <div className="flex justify-between border-t pt-4">
-                  <span className="text-muted-foreground">Avg. Completion</span>
-                  <span className="font-semibold">{formatDuration(stats.avgTime)}</span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Main Content - Tabbed */}
-          <div className="lg:col-span-3 space-y-6">
-            <Tabs defaultValue={mode === 'grouping' ? 'tasks' : 'projects'} className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-4">
-                <TabsTrigger value="projects" className="flex items-center gap-2">
-                  <FolderKanban className="w-4 h-4" />
-                  Projects
-                </TabsTrigger>
-                <TabsTrigger value="tasks" className="flex items-center gap-2">
-                  <Clock className="w-4 h-4" />
-                  Exec Tasks
-                </TabsTrigger>
-              </TabsList>
-
-              {/* Projects Tab */}
-              <TabsContent value="projects" className="mt-0 space-y-6">
-                <MemberProjectsPanel memberId={userId!} memberName={member.profile.full_name} />
-              </TabsContent>
-
-              {/* Tasks Tab (original execution tasks) */}
-              <TabsContent value="tasks" className="mt-0 space-y-6">
-                {/* Alerts Panel (Read-only view) */}
-                <Card className={totalAlerts > 0 ? 'border-[hsl(var(--status-pending))]/50' : ''}>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 font-display text-[hsl(var(--status-pending))]">
-                      <AlertTriangle className="w-5 h-5" />
-                      Alerts
-                      {totalAlerts > 0 && (
-                        <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-[hsl(var(--status-pending))]/20">
-                          {totalAlerts}
-                        </span>
-                      )}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {totalAlerts === 0 ? (
-                      <p className="text-center text-muted-foreground py-4">No alerts - you're on track!</p>
-                    ) : (
-                      <div className="space-y-4">
-                        {pendingTasks.map(task => (
-                          <div key={task.id} className="p-4 rounded-lg border border-[hsl(var(--status-pending))]/30 bg-[hsl(var(--status-pending))]/5">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <h5 className="font-semibold">{task.title}</h5>
-                                <p className="text-sm text-muted-foreground">
-                                  Deadline: {format(new Date(task.deadline), 'MMM dd, HH:mm')}
-                                </p>
-                              </div>
-                              <span className="status-badge status-pending">Pending</span>
-                            </div>
-                          </div>
-                        ))}
-                        {approvals.map(approval => (
-                          <div key={approval.id} className="p-4 rounded-lg border bg-muted/30">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <h5 className="font-semibold">{approval.task_title}</h5>
-                                <p className="text-sm text-muted-foreground mb-2">
-                                  Reason submitted: {format(new Date(approval.created_at), 'MMM dd, HH:mm')}
-                                </p>
-                                {approval.reason && (
-                                  <p className="text-sm bg-background p-2 rounded border italic">
-                                    "{approval.reason}"
-                                  </p>
-                                )}
-                              </div>
-                              <span className="px-2 py-1 text-xs rounded bg-amber-500/20 text-amber-700">
-                                Awaiting Approval
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* In Progress Tasks */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 font-display">
-                      <Clock className="w-5 h-5 text-[hsl(var(--status-working))]" />
-                      In Progress
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {inProgressTasks.length === 0 ? (
-                      <p className="text-center text-muted-foreground py-4">No tasks in progress</p>
-                    ) : (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Task</TableHead>
-                            <TableHead>Assigned By</TableHead>
-                            <TableHead>Started</TableHead>
-                            <TableHead>Deadline</TableHead>
-                            <TableHead>Status</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {inProgressTasks.map((task) => (
-                            <TableRow key={task.id}>
-                              <TableCell className="font-medium">{task.title}</TableCell>
-                              <TableCell>
-                                {task.assigner_name ? (
-                                  <span>
-                                    {task.assigner_name}
-                                    {task.assigner_role && (
-                                      <span className="text-xs text-muted-foreground ml-1">
-                                        ({task.assigner_role})
-                                      </span>
-                                    )}
-                                  </span>
-                                ) : '-'}
-                              </TableCell>
-                              <TableCell>{task.accepted_at ? format(new Date(task.accepted_at), 'HH:mm') : '-'}</TableCell>
-                              <TableCell>{format(new Date(task.deadline), 'MMM dd, HH:mm')}</TableCell>
-                              <TableCell><span className="status-badge status-working">Working</span></TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Personal Log */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center justify-between font-display">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="w-5 h-5 text-[hsl(var(--status-completed))]" />
-                        Personal Log
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button variant="outline" size="sm">
-                              <CalendarIcon className="w-4 h-4 mr-2" />
-                              {selectedLogDate ? format(selectedLogDate, 'MMM dd') : 'All Dates'}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="p-0" align="end">
-                            <Calendar
-                              mode="single"
-                              selected={selectedLogDate}
-                              onSelect={setSelectedLogDate}
-                              initialFocus
-                            />
-                            {selectedLogDate && (
-                              <div className="p-2 border-t">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="w-full"
-                                  onClick={() => setSelectedLogDate(undefined)}
-                                >
-                                  Clear filter
-                                </Button>
-                              </div>
-                            )}
-                          </PopoverContent>
-                        </Popover>
-
-                        <Button variant="outline" size="sm" onClick={() => setShowExportDialog(true)}>
-                          <Download className="w-4 h-4 mr-2" />
-                          Export
-                        </Button>
-                      </div>
-                    </CardTitle>
-
-                  </CardHeader>
-                  <CardContent>
-                    {completedTasks.length === 0 ? (
-                      <p className="text-center text-muted-foreground py-4">
-                        No completed tasks yet.
-                      </p>
-                      ) : filteredCompletedTasks.length === 0 ? (
-                        <p className="text-center text-muted-foreground py-4">
-                          No completed tasks on this date.
-                        </p>
-                      ) : (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Task</TableHead>
-                            <TableHead>Assigned By</TableHead>
-                            <TableHead>Start</TableHead>
-                            <TableHead>End</TableHead>
-                            <TableHead>Duration</TableHead>
-                            <TableHead>Docs</TableHead>
-                            {isCaptainOrVice && <TableHead>Actions</TableHead>}
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {filteredCompletedTasks.slice(0, 20).map((task) => (
-                            <TableRow key={task.id}>
-                              <TableCell>{task.completed_at ? format(new Date(task.completed_at), 'MMM dd') : '-'}</TableCell>
-                              <TableCell className="font-medium">{task.title}</TableCell>
-                              <TableCell>
-                                {task.assigner_name ? (
-                                  <span>
-                                    {task.assigner_name}
-                                    {task.assigner_role && (
-                                      <span className="text-xs text-muted-foreground ml-1">
-                                        ({task.assigner_role})
-                                      </span>
-                                    )}
-                                  </span>
-                                ) : '-'}
-                              </TableCell>
-                              <TableCell>{task.accepted_at ? format(new Date(task.accepted_at), 'HH:mm') : '-'}</TableCell>
-                              <TableCell>{task.completed_at ? format(new Date(task.completed_at), 'HH:mm') : '-'}</TableCell>
-                              <TableCell>{formatDuration(task.duration_minutes)}</TableCell>
-
-                              <TableCell>
-                                {taskDocs.has(task.id) ? (
-                                  <a 
-                                    href={taskDocs.get(task.id)} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="text-primary hover:underline flex items-center gap-1"
-                                  >
-                                    <ExternalLink className="w-3 h-3" />
-                                    View
-                                  </a>
-                                ) : (
-                                  <span className="text-muted-foreground">-</span>
-                                )}
-                              </TableCell>
-                              {isCaptainOrVice && (
-                                <TableCell>
-                                  <Button 
-                                    size="sm" 
-                                    variant="ghost"
-                                    className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0"
-                                    onClick={() => setDeleteConfirmTask(task)}
-                                    title="Reset/Delete Task"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
-                                </TableCell>
-                              )}
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
-          </div>
-        </div>
+        {profileContent}
       </main>
     </div>
   );
