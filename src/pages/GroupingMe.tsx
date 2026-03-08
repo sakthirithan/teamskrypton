@@ -608,6 +608,27 @@ const GroupingMe = () => {
                 />
               )}
 
+              {/* Main Tabs: Skill Tracker (primary) | PS Entries (secondary) */}
+              <Tabs defaultValue="skills" className="w-full">
+                <TabsList className="w-full grid grid-cols-2">
+                  <TabsTrigger value="skills">🎯 Skill Tracker</TabsTrigger>
+                  <TabsTrigger value="ps-entries">📝 PS Entries</TabsTrigger>
+                </TabsList>
+
+                {/* Skill Tracker Tab */}
+                <TabsContent value="skills" className="mt-4">
+                  {viewingUserId && (
+                    <SkillTracker
+                      session={viewingSession}
+                      userId={viewingUserId}
+                      isReadOnly={isReadOnlyMode}
+                    />
+                  )}
+                </TabsContent>
+
+                {/* PS Entries Tab */}
+                <TabsContent value="ps-entries" className="mt-4 space-y-4 sm:space-y-6">
+
               {/* Points & Stats Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <Card className="overflow-hidden">
