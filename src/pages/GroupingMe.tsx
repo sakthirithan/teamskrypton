@@ -41,6 +41,8 @@ import { ProductivityInsights } from '@/components/grouping/ProductivityInsights
 import { QuickEntryWidget } from '@/components/grouping/QuickEntryWidget';
 import { PointsDisplay } from '@/components/points/PointsDisplay';
 import { SkillTracker } from '@/components/grouping/SkillTracker';
+import { MemberSkillsBadges } from '@/components/grouping/MemberSkillsBadges';
+import { SkillAssignmentPanel } from '@/components/grouping/SkillAssignmentPanel';
 import { ROLE_LABELS, KryptonRole } from '@/lib/constants';
 import { 
   calculateSessionDays, 
@@ -562,6 +564,11 @@ const GroupingMe = () => {
                       </Badge>
                     </div>
                   )}
+
+                  {/* Member Skills Badges - below name */}
+                  {viewingUserId && (
+                    <MemberSkillsBadges userId={viewingUserId} />
+                  )}
                   
                   <p className="text-xs text-muted-foreground mt-1">
                     {isViewingOther ? `${displayProfile?.full_name}'s Grouping Space` : 'My Grouping Space'}
@@ -593,6 +600,14 @@ const GroupingMe = () => {
 
           {!viewingSession ? null : (
             <>
+              {/* Skill Assignment Panel - Leadership only, when viewing another user */}
+              {isLeadership && viewingUserId && (
+                <SkillAssignmentPanel
+                  userId={viewingUserId}
+                  userName={displayProfile?.full_name || 'Member'}
+                />
+              )}
+
               {/* Personal Alerts Panel - session-bound, only show for own workspace or TL */}
               {(!isViewingOther || isTL) && (
                 <MySpaceAlertsPanel 

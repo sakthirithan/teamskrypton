@@ -1,4 +1,5 @@
 import { User, Eye, Phone, Pencil, CheckCircle, Power, Target, Coins, Users } from 'lucide-react';
+import { MemberSkillsBadges } from '@/components/grouping/MemberSkillsBadges';
 import { ROLE_LABELS, KryptonRole, TaskStatus } from '@/lib/constants';
 import { format } from 'date-fns';
 import { useState } from 'react';
@@ -351,6 +352,8 @@ export function KryptonIdCard({
               {ROLE_LABELS[role]}
             </span>
           )}
+          {/* Member Skills */}
+          <MemberSkillsBadges userId={profile.user_id} compact />
           {/* Points Display */}
           <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 font-semibold text-sm">
             <Coins className="w-4 h-4" />
