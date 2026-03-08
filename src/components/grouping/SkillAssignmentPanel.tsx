@@ -160,6 +160,7 @@ export function SkillAssignmentPanel({ userId, userName, isSelfMode = false }: S
               </div>
             </DialogContent>
           </Dialog>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent>
