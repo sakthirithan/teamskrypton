@@ -11,11 +11,12 @@ import { BulkEntryCreation } from '@/components/grouping/BulkEntryCreation';
 import { SessionCard } from '@/components/grouping/SessionCard';
 import { TeamSkillOverview } from '@/components/grouping/TeamSkillOverview';
 import { SkillAssignmentPanel } from '@/components/grouping/SkillAssignmentPanel';
+import { AllReflectionsPanel } from '@/components/grouping/AllReflectionsPanel';
 
 import { useGroupingSessions } from '@/hooks/useGroupingSessions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Target, MessageSquare, Users, BookOpen, ClipboardList } from 'lucide-react';
+import { Target, MessageSquare, Users, BookOpen, ClipboardList, NotebookPen } from 'lucide-react';
 
 const GroupingHome = () => {
   const { user, isLoading, isLeadership, isCaptainOrVice, role } = useAuth();
@@ -56,18 +57,22 @@ const GroupingHome = () => {
             {isLeadership ? (
               /* LEADERSHIP: Skill-first layout with 3 tabs */
               <Tabs defaultValue="skills" className="w-full">
-                <TabsList className="grid w-full grid-cols-3 mb-4">
+                <TabsList className="grid w-full grid-cols-4 mb-4">
                   <TabsTrigger value="skills" className="flex items-center gap-2">
                     <BookOpen className="w-4 h-4" />
-                    Skills
+                    <span className="hidden sm:inline">Skills</span>
                   </TabsTrigger>
                   <TabsTrigger value="targets" className="flex items-center gap-2">
                     <Target className="w-4 h-4" />
-                    Targets
+                    <span className="hidden sm:inline">Targets</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="reflections" className="flex items-center gap-2">
+                    <NotebookPen className="w-4 h-4" />
+                    <span className="hidden sm:inline">Reflections</span>
                   </TabsTrigger>
                   <TabsTrigger value="notes" className="flex items-center gap-2">
                     <MessageSquare className="w-4 h-4" />
-                    Notes
+                    <span className="hidden sm:inline">Notes</span>
                   </TabsTrigger>
                 </TabsList>
 
@@ -81,7 +86,7 @@ const GroupingHome = () => {
                   />
                 </div>
 
-                {/* Skills Tab - Primary focus */}
+                {/* Skills Tab */}
                 <TabsContent value="skills" className="mt-0">
                   {viewingSession ? (
                     <TeamSkillOverview session={viewingSession} />
@@ -98,6 +103,11 @@ const GroupingHome = () => {
                 <TabsContent value="targets" className="mt-0">
                   <GroupingPanel session={viewingSession} />
                 </TabsContent>
+
+                {/* Reflections Tab */}
+                <TabsContent value="reflections" className="mt-0">
+                  <AllReflectionsPanel />
+                </TabsContent>
                 
                 {/* Notes Tab */}
                 <TabsContent value="notes" className="mt-0">
@@ -107,10 +117,14 @@ const GroupingHome = () => {
             ) : (
               /* TEAM MEMBERS: Original layout - Targets first */
               <Tabs defaultValue="targets" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-4">
+                <TabsList className="grid w-full grid-cols-3 mb-4">
                   <TabsTrigger value="targets" className="flex items-center gap-2">
                     <Target className="w-4 h-4" />
                     Targets
+                  </TabsTrigger>
+                  <TabsTrigger value="reflections" className="flex items-center gap-2">
+                    <NotebookPen className="w-4 h-4" />
+                    Reflections
                   </TabsTrigger>
                   <TabsTrigger value="notes" className="flex items-center gap-2">
                     <MessageSquare className="w-4 h-4" />
@@ -127,6 +141,9 @@ const GroupingHome = () => {
                 </div>
                 <TabsContent value="targets" className="mt-0">
                   <GroupingPanel session={viewingSession} />
+                </TabsContent>
+                <TabsContent value="reflections" className="mt-0">
+                  <AllReflectionsPanel />
                 </TabsContent>
                 <TabsContent value="notes" className="mt-0">
                   <GroupingNotesPanel />
