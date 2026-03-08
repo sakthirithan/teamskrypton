@@ -8,7 +8,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { BarChart3, Users, TrendingUp, Award, CheckCircle2, Clock, ListTodo } from 'lucide-react';
+import { BarChart3, Users, TrendingUp, Award, CheckCircle2, Clock, ListTodo, AlertTriangle, GanttChart } from 'lucide-react';
+import { differenceInDays } from 'date-fns';
 
 const PBLAnalytics = () => {
   const { user, isLoading: authLoading } = useAuth();
