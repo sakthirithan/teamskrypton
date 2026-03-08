@@ -384,6 +384,7 @@ export type Database = {
         Row: {
           assigned_by: string
           created_at: string
+          custom_domain: string | null
           domain: Database["public"]["Enums"]["skill_domain"]
           id: string
           skill_name: string
@@ -394,6 +395,7 @@ export type Database = {
         Insert: {
           assigned_by: string
           created_at?: string
+          custom_domain?: string | null
           domain?: Database["public"]["Enums"]["skill_domain"]
           id?: string
           skill_name: string
@@ -404,6 +406,7 @@ export type Database = {
         Update: {
           assigned_by?: string
           created_at?: string
+          custom_domain?: string | null
           domain?: Database["public"]["Enums"]["skill_domain"]
           id?: string
           skill_name?: string
