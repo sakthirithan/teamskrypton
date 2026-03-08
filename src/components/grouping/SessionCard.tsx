@@ -37,15 +37,7 @@ export function SessionCard({
   const viewingSession = selectedSession || activeSession;
   
   if (!viewingSession) {
-    return (
-      <Card className="border-dashed">
-        <CardContent className="py-8 text-center text-muted-foreground">
-          <Target className="w-12 h-12 mx-auto mb-3 opacity-50" />
-          <p className="font-medium">No Active Session</p>
-          <p className="text-sm">Wait for leadership to create a session.</p>
-        </CardContent>
-      </Card>
-    );
+    return null;
   }
 
   const totalDays = calculateSessionDays(viewingSession.start_date, viewingSession.end_date);
