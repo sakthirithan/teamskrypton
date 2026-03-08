@@ -4,12 +4,11 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   LayoutDashboard,
   FolderKanban,
-  Milestone as MilestoneIcon,
-  ListTodo,
   Users,
   BarChart3,
-  Settings,
   ChevronLeft,
+  FileText,
+  Bell,
 } from 'lucide-react';
 import {
   Sidebar,
