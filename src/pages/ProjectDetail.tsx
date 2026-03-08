@@ -275,6 +275,18 @@ const ProjectDetail = () => {
             />
           </TabsContent>
 
+          {/* Staffing Tab */}
+          <TabsContent value="staffing" className="mt-0">
+            <ProjectStaffingPanel
+              projectId={project.id}
+              members={memberProfiles.map(m => ({
+                ...m,
+                share_percentage: (m as any).share_percentage || 0,
+                role_label: (m as any).role_label || null,
+              }))}
+            />
+          </TabsContent>
+
           {/* Docs Tab */}
           <TabsContent value="docs" className="mt-0">
             <ProjectDocumentsPanel projectId={project.id} />
