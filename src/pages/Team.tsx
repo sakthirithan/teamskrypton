@@ -7,8 +7,6 @@ import { Header } from '@/components/layout/Header';
 import { PBLLayout } from '@/components/pbl/PBLLayout';
 import { KryptonIdCard } from '@/components/team/KryptonIdCard';
 import { SkillWiseMemberList } from '@/components/team/SkillWiseMemberList';
-import { SkillLeaderboard } from '@/components/grouping/SkillLeaderboard';
-import { useGroupingSessions } from '@/hooks/useGroupingSessions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
