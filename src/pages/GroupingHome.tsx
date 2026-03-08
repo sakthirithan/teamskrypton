@@ -73,15 +73,13 @@ const GroupingHome = () => {
                   onSessionChange={setSelectedSessionId}
                 />
               </div>
-              <div className="max-h-[60vh] overflow-y-auto pr-1">
-                <TabsContent value="targets" className="mt-0">
-                  <GroupingPanel session={viewingSession} />
-                </TabsContent>
-                
-                <TabsContent value="notes" className="mt-0">
-                  <GroupingNotesPanel />
-                </TabsContent>
-              </div>
+              <TabsContent value="targets" className="mt-0">
+                <GroupingPanel session={viewingSession} />
+              </TabsContent>
+              
+              <TabsContent value="notes" className="mt-0">
+                <GroupingNotesPanel />
+              </TabsContent>
             </Tabs>
           </div>
           
