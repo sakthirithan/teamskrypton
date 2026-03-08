@@ -183,9 +183,14 @@ export function SkillAssignmentPanel({ userId, userName, isSelfMode = false }: S
 
 function SkillGroup({ type, skills, onRemove }: { 
   type: SkillType; 
-  skills: { id: string; skill_name: string; domain: string }[]; 
+  skills: { id: string; skill_name: string; domain: string; custom_domain?: string | null }[]; 
   onRemove?: (id: string) => void;
 }) {
+  const getDomainLabel = (skill: { domain: string; custom_domain?: string | null }) => {
+    if (skill.custom_domain) return skill.custom_domain;
+    return SKILL_DOMAIN_LABELS[skill.domain as SkillDomain] || skill.domain;
+  };
+
   return (
     <div>
       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
@@ -195,7 +200,8 @@ function SkillGroup({ type, skills, onRemove }: {
         {skills.map(skill => (
           <Badge key={skill.id} variant="outline" className={`gap-1.5 ${onRemove ? 'pr-1' : ''} ${getSkillTypeColor(type)}`}>
             <Sparkles className="w-3 h-3" />
-            {skill.skill_name}
+            <span>{skill.skill_name}</span>
+            <span className="text-[9px] opacity-60">({getDomainLabel(skill)})</span>
             {onRemove && (
               <button
                 onClick={() => onRemove(skill.id)}
