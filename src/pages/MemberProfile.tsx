@@ -20,7 +20,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { CalendarIcon } from 'lucide-react';
 import { isSameDay } from 'date-fns';
 import { Download, Trash2 } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 
 
 const formatDuration = (minutes?: number | null) => {
