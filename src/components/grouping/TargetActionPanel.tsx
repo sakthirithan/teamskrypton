@@ -246,6 +246,7 @@ export function TargetActionPanel({ session }: TargetActionPanelProps) {
               No targets available.
             </p>
           ) : (
+            <ScrollArea className="max-h-[50vh] pr-3" style={{ overflowY: 'auto' }}>
             <div className="space-y-2">
               {allTargets.map(target => {
                 const member = teamMembers.find(
@@ -283,6 +284,7 @@ export function TargetActionPanel({ session }: TargetActionPanelProps) {
                 );
               })}
             </div>
+            </ScrollArea>
           )}
         </CardContent>
       </Card>
