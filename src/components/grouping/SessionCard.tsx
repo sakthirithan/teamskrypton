@@ -67,40 +67,38 @@ export function SessionCard({
               <span className="font-semibold text-sm">
                 Session #{viewingSession.session_number}
               </span>
-                {isHistorical ? (
-                  <Badge variant="outline" className="bg-muted text-muted-foreground">
-                    <Lock className="w-3 h-3 mr-1" />
-                    Closed
-                  </Badge>
-                ) : (
-                  <Badge variant="default" className="bg-green-500/10 text-green-600 border-green-500/30">
-                    Active
-                  </Badge>
-                )}
-              </div>
+              {isHistorical ? (
+                <Badge variant="outline" className="bg-muted text-muted-foreground text-[10px] px-1.5 py-0">
+                  <Lock className="w-2.5 h-2.5 mr-0.5" />
+                  Closed
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30 text-[10px] px-1.5 py-0">
+                  Active
+                </Badge>
+              )}
             </div>
 
-            <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-              <span className="font-medium">{viewingSession.name}</span>
-              <span className="text-muted-foreground/60">•</span>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+              <span className="font-medium text-foreground/80">{viewingSession.name}</span>
+              <span className="text-muted-foreground/40">•</span>
               <span>
                 {format(new Date(viewingSession.start_date), 'MMM d')} – {format(new Date(viewingSession.end_date), 'MMM d, yyyy')}
               </span>
-              <span className="font-medium text-foreground text-xs">
+              <span className="text-muted-foreground/40">•</span>
+              <span className="font-medium text-foreground">
                 {isHistorical ? `${totalDays}d total` : `${daysRemaining}d left`}
               </span>
             </div>
 
             {/* Progress bar */}
-            <div className="space-y-1">
-              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                <div 
-                  className={`h-full rounded-full transition-all ${
-                    isHistorical ? 'bg-muted-foreground/50' : 'bg-primary'
-                  }`}
-                  style={{ width: `${isHistorical ? 100 : progressPercent}%` }}
-                />
-              </div>
+            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+              <div 
+                className={`h-full rounded-full transition-all ${
+                  isHistorical ? 'bg-muted-foreground/50' : 'bg-primary'
+                }`}
+                style={{ width: `${isHistorical ? 100 : progressPercent}%` }}
+              />
             </div>
           </div>
 
