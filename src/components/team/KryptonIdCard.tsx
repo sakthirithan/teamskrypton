@@ -1,4 +1,5 @@
 import { User, Eye, Phone, Pencil, CheckCircle, Power, Target, Coins, Users } from 'lucide-react';
+import { MemberSkillsBadges } from '@/components/grouping/MemberSkillsBadges';
 import { ROLE_LABELS, KryptonRole, TaskStatus } from '@/lib/constants';
 import { format } from 'date-fns';
 import { useState } from 'react';
