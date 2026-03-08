@@ -47,6 +47,7 @@ const Team = () => {
   const { user, isLoading, isLeadership, isCaptainOrVice, role } = useAuth();
   const { mode, isGroupingMode } = useAppMode();
   const { toast } = useToast();
+  const { activeSession } = useGroupingSessions();
   const navigate = useNavigate();
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [isFetching, setIsFetching] = useState(true);
