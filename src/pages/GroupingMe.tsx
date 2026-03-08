@@ -600,6 +600,14 @@ const GroupingMe = () => {
 
           {!viewingSession ? null : (
             <>
+              {/* Skill Assignment Panel - Leadership only, when viewing another user */}
+              {isLeadership && viewingUserId && (
+                <SkillAssignmentPanel
+                  userId={viewingUserId}
+                  userName={displayProfile?.full_name || 'Member'}
+                />
+              )}
+
               {/* Personal Alerts Panel - session-bound, only show for own workspace or TL */}
               {(!isViewingOther || isTL) && (
                 <MySpaceAlertsPanel 
