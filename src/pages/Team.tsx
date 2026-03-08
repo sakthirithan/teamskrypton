@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppMode } from '@/hooks/useAppMode';
 import { Header } from '@/components/layout/Header';
+import { PBLLayout } from '@/components/pbl/PBLLayout';
 import { KryptonIdCard } from '@/components/team/KryptonIdCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -392,10 +393,11 @@ const Team = () => {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <main className="container mx-auto px-6 py-6">
+  const isPBL = mode === 'pbl';
+
+  const content = (
+    <>
+      <div>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <div className="flex items-center gap-2">
             <h2 className="text-2xl font-display font-bold flex items-center gap-2">
@@ -600,6 +602,19 @@ const Team = () => {
             </div>
           </DialogContent>
         </Dialog>
+      </div>
+    </>
+  );
+
+  if (isPBL) {
+    return <PBLLayout title="Team Directory">{content}</PBLLayout>;
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Header />
+      <main className="container mx-auto px-6 py-6">
+        {content}
       </main>
     </div>
   );
