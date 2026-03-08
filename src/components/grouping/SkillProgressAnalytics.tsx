@@ -35,9 +35,9 @@ export function SkillProgressAnalytics({ session, userId }: SkillProgressAnalyti
     const earned: { label: string; icon: string; color: string }[] = [];
     if (tracks.length >= 1) earned.push({ label: 'First Track', icon: '🎯', color: 'bg-blue-500/10 text-blue-600 border-blue-500/20' });
     if (tracks.length >= 5) earned.push({ label: '5 Skills', icon: '⭐', color: 'bg-amber-500/10 text-amber-600 border-amber-500/20' });
-    if (streakData.current_streak >= 3) earned.push({ label: '3-Day Streak', icon: '🔥', color: 'bg-orange-500/10 text-orange-600 border-orange-500/20' });
-    if (streakData.current_streak >= 7) earned.push({ label: 'Week Warrior', icon: '💪', color: 'bg-red-500/10 text-red-600 border-red-500/20' });
-    if (streakData.longest_streak >= 14) earned.push({ label: 'Fortnight Focus', icon: '🏆', color: 'bg-purple-500/10 text-purple-600 border-purple-500/20' });
+    if (streakData.current_streak >= 3) earned.push({ label: '3-Week Streak', icon: '🔥', color: 'bg-orange-500/10 text-orange-600 border-orange-500/20' });
+    if (streakData.current_streak >= 7) earned.push({ label: '7-Week Warrior', icon: '💪', color: 'bg-red-500/10 text-red-600 border-red-500/20' });
+    if (streakData.longest_streak >= 10) earned.push({ label: '10-Week Focus', icon: '🏆', color: 'bg-purple-500/10 text-purple-600 border-purple-500/20' });
     if (endorsements.length >= 3) earned.push({ label: 'Well Endorsed', icon: '👍', color: 'bg-green-500/10 text-green-600 border-green-500/20' });
     if (endorsements.length >= 10) earned.push({ label: 'Skill Star', icon: '🌟', color: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20' });
     if (skills.length >= 3) earned.push({ label: 'Multi-Skilled', icon: '🎨', color: 'bg-teal-500/10 text-teal-600 border-teal-500/20' });
