@@ -156,18 +156,10 @@ const GroupingHome = () => {
             ) : (
               /* TEAM MEMBERS */
               <Tabs defaultValue="ps" className="w-full">
-                <TabsList className="grid w-full grid-cols-5 h-10 mb-3">
+                <TabsList className="grid w-full grid-cols-3 h-10 mb-3">
                   <TabsTrigger value="ps" className="flex items-center gap-1 text-[10px] sm:text-xs px-1 sm:px-2">
                     <ClipboardList className="w-3.5 h-3.5 shrink-0" />
                     <span className="hidden sm:inline truncate">PS</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="leaderboard" className="flex items-center gap-1 text-[10px] sm:text-xs px-1 sm:px-2">
-                    <Trophy className="w-3.5 h-3.5 shrink-0" />
-                    <span className="hidden sm:inline truncate">Ranks</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="challenges" className="flex items-center gap-1 text-[10px] sm:text-xs px-1 sm:px-2">
-                    <Swords className="w-3.5 h-3.5 shrink-0" />
-                    <span className="hidden sm:inline truncate">Quests</span>
                   </TabsTrigger>
                   <TabsTrigger value="reflections" className="flex items-center gap-1 text-[10px] sm:text-xs px-1 sm:px-2">
                     <NotebookPen className="w-3.5 h-3.5 shrink-0" />
