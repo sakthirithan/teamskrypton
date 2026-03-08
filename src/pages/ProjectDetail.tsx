@@ -9,6 +9,7 @@ import { EditProjectDialog } from '@/components/pbl/EditProjectDialog';
 import { ProjectCommentsPanel } from '@/components/pbl/ProjectCommentsPanel';
 import { ProjectDocumentsPanel } from '@/components/pbl/ProjectDocumentsPanel';
 import { ProjectTimelinePanel } from '@/components/pbl/ProjectTimelinePanel';
+import { ProjectStaffingPanel } from '@/components/pbl/ProjectStaffingPanel';
 import {
   useProject,
   useMilestones,
@@ -26,7 +27,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar, Users, ArrowLeft, Pencil, UserPlus, X, KanbanSquare, GanttChart, MessageSquare, FileText } from 'lucide-react';
+import { Calendar, Users, ArrowLeft, Pencil, UserPlus, X, KanbanSquare, GanttChart, MessageSquare, FileText, Briefcase } from 'lucide-react';
 import { format } from 'date-fns';
 
 const statusLabels: Record<string, string> = {

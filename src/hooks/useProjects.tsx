@@ -28,6 +28,8 @@ export interface ProjectMember {
   user_id: string;
   role: string;
   joined_at: string;
+  share_percentage: number;
+  role_label: string | null;
 }
 
 export interface Milestone {
