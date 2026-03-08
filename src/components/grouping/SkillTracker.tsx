@@ -22,6 +22,7 @@ interface SkillTrackerProps {
 }
 
 export function SkillTracker({ session, userId, isReadOnly = false }: SkillTrackerProps) {
+  const { isLeadership } = useAuth();
   const { tracks, suggestions, createTrack, deleteTrack, updateTrack } = useSkillTracks(session.id, userId);
   const { streak, recordActivity } = useSkillStreaks(session.id, userId);
   const [isAddOpen, setIsAddOpen] = useState(false);
