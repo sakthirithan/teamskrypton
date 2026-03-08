@@ -472,60 +472,66 @@ export function TargetActionPanel({ session }: TargetActionPanelProps) {
             {isSessionClosed ? 'No targets in this closed session.' : 'No targets yet. Create your first target.'}
           </p>
         ) : (
-          <ScrollArea className="max-h-[50vh] pr-3" style={{ overflowY: 'auto' }}>
-            <div className="space-y-2">
-              {targets.map((target) => {
-                const member = teamMembers.find(m => m.user_id === target.user_id);
-
-                const achieved =
-                  target.target_scope === 'group'
-                    ? Object.values(earnedPointsMap).reduce((a, b) => a + b, 0)
-                    : earnedPointsMap[target.user_id ?? ''] ?? 0;
-                return (
-                  <div
-                    key={target.id}
-                    className="flex items-center justify-between p-2 rounded-lg bg-muted/50 text-sm"
-                  >
+          <div className="space-y-3">
+            {/* Group target summary */}
+            {targets.filter(t => t.target_scope === 'group').map(target => {
+              const achieved = Object.values(earnedPointsMap).reduce((a, b) => a + b, 0);
+              const progress = target.target_points > 0 ? Math.min(100, (achieved / target.target_points) * 100) : 0;
+              return (
+                <div key={target.id} className="p-3 rounded-lg bg-muted/50 space-y-2">
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      {target.target_scope === 'group' ? (
-                        <Users className="w-4 h-4 text-primary" />
-                      ) : (
-                        <User className="w-4 h-4 text-primary/70" />
-                      )}
-                      <span className="font-medium">
-                        {target.target_scope === 'group' 
-                          ? 'Group' 
-                          : member?.full_name || 'Unknown'}
-                      </span>
-                      <span className="text-muted-foreground">
-                        {achieved}/{target.target_points} pts
-                      </span>
+                      <Users className="w-4 h-4 text-primary" />
+                      <span className="font-medium text-sm">Group</span>
                     </div>
-                    {!isSessionClosed && (
-                      <div className="flex items-center gap-1">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7"
-                          onClick={() => openEdit(target)}
-                        >
-                          <Edit2 className="w-3 h-3" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7 text-destructive"
-                          onClick={() => setDeleteTargetId(target.id)}
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-muted-foreground tabular-nums">{achieved}/{target.target_points} pts</span>
+                      {!isSessionClosed && (
+                        <>
+                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(target)}>
+                            <Edit2 className="w-3 h-3" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => setDeleteTargetId(target.id)}>
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </div>
-                );
-              })}
-            </div>
-          </ScrollArea>
+                  <Progress value={progress} className="h-1.5" />
+                </div>
+              );
+            })}
+
+            {/* Individual targets summary count */}
+            {(() => {
+              const individualTargets = targets.filter(t => t.target_scope === 'individual');
+              if (individualTargets.length === 0) return null;
+              const completedCount = individualTargets.filter(t => {
+                const achieved = earnedPointsMap[t.user_id ?? ''] ?? 0;
+                return achieved >= t.target_points;
+              }).length;
+              return (
+                <button
+                  onClick={() => setIsViewAllOpen(true)}
+                  className="w-full p-3 rounded-lg border border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors text-left"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <User className="w-4 h-4 text-primary/70" />
+                      <span className="text-sm font-medium">{individualTargets.length} Individual Targets</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs">
+                        {completedCount}/{individualTargets.length} done
+                      </Badge>
+                      <Eye className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                  </div>
+                </button>
+              );
+            })()}
+          </div>
         )}
 
         {/* Edit Dialog */}
