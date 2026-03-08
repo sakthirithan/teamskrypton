@@ -1,4 +1,4 @@
-import { User, Eye, Phone, Pencil, CheckCircle, Power, Target, Coins, Users } from 'lucide-react';
+import { User, Eye, Phone, Pencil, CheckCircle, Power, Coins, Users } from 'lucide-react';
 import { MemberSkillsBadges } from '@/components/grouping/MemberSkillsBadges';
 import { ROLE_LABELS, KryptonRole, TaskStatus } from '@/lib/constants';
 import { format } from 'date-fns';
@@ -6,19 +6,9 @@ import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { useAppMode } from '@/hooks/useAppMode';
 import { useUserPoints } from '@/hooks/useUserPoints';
-import { useGroupingTargets, GroupingTarget } from '@/hooks/useGroupingTargets';
-import { useGroupingSessions } from '@/hooks/useGroupingSessions';
-import { usePSDailyEntries } from '@/hooks/usePSDailyEntries';
 import { IdCard } from 'lucide-react';
-import { 
-  calculateSessionDays, 
-  calculateDaysRemaining, 
-  calculateTargetStatus,
-  TARGET_STATUS_LABELS 
-} from '@/lib/groupingConstants';
 import { supabase } from '@/integrations/supabase/client';
 interface KryptonIdCardProps {
   profile: {
@@ -65,120 +55,11 @@ function getRoleBgClass(role: KryptonRole | null): string {
   }
 }
 
-function getStatusColor(status: string): string {
-  switch (status) {
-    case 'on_track': return 'text-green-600 bg-green-500/10 border-green-500/20';
-    case 'at_risk': return 'text-yellow-600 bg-yellow-500/10 border-yellow-500/20';
-    case 'behind': return 'text-red-600 bg-red-500/10 border-red-500/20';
-    default: return 'text-muted-foreground bg-muted';
-  }
-}
-
-// Grouping Targets Section for ID Card
-function GroupingTargetsSection({ userId }: { userId: string }) {
-  const { activeSession } = useGroupingSessions();
-  const { myTargets } = useGroupingTargets(activeSession?.id);
-  const { getTotalPoints } = usePSDailyEntries(activeSession?.id, userId);
-  
-  if (!activeSession) {
-    return (
-      <div className="pt-2 border-t">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Target className="w-3 h-3" />
-          <span>No active session</span>
-        </div>
-      </div>
-    );
-  }
-  
-  const individualTarget = myTargets.find(t => t.target_scope === 'individual' && t.user_id === userId);
-  const groupTarget = myTargets.find(t => t.target_scope === 'group');
-  
-  const achievedPoints = getTotalPoints(userId);
-  const groupAchievedPoints = groupTarget?.achieved_points || 0;
-  
-  const totalDays = calculateSessionDays(activeSession.start_date, activeSession.end_date);
-  const daysRemaining = calculateDaysRemaining(activeSession.end_date);
-  
-  // Individual calculations
-  const individualTargetPoints = individualTarget?.target_points || 0;
-  const individualProgress = individualTargetPoints > 0 
-    ? Math.min(100, (achievedPoints / individualTargetPoints) * 100) 
-    : 0;
-  const individualStatus = calculateTargetStatus(achievedPoints, individualTargetPoints, daysRemaining, totalDays);
-  
-  // Group calculations
-  const groupTargetPoints = groupTarget?.target_points || 0;
-  const groupProgress = groupTargetPoints > 0 
-    ? Math.min(100, (groupAchievedPoints / groupTargetPoints) * 100) 
-    : 0;
-  const groupStatus = calculateTargetStatus(groupAchievedPoints, groupTargetPoints, daysRemaining, totalDays);
-  
-  const hasIndividualTarget = !!individualTarget;
-  const hasGroupTarget = !!groupTarget;
-  
-  if (!hasIndividualTarget && !hasGroupTarget) {
-    return (
-      <div className="pt-2 border-t">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Target className="w-3 h-3" />
-          <span>No targets assigned</span>
-        </div>
-      </div>
-    );
-  }
-  
+// Skill Portfolio Section for ID Card
+function SkillPortfolioSection({ userId }: { userId: string }) {
   return (
-    <div className="pt-3 border-t space-y-3">
-      <div className="flex items-center gap-2 text-xs font-medium">
-        <Target className="w-3 h-3 text-primary" />
-        <span>Session Targets</span>
-        <Badge variant="outline" className="ml-auto text-[10px] px-1.5 py-0">
-          {daysRemaining}d left
-        </Badge>
-      </div>
-      
-      {/* Individual Target */}
-      {hasIndividualTarget && (
-        <div className="space-y-1">
-          <div className="flex items-center justify-between text-xs">
-            <span className="flex items-center gap-1 text-muted-foreground">
-              <User className="w-3 h-3 text-blue-500" />
-              Individual
-            </span>
-            <Badge variant="outline" className={`text-[9px] px-1 py-0 ${getStatusColor(individualStatus)}`}>
-              {TARGET_STATUS_LABELS[individualStatus]}
-            </Badge>
-          </div>
-          <div className="flex items-center gap-2">
-            <Progress value={individualProgress} className="h-1.5 flex-1" />
-            <span className="text-[10px] text-muted-foreground w-12 text-right">
-              {achievedPoints}/{individualTargetPoints}
-            </span>
-          </div>
-        </div>
-      )}
-      
-      {/* Group Target */}
-      {hasGroupTarget && (
-        <div className="space-y-1">
-          <div className="flex items-center justify-between text-xs">
-            <span className="flex items-center gap-1 text-muted-foreground">
-              <Users className="w-3 h-3 text-purple-500" />
-              Group
-            </span>
-            <Badge variant="outline" className={`text-[9px] px-1 py-0 ${getStatusColor(groupStatus)}`}>
-              {TARGET_STATUS_LABELS[groupStatus]}
-            </Badge>
-          </div>
-          <div className="flex items-center gap-2">
-            <Progress value={groupProgress} className="h-1.5 flex-1" />
-            <span className="text-[10px] text-muted-foreground w-12 text-right">
-              {groupAchievedPoints}/{groupTargetPoints}
-            </span>
-          </div>
-        </div>
-      )}
+    <div className="pt-3 border-t">
+      <MemberSkillsBadges userId={userId} />
     </div>
   );
 }
@@ -464,8 +345,8 @@ export function KryptonIdCard({
               <span className="font-medium">{format(new Date(profile.created_at), 'MMM yyyy')}</span>
             </div>
 
-            {/* Grouping Targets Section */}
-            <GroupingTargetsSection userId={profile.user_id} />
+            {/* Skill Portfolio Section */}
+            <SkillPortfolioSection userId={profile.user_id} />
           </div>
         ) : (
           /* Default PBL mode - original details */

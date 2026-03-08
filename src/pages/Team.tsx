@@ -6,12 +6,14 @@ import { useAppMode } from '@/hooks/useAppMode';
 import { Header } from '@/components/layout/Header';
 import { PBLLayout } from '@/components/pbl/PBLLayout';
 import { KryptonIdCard } from '@/components/team/KryptonIdCard';
+import { SkillWiseMemberList } from '@/components/team/SkillWiseMemberList';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { KryptonRole, TaskStatus, LEADERSHIP_ROLES, ROLE_LABELS } from '@/lib/constants';
-import { Users, Download, Search, AlertCircle, Target, FileSpreadsheet } from 'lucide-react';
+import { Users, Download, Search, AlertCircle, Target, FileSpreadsheet, Layers } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { RefreshButton } from '@/components/ui/RefreshIconButton';
@@ -395,215 +397,222 @@ const Team = () => {
 
   const isPBL = mode === 'pbl';
 
-  const content = (
+  const teamDirectoryContent = (
     <>
-      <div>
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-          <div className="flex items-center gap-2">
-            <h2 className="text-2xl font-display font-bold flex items-center gap-2">
-              <Users className="w-6 h-6" />
-              Team Directory
-            </h2>
-            <RefreshButton onClick={handleManualRefresh} isRefreshing={isRefreshing} />
-            <p className="text-muted-foreground mt-1 hidden sm:block">
-              ({members.length} members)
-            </p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div className="flex items-center gap-2">
+          <h2 className="text-2xl font-display font-bold flex items-center gap-2">
+            <Users className="w-6 h-6" />
+            Team Directory
+          </h2>
+          <RefreshButton onClick={handleManualRefresh} isRefreshing={isRefreshing} />
+          <p className="text-muted-foreground mt-1 hidden sm:block">
+            ({members.length} members)
+          </p>
+        </div>
+        
+        <div className="flex gap-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input 
+              placeholder="Search members..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 w-[200px]"
+            />
           </div>
           
-          <div className="flex gap-2">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input 
-                placeholder="Search members..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 w-[200px]"
-              />
-            </div>
-            
-            {isLeadership && (
-              <Button variant="outline" onClick={() => {
-                setExportError(null);
-                setShowExportDialog(true);
-              }}>
-                <Download className="w-4 h-4 mr-2" />
-                Export
-              </Button>
-            )}
-          </div>
+          {isLeadership && (
+            <Button variant="outline" onClick={() => {
+              setExportError(null);
+              setShowExportDialog(true);
+            }}>
+              <Download className="w-4 h-4 mr-2" />
+              Export
+            </Button>
+          )}
         </div>
+      </div>
 
-        {isFetching ? (
-          <div className="text-center py-12 text-muted-foreground">
-            Loading team members...
-          </div>
-        ) : filteredMembers.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
-            {searchQuery ? 'No members match your search' : 'No team members found'}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredMembers.map((member) => (
-              <KryptonIdCard
-                key={member.profile.user_id}
-                profile={member.profile}
-                role={member.role}
-                taskStats={member.taskStats}
-                canEditPhone={isCaptainOrVice}
-                onUpdatePhone={isCaptainOrVice ? (phone) => handleUpdatePhone(member.profile.user_id, phone) : undefined}
-                onUpdateRegisterNumber={isCaptainOrVice ? (registerNumber) => handleUpdateRegisterNumber(member.profile.user_id, registerNumber) : undefined}
-                onClick={() => {
-                  // Grouping mode navigation
-                  if (mode === 'grouping') {
-                    if (member.profile.user_id === user.id) {
-                      navigate('/grouping/me');
-                    } else {
-                      navigate(`/grouping/me?userId=${member.profile.user_id}`);
-                    }
-                    return;
-                  }
-                  // PBL mode navigation (unchanged)
+      {isFetching ? (
+        <div className="text-center py-12 text-muted-foreground">
+          Loading team members...
+        </div>
+      ) : filteredMembers.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground">
+          {searchQuery ? 'No members match your search' : 'No team members found'}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {filteredMembers.map((member) => (
+            <KryptonIdCard
+              key={member.profile.user_id}
+              profile={member.profile}
+              role={member.role}
+              taskStats={member.taskStats}
+              canEditPhone={isCaptainOrVice}
+              onUpdatePhone={isCaptainOrVice ? (phone) => handleUpdatePhone(member.profile.user_id, phone) : undefined}
+              onUpdateRegisterNumber={isCaptainOrVice ? (registerNumber) => handleUpdateRegisterNumber(member.profile.user_id, registerNumber) : undefined}
+              onClick={() => {
+                if (mode === 'grouping') {
                   if (member.profile.user_id === user.id) {
-                    navigate('/my-space');
-                  } else if (isLeadership) {
-                    navigate(`/member/${member.profile.user_id}`);
+                    navigate('/grouping/me');
                   } else {
-                    navigate(`/profile/${member.profile.user_id}`);
+                    navigate(`/grouping/me?userId=${member.profile.user_id}`);
                   }
-                }}
-                onViewProfile={
-                  member.profile.user_id !== user.id
-                    ? () => {
-                        if (mode === 'grouping') {
-                          navigate(`/grouping/me?userId=${member.profile.user_id}`);
-                        } else {
-                          navigate(isLeadership ? `/member/${member.profile.user_id}` : `/profile/${member.profile.user_id}`);
-                        }
-                      }
-                    : undefined
+                  return;
                 }
-                showProfileIcon={member.profile.user_id !== user.id}
-              />
-            ))}
-          </div>
-        )}
+                if (member.profile.user_id === user.id) {
+                  navigate('/my-space');
+                } else if (isLeadership) {
+                  navigate(`/member/${member.profile.user_id}`);
+                } else {
+                  navigate(`/profile/${member.profile.user_id}`);
+                }
+              }}
+              onViewProfile={
+                member.profile.user_id !== user.id
+                  ? () => {
+                      if (mode === 'grouping') {
+                        navigate(`/grouping/me?userId=${member.profile.user_id}`);
+                      } else {
+                        navigate(isLeadership ? `/member/${member.profile.user_id}` : `/profile/${member.profile.user_id}`);
+                      }
+                    }
+                  : undefined
+              }
+              showProfileIcon={member.profile.user_id !== user.id}
+            />
+          ))}
+        </div>
+      )}
 
-        {/* Export Dialog - Mode-Aware */}
-        <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                {isGroupingMode ? (
-                  <>
-                    <Target className="w-5 h-5" />
-                    Export Grouping Session Report
-                  </>
-                ) : (
-                  <>
-                    <FileSpreadsheet className="w-5 h-5" />
-                    Export Team Task History
-                  </>
-                )}
-              </DialogTitle>
-              <DialogDescription>
-                {isGroupingMode 
-                  ? 'Export team performance data for the current active session only.'
-                  : 'Export completed task history for all team members.'}
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4 py-4">
+      {/* Export Dialog */}
+      <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
               {isGroupingMode ? (
-                // GROUPING MODE EXPORT
                 <>
-                  <div className="bg-muted/50 p-4 rounded-lg space-y-2">
-                    <p className="text-sm font-medium">Export includes:</p>
-                    <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
-                      <li>Member identity (name, role, department)</li>
-                      <li>Session details (name, dates, days remaining)</li>
-                      <li>Group & individual target progress</li>
-                      <li>PS daily entries (completed, pending counts)</li>
-                      <li>Total reward points & attempts</li>
-                      <li>Target status & completion projection</li>
-                    </ul>
-                  </div>
-                  
-                  <div className="bg-amber-500/10 border border-amber-500/30 p-3 rounded-lg">
-                    <p className="text-sm text-amber-700 dark:text-amber-400">
-                      <strong>Note:</strong> Only data from the current active session will be exported. 
-                      PBL task data is excluded.
-                    </p>
-                  </div>
+                  <Target className="w-5 h-5" />
+                  Export Grouping Session Report
                 </>
               ) : (
-                // PBL MODE EXPORT
                 <>
-                  <p className="text-sm text-muted-foreground">
-                    Export completed task history for all team members. States, durations, and dates included.
-                  </p>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>From Date</Label>
-                      <Input 
-                        type="date" 
-                        value={fromDate}
-                        onChange={(e) => {
-                          setFromDate(e.target.value);
-                          setExportError(null);
-                        }}
-                        max={getTodayString()}
-                      />
-                    </div>
-                    <div>
-                      <Label>To Date</Label>
-                      <Input 
-                        type="date" 
-                        value={toDate}
-                        onChange={(e) => {
-                          setToDate(e.target.value);
-                          setExportError(null);
-                        }}
-                        max={getTodayString()}
-                      />
-                    </div>
-                  </div>
-                  
-                  <p className="text-xs text-muted-foreground">
-                    Leave dates empty for full history export.
-                  </p>
+                  <FileSpreadsheet className="w-5 h-5" />
+                  Export Team Task History
                 </>
               )}
-              
-              {exportError && (
-                <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 p-2 rounded">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                  {exportError}
+            </DialogTitle>
+            <DialogDescription>
+              {isGroupingMode 
+                ? 'Export team performance data for the current active session only.'
+                : 'Export completed task history for all team members.'}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            {isGroupingMode ? (
+              <>
+                <div className="bg-muted/50 p-4 rounded-lg space-y-2">
+                  <p className="text-sm font-medium">Export includes:</p>
+                  <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
+                    <li>Member identity (name, role, department)</li>
+                    <li>Session details (name, dates, days remaining)</li>
+                    <li>Group & individual target progress</li>
+                    <li>PS daily entries (completed, pending counts)</li>
+                    <li>Total reward points & attempts</li>
+                    <li>Target status & completion projection</li>
+                  </ul>
                 </div>
-              )}
-
-              <div className="flex gap-2 pt-2">
-                <Button 
-                  variant="outline" 
-                  className="flex-1" 
-                  onClick={() => isGroupingMode ? handleGroupingExport('csv') : handlePBLExport('csv')}
-                  disabled={isExporting}
-                >
-                  {isExporting ? 'Exporting...' : 'Download CSV'}
-                </Button>
-                <Button 
-                  className="flex-1" 
-                  onClick={() => isGroupingMode ? handleGroupingExport('xlsx') : handlePBLExport('xlsx')}
-                  disabled={isExporting}
-                >
-                  {isExporting ? 'Exporting...' : 'Download Excel'}
-                </Button>
+                <div className="bg-amber-500/10 border border-amber-500/30 p-3 rounded-lg">
+                  <p className="text-sm text-amber-700 dark:text-amber-400">
+                    <strong>Note:</strong> Only data from the current active session will be exported.
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Export completed task history for all team members.
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>From Date</Label>
+                    <Input 
+                      type="date" 
+                      value={fromDate}
+                      onChange={(e) => { setFromDate(e.target.value); setExportError(null); }}
+                      max={getTodayString()}
+                    />
+                  </div>
+                  <div>
+                    <Label>To Date</Label>
+                    <Input 
+                      type="date" 
+                      value={toDate}
+                      onChange={(e) => { setToDate(e.target.value); setExportError(null); }}
+                      max={getTodayString()}
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Leave dates empty for full history export.
+                </p>
+              </>
+            )}
+            
+            {exportError && (
+              <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 p-2 rounded">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                {exportError}
               </div>
+            )}
+
+            <div className="flex gap-2 pt-2">
+              <Button 
+                variant="outline" 
+                className="flex-1" 
+                onClick={() => isGroupingMode ? handleGroupingExport('csv') : handlePBLExport('csv')}
+                disabled={isExporting}
+              >
+                {isExporting ? 'Exporting...' : 'Download CSV'}
+              </Button>
+              <Button 
+                className="flex-1" 
+                onClick={() => isGroupingMode ? handleGroupingExport('xlsx') : handlePBLExport('xlsx')}
+                disabled={isExporting}
+              >
+                {isExporting ? 'Exporting...' : 'Download Excel'}
+              </Button>
             </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
+  );
+
+  const content = isGroupingMode ? (
+    <Tabs defaultValue="directory" className="w-full">
+      <TabsList className="grid w-full grid-cols-2 mb-6">
+        <TabsTrigger value="directory" className="flex items-center gap-2">
+          <Users className="w-4 h-4" />
+          Team Directory
+        </TabsTrigger>
+        <TabsTrigger value="skills" className="flex items-center gap-2">
+          <Layers className="w-4 h-4" />
+          Skill Map
+        </TabsTrigger>
+      </TabsList>
+      <TabsContent value="directory" className="mt-0">
+        {teamDirectoryContent}
+      </TabsContent>
+      <TabsContent value="skills" className="mt-0">
+        <SkillWiseMemberList />
+      </TabsContent>
+    </Tabs>
+  ) : (
+    teamDirectoryContent
   );
 
   if (isPBL) {
