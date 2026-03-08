@@ -38,7 +38,8 @@ export function SkillAssignmentPanel({ userId, userName, isSelfMode = false }: S
   const [isOpen, setIsOpen] = useState(false);
   const [skillName, setSkillName] = useState('');
   const [skillType, setSkillType] = useState<SkillType>('primary');
-  const [domain, setDomain] = useState<SkillDomain>('general');
+  const [domain, setDomain] = useState<SkillDomain | 'custom'>('general');
+  const [customDomain, setCustomDomain] = useState('');
 
   // Only leadership can delete skills
   const canDelete = isLeadership;
@@ -46,14 +47,19 @@ export function SkillAssignmentPanel({ userId, userName, isSelfMode = false }: S
   const handleAssign = async () => {
     if (!skillName.trim()) return;
     if (!canAdd(skillType)) return;
+    if (domain === 'custom' && !customDomain.trim()) return;
+    
     await assignSkill.mutateAsync({
       user_id: userId,
       skill_name: skillName.trim(),
       skill_type: skillType,
-      domain,
+      domain: domain === 'custom' ? 'general' : domain,
+      custom_domain: domain === 'custom' ? customDomain.trim() : undefined,
       assigned_by: user?.id,
     });
     setSkillName('');
+    setCustomDomain('');
+    setDomain('general');
     setIsOpen(false);
   };
 
@@ -108,7 +114,7 @@ export function SkillAssignmentPanel({ userId, userName, isSelfMode = false }: S
 
                 <div className="space-y-2">
                   <Label>Domain</Label>
-                  <Select value={domain} onValueChange={v => setDomain(v as SkillDomain)}>
+                  <Select value={domain} onValueChange={v => setDomain(v as SkillDomain | 'custom')}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -116,8 +122,17 @@ export function SkillAssignmentPanel({ userId, userName, isSelfMode = false }: S
                       {(Object.entries(SKILL_DOMAIN_LABELS) as [SkillDomain, string][]).map(([key, label]) => (
                         <SelectItem key={key} value={key}>{label}</SelectItem>
                       ))}
+                      <SelectItem value="custom">✨ Custom Domain</SelectItem>
                     </SelectContent>
                   </Select>
+                  {domain === 'custom' && (
+                    <Input
+                      value={customDomain}
+                      onChange={e => setCustomDomain(e.target.value)}
+                      placeholder="Enter your custom domain name"
+                      className="mt-2"
+                    />
+                  )}
                 </div>
 
                 {/* Limits info */}
@@ -134,7 +149,7 @@ export function SkillAssignmentPanel({ userId, userName, isSelfMode = false }: S
                 <Button 
                   onClick={handleAssign} 
                   className="w-full" 
-                  disabled={!skillName.trim() || !canAdd(skillType) || assignSkill.isPending}
+                  disabled={!skillName.trim() || !canAdd(skillType) || assignSkill.isPending || (domain === 'custom' && !customDomain.trim())}
                 >
                   {assignSkill.isPending ? 'Adding...' : isSelfMode ? 'Add Skill' : 'Assign Skill'}
                 </Button>
@@ -168,9 +183,14 @@ export function SkillAssignmentPanel({ userId, userName, isSelfMode = false }: S
 
 function SkillGroup({ type, skills, onRemove }: { 
   type: SkillType; 
-  skills: { id: string; skill_name: string; domain: string }[]; 
+  skills: { id: string; skill_name: string; domain: string; custom_domain?: string | null }[]; 
   onRemove?: (id: string) => void;
 }) {
+  const getDomainLabel = (skill: { domain: string; custom_domain?: string | null }) => {
+    if (skill.custom_domain) return skill.custom_domain;
+    return SKILL_DOMAIN_LABELS[skill.domain as SkillDomain] || skill.domain;
+  };
+
   return (
     <div>
       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
@@ -180,7 +200,8 @@ function SkillGroup({ type, skills, onRemove }: {
         {skills.map(skill => (
           <Badge key={skill.id} variant="outline" className={`gap-1.5 ${onRemove ? 'pr-1' : ''} ${getSkillTypeColor(type)}`}>
             <Sparkles className="w-3 h-3" />
-            {skill.skill_name}
+            <span>{skill.skill_name}</span>
+            <span className="text-[9px] opacity-60">({getDomainLabel(skill)})</span>
             {onRemove && (
               <button
                 onClick={() => onRemove(skill.id)}
