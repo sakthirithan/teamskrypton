@@ -210,7 +210,53 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
         </p>
       )}
 
-      {/* Development Links Section */}
+      {/* Add Learning Step button */}
+      {!isReadOnly && (
+        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm" className="w-full">
+              <Plus className="w-4 h-4 mr-1" />
+              Add Learning Step
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add Learning Step</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <Label>Step Name *</Label>
+                <Input
+                  value={form.title}
+                  onChange={e => setForm({ ...form, title: e.target.value })}
+                  placeholder="e.g., Setup Environment, Learn Basics"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Input
+                  value={form.description}
+                  onChange={e => setForm({ ...form, description: e.target.value })}
+                  placeholder="Brief description of this step"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Resource / Study Link</Label>
+                <Input
+                  value={form.resource_url}
+                  onChange={e => setForm({ ...form, resource_url: e.target.value })}
+                  placeholder="https://..."
+                />
+              </div>
+              <Button onClick={handleAdd} className="w-full" disabled={!form.title.trim() || createBlock.isPending}>
+                {createBlock.isPending ? 'Adding...' : 'Add Step'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Development Links Section — below learning steps */}
       {(links.length > 0 || !isReadOnly) && (
         <div className="border rounded-lg p-3 bg-muted/30 space-y-2">
           <div className="flex items-center justify-between">
@@ -257,114 +303,67 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
           {links.length === 0 && (
             <p className="text-xs text-muted-foreground">No development links yet.</p>
           )}
-        </div>
-      )}
 
-      {/* Action buttons row */}
-      {!isReadOnly && (
-        <div className="flex gap-2">
-          {/* Add Learning Step */}
-          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="flex-1">
-                <Plus className="w-4 h-4 mr-1" />
-                Add Learning Step
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add Learning Step</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 pt-4">
-                <div className="space-y-2">
-                  <Label>Step Name *</Label>
-                  <Input
-                    value={form.title}
-                    onChange={e => setForm({ ...form, title: e.target.value })}
-                    placeholder="e.g., Setup Environment, Learn Basics"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Description</Label>
-                  <Input
-                    value={form.description}
-                    onChange={e => setForm({ ...form, description: e.target.value })}
-                    placeholder="Brief description of this step"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Resource / Study Link</Label>
-                  <Input
-                    value={form.resource_url}
-                    onChange={e => setForm({ ...form, resource_url: e.target.value })}
-                    placeholder="https://..."
-                  />
-                </div>
-                <Button onClick={handleAdd} className="w-full" disabled={!form.title.trim() || createBlock.isPending}>
-                  {createBlock.isPending ? 'Adding...' : 'Add Step'}
+          {/* Add Link button — inside the dev links section */}
+          {!isReadOnly && (
+            <Dialog open={isAddLinkOpen} onOpenChange={setIsAddLinkOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="w-full mt-1">
+                  <Link2 className="w-4 h-4 mr-1" />
+                  Add Link
                 </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-
-          {/* Add Link */}
-          <Dialog open={isAddLinkOpen} onOpenChange={setIsAddLinkOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Link2 className="w-4 h-4 mr-1" />
-                Add Link
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add Development Link</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 pt-4">
-                <div className="space-y-2">
-                  <Label>Link Title *</Label>
-                  <Input
-                    value={linkForm.title}
-                    onChange={e => setLinkForm({ ...linkForm, title: e.target.value })}
-                    placeholder="e.g., My React Project, Portfolio Site"
-                  />
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add Development Link</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label>Link Title *</Label>
+                    <Input
+                      value={linkForm.title}
+                      onChange={e => setLinkForm({ ...linkForm, title: e.target.value })}
+                      placeholder="e.g., My React Project, Portfolio Site"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>URL *</Label>
+                    <Input
+                      value={linkForm.url}
+                      onChange={e => setLinkForm({ ...linkForm, url: e.target.value })}
+                      placeholder="https://github.com/user/repo"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Link Type</Label>
+                    <Select value={linkForm.link_type} onValueChange={v => setLinkForm({ ...linkForm, link_type: v })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="github">
+                          <span className="flex items-center gap-2"><Github className="w-3.5 h-3.5" /> GitHub</span>
+                        </SelectItem>
+                        <SelectItem value="website">
+                          <span className="flex items-center gap-2"><Globe className="w-3.5 h-3.5" /> Website</span>
+                        </SelectItem>
+                        <SelectItem value="other">
+                          <span className="flex items-center gap-2"><Link2 className="w-3.5 h-3.5" /> Other</span>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    onClick={handleAddLink}
+                    className="w-full"
+                    disabled={!linkForm.title.trim() || !linkForm.url.trim() || addLink.isPending}
+                  >
+                    {addLink.isPending ? 'Adding...' : 'Add Link'}
+                  </Button>
                 </div>
-                <div className="space-y-2">
-                  <Label>URL *</Label>
-                  <Input
-                    value={linkForm.url}
-                    onChange={e => setLinkForm({ ...linkForm, url: e.target.value })}
-                    placeholder="https://github.com/user/repo"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Link Type</Label>
-                  <Select value={linkForm.link_type} onValueChange={v => setLinkForm({ ...linkForm, link_type: v })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="github">
-                        <span className="flex items-center gap-2"><Github className="w-3.5 h-3.5" /> GitHub</span>
-                      </SelectItem>
-                      <SelectItem value="website">
-                        <span className="flex items-center gap-2"><Globe className="w-3.5 h-3.5" /> Website</span>
-                      </SelectItem>
-                      <SelectItem value="other">
-                        <span className="flex items-center gap-2"><Link2 className="w-3.5 h-3.5" /> Other</span>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button
-                  onClick={handleAddLink}
-                  className="w-full"
-                  disabled={!linkForm.title.trim() || !linkForm.url.trim() || addLink.isPending}
-                >
-                  {addLink.isPending ? 'Adding...' : 'Add Link'}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
       )}
 
