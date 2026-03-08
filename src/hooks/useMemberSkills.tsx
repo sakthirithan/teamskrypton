@@ -12,6 +12,7 @@ export interface MemberSkill {
   skill_name: string;
   skill_type: SkillType;
   domain: SkillDomain;
+  custom_domain: string | null;
   assigned_by: string;
   created_at: string;
   updated_at: string;
