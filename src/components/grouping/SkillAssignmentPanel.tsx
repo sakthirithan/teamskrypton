@@ -149,7 +149,7 @@ export function SkillAssignmentPanel({ userId, userName, isSelfMode = false }: S
                 <Button 
                   onClick={handleAssign} 
                   className="w-full" 
-                  disabled={!skillName.trim() || !canAdd(skillType) || assignSkill.isPending}
+                  disabled={!skillName.trim() || !canAdd(skillType) || assignSkill.isPending || (domain === 'custom' && !customDomain.trim())}
                 >
                   {assignSkill.isPending ? 'Adding...' : isSelfMode ? 'Add Skill' : 'Assign Skill'}
                 </Button>
