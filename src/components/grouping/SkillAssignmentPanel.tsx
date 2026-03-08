@@ -38,7 +38,8 @@ export function SkillAssignmentPanel({ userId, userName, isSelfMode = false }: S
   const [isOpen, setIsOpen] = useState(false);
   const [skillName, setSkillName] = useState('');
   const [skillType, setSkillType] = useState<SkillType>('primary');
-  const [domain, setDomain] = useState<SkillDomain>('general');
+  const [domain, setDomain] = useState<SkillDomain | 'custom'>('general');
+  const [customDomain, setCustomDomain] = useState('');
 
   // Only leadership can delete skills
   const canDelete = isLeadership;
@@ -46,14 +47,19 @@ export function SkillAssignmentPanel({ userId, userName, isSelfMode = false }: S
   const handleAssign = async () => {
     if (!skillName.trim()) return;
     if (!canAdd(skillType)) return;
+    if (domain === 'custom' && !customDomain.trim()) return;
+    
     await assignSkill.mutateAsync({
       user_id: userId,
       skill_name: skillName.trim(),
       skill_type: skillType,
-      domain,
+      domain: domain === 'custom' ? 'general' : domain,
+      custom_domain: domain === 'custom' ? customDomain.trim() : undefined,
       assigned_by: user?.id,
     });
     setSkillName('');
+    setCustomDomain('');
+    setDomain('general');
     setIsOpen(false);
   };
 
