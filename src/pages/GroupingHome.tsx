@@ -11,11 +11,12 @@ import { BulkEntryCreation } from '@/components/grouping/BulkEntryCreation';
 import { SessionCard } from '@/components/grouping/SessionCard';
 import { TeamSkillOverview } from '@/components/grouping/TeamSkillOverview';
 import { SkillAssignmentPanel } from '@/components/grouping/SkillAssignmentPanel';
+import { AllReflectionsPanel } from '@/components/grouping/AllReflectionsPanel';
 
 import { useGroupingSessions } from '@/hooks/useGroupingSessions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Target, MessageSquare, Users, BookOpen, ClipboardList } from 'lucide-react';
+import { Target, MessageSquare, Users, BookOpen, ClipboardList, NotebookPen } from 'lucide-react';
 
 const GroupingHome = () => {
   const { user, isLoading, isLeadership, isCaptainOrVice, role } = useAuth();
