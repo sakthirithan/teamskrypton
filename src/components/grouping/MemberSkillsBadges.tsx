@@ -1,5 +1,6 @@
 import { Badge } from '@/components/ui/badge';
 import { useMemberSkills, SKILL_TYPE_LABELS, SKILL_DOMAIN_LABELS, SkillType, SkillDomain } from '@/hooks/useMemberSkills';
+import { SkillEndorsementBadge } from '@/components/grouping/SkillEndorsementBadge';
 
 interface MemberSkillsBadgesProps {
   userId: string;
