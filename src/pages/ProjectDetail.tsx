@@ -9,6 +9,7 @@ import { EditProjectDialog } from '@/components/pbl/EditProjectDialog';
 import { ProjectCommentsPanel } from '@/components/pbl/ProjectCommentsPanel';
 import { ProjectDocumentsPanel } from '@/components/pbl/ProjectDocumentsPanel';
 import { ProjectTimelinePanel } from '@/components/pbl/ProjectTimelinePanel';
+import { ProjectStaffingPanel } from '@/components/pbl/ProjectStaffingPanel';
 import {
   useProject,
   useMilestones,
@@ -26,7 +27,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar, Users, ArrowLeft, Pencil, UserPlus, X, KanbanSquare, GanttChart, MessageSquare, FileText } from 'lucide-react';
+import { Calendar, Users, ArrowLeft, Pencil, UserPlus, X, KanbanSquare, GanttChart, MessageSquare, FileText, Briefcase } from 'lucide-react';
 import { format } from 'date-fns';
 
 const statusLabels: Record<string, string> = {
@@ -150,7 +151,7 @@ const ProjectDetail = () => {
 
         {/* Tabbed Content Area */}
         <Tabs defaultValue="board" className="w-full">
-          <TabsList className="mb-4">
+          <TabsList className="mb-4 flex-wrap">
             <TabsTrigger value="board" className="flex items-center gap-1.5 text-xs">
               <KanbanSquare className="w-3.5 h-3.5" />
               Board
@@ -158,6 +159,10 @@ const ProjectDetail = () => {
             <TabsTrigger value="timeline" className="flex items-center gap-1.5 text-xs">
               <GanttChart className="w-3.5 h-3.5" />
               Timeline
+            </TabsTrigger>
+            <TabsTrigger value="staffing" className="flex items-center gap-1.5 text-xs">
+              <Briefcase className="w-3.5 h-3.5" />
+              Staffing
             </TabsTrigger>
             <TabsTrigger value="docs" className="flex items-center gap-1.5 text-xs">
               <FileText className="w-3.5 h-3.5" />
@@ -267,6 +272,18 @@ const ProjectDetail = () => {
               tasks={tasks}
               startDate={project.start_date}
               deadline={project.deadline}
+            />
+          </TabsContent>
+
+          {/* Staffing Tab */}
+          <TabsContent value="staffing" className="mt-0">
+            <ProjectStaffingPanel
+              projectId={project.id}
+              members={memberProfiles.map(m => ({
+                ...m,
+                share_percentage: (m as any).share_percentage || 0,
+                role_label: (m as any).role_label || null,
+              }))}
             />
           </TabsContent>
 
