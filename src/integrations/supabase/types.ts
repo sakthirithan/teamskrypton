@@ -999,6 +999,88 @@ export type Database = {
         }
         Relationships: []
       }
+      skill_challenge_completions: {
+        Row: {
+          approved_by: string | null
+          challenge_id: string
+          completed_at: string
+          id: string
+          proof_text: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          approved_by?: string | null
+          challenge_id: string
+          completed_at?: string
+          id?: string
+          proof_text?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          approved_by?: string | null
+          challenge_id?: string
+          completed_at?: string
+          id?: string
+          proof_text?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skill_challenge_completions_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "skill_challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      skill_challenges: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          difficulty: string
+          expires_at: string | null
+          id: string
+          session_id: string
+          title: string
+          xp_reward: number
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          difficulty?: string
+          expires_at?: string | null
+          id?: string
+          session_id: string
+          title: string
+          xp_reward?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          difficulty?: string
+          expires_at?: string | null
+          id?: string
+          session_id?: string
+          title?: string
+          xp_reward?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skill_challenges_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "grouping_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       skill_dev_links: {
         Row: {
           created_at: string
@@ -1112,6 +1194,44 @@ export type Database = {
             columns: ["skill_track_id"]
             isOneToOne: false
             referencedRelation: "skill_tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      skill_levels: {
+        Row: {
+          created_at: string
+          id: string
+          level: number
+          session_id: string
+          updated_at: string
+          user_id: string
+          xp: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          level?: number
+          session_id: string
+          updated_at?: string
+          user_id: string
+          xp?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          level?: number
+          session_id?: string
+          updated_at?: string
+          user_id?: string
+          xp?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skill_levels_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "grouping_sessions"
             referencedColumns: ["id"]
           },
         ]
@@ -1262,6 +1382,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "skill_tracks_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "grouping_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      skill_xp_log: {
+        Row: {
+          activity_type: string
+          created_at: string
+          description: string | null
+          id: string
+          session_id: string
+          user_id: string
+          xp_amount: number
+        }
+        Insert: {
+          activity_type: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          session_id: string
+          user_id: string
+          xp_amount: number
+        }
+        Update: {
+          activity_type?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          session_id?: string
+          user_id?: string
+          xp_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skill_xp_log_session_id_fkey"
             columns: ["session_id"]
             isOneToOne: false
             referencedRelation: "grouping_sessions"
