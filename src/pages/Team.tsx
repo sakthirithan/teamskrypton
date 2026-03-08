@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppMode } from '@/hooks/useAppMode';
 import { Header } from '@/components/layout/Header';
+import { PBLLayout } from '@/components/pbl/PBLLayout';
 import { KryptonIdCard } from '@/components/team/KryptonIdCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
