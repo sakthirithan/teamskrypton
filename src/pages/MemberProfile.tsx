@@ -232,7 +232,12 @@ const MemberProfile = () => {
     );
   }
 
+  const isPBL = mode === 'pbl';
+
   if (isFetching) {
+    if (isPBL) {
+      return <PBLLayout title="Member Profile"><div className="text-center py-12 text-muted-foreground">Loading member profile...</div></PBLLayout>;
+    }
     return (
       <div className="min-h-screen bg-background">
         <Header />
