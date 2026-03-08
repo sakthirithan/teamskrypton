@@ -43,6 +43,9 @@ export function SkillAssignmentPanel({ userId, userName, isSelfMode = false }: S
 
   // Only leadership can delete skills
   const canDelete = isLeadership;
+  
+  // Users can only create skills if they have no skills yet; leadership can always create
+  const canCreate = isLeadership || skills.length === 0;
 
   const handleAssign = async () => {
     if (!skillName.trim()) return;
