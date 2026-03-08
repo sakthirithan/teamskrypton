@@ -57,17 +57,16 @@ export function SessionCard({
   };
 
   return (
-    <Card className={isHistorical ? 'border-muted bg-muted/20' : 'border-primary/30 bg-primary/5'}>
-      <CardContent className="py-4">
-        <div className="flex items-start justify-between gap-4">
+    <Card className={`${isHistorical ? 'border-muted bg-muted/20' : 'border-primary/20 bg-primary/5'}`}>
+      <CardContent className="py-3 px-4">
+        <div className="flex items-start justify-between gap-3">
           {/* Session Info */}
-          <div className="flex-1 space-y-3">
-            <div className="flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-primary" />
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-lg">
-                  Session #{viewingSession.session_number}
-                </span>
+          <div className="flex-1 min-w-0 space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Calendar className="w-4 h-4 text-primary shrink-0" />
+              <span className="font-semibold text-sm">
+                Session #{viewingSession.session_number}
+              </span>
                 {isHistorical ? (
                   <Badge variant="outline" className="bg-muted text-muted-foreground">
                     <Lock className="w-3 h-3 mr-1" />
