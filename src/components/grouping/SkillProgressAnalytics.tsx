@@ -59,7 +59,7 @@ export function SkillProgressAnalytics({ session, userId }: SkillProgressAnalyti
           <CardContent className="p-3 text-center">
             <Flame className="w-5 h-5 mx-auto mb-1 text-orange-500" />
             <p className="text-2xl font-bold">{streakData.current_streak}</p>
-            <p className="text-[10px] text-muted-foreground">Day Streak</p>
+            <p className="text-[10px] text-muted-foreground">Week Streak</p>
           </CardContent>
         </Card>
         <Card>
