@@ -76,7 +76,10 @@ export function GroupingPanel({ session }: GroupingPanelProps) {
       .reduce((sum, e) => sum + e.reward_points, 0);
   };
 
-  const displayTargets = isLeadership ? targets : myTargets;
+  // Leadership sees group target + their own individual target only (not all individual targets)
+  const displayTargets = isLeadership 
+    ? targets.filter(t => t.target_scope === 'group' || t.user_id === user?.id)
+    : myTargets;
 
   const totalDays = viewingSession 
     ? calculateSessionDays(viewingSession.start_date, viewingSession.end_date)
