@@ -600,11 +600,12 @@ const GroupingMe = () => {
 
           {!viewingSession ? null : (
             <>
-              {/* Skill Assignment Panel - Leadership only, when viewing another user */}
-              {isLeadership && viewingUserId && (
+              {/* Skill Assignment Panel - Users can add own skills, Leadership can manage anyone's */}
+              {viewingUserId && (
                 <SkillAssignmentPanel
                   userId={viewingUserId}
                   userName={displayProfile?.full_name || 'Member'}
+                  isSelfMode={!isViewingOther}
                 />
               )}
 
