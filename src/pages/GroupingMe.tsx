@@ -582,12 +582,6 @@ const GroupingMe = () => {
           {/* Test Mode Settings Panel - Guest Users Only, own profile only */}
           {!isViewingOther && <TestModeSettingsPanel />}
 
-          {/* Role-Based Features Section - Show below user name for own profile */}
-            {!isViewingOther && viewingSession && (
-              <Card className="pt-0 mt-2 w-full">
-                <RoleBasedMySpaceFeatures session={viewingSession} userId={viewingUserId} />
-              </Card>
-            )}
 
           {/* Session Card - Replaces the old session selector */}
           <SessionCard 
