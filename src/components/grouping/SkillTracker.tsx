@@ -89,70 +89,65 @@ export function SkillTracker({ session, userId, isReadOnly = false }: SkillTrack
             {showAnalytics ? 'Hide' : 'Analytics'}
           </Button>
           <SkillHistoryExport sessionId={session.id} userId={userId} userName={userId} />
-        {!isReadOnly && (
-          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm">
-                <Plus className="w-4 h-4 mr-1" />
-                Add Skill
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add Skill Track</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 pt-4">
-                {/* Suggestions */}
-                {suggestions.length > 0 && (
-                  <div className="space-y-2">
-                    <Label>Suggested Skills</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {suggestions.map(s => (
-                        <Badge
-                          key={s.id}
-                          variant={skillName === s.name ? 'default' : 'outline'}
-                          className="cursor-pointer"
-                          onClick={() => { setSkillName(s.name); setCustomSkill(''); }}
-                        >
-                          {s.name}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-                {/* Custom input */}
-                <div className="space-y-2">
-                  <Label>Or enter custom skill</Label>
-                  <Input
-                    value={customSkill}
-                    onChange={e => { setCustomSkill(e.target.value); setSkillName(''); }}
-                    placeholder="e.g., React, Machine Learning, Docker"
-                  />
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="isPrimary"
-                    checked={isPrimary}
-                    onChange={e => setIsPrimary(e.target.checked)}
-                    className="rounded"
-                  />
-                  <Label htmlFor="isPrimary" className="cursor-pointer">
-                    <Star className="w-3 h-3 inline mr-1 text-amber-500" />
-                    Mark as primary focus this week
-                  </Label>
-                </div>
-
-                <Button onClick={handleAdd} className="w-full" disabled={(!skillName && !customSkill.trim()) || createTrack.isPending}>
-                  {createTrack.isPending ? 'Adding...' : 'Add Skill Track'}
+          {!isReadOnly && (
+            <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add Skill
                 </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add Skill Track</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 pt-4">
+                  {suggestions.length > 0 && (
+                    <div className="space-y-2">
+                      <Label>Suggested Skills</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {suggestions.map(s => (
+                          <Badge
+                            key={s.id}
+                            variant={skillName === s.name ? 'default' : 'outline'}
+                            className="cursor-pointer"
+                            onClick={() => { setSkillName(s.name); setCustomSkill(''); }}
+                          >
+                            {s.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <Label>Or enter custom skill</Label>
+                    <Input
+                      value={customSkill}
+                      onChange={e => { setCustomSkill(e.target.value); setSkillName(''); }}
+                      placeholder="e.g., React, Machine Learning, Docker"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input type="checkbox" id="isPrimary" checked={isPrimary} onChange={e => setIsPrimary(e.target.checked)} className="rounded" />
+                    <Label htmlFor="isPrimary" className="cursor-pointer">
+                      <Star className="w-3 h-3 inline mr-1 text-amber-500" />
+                      Mark as primary focus this week
+                    </Label>
+                  </div>
+                  <Button onClick={handleAdd} className="w-full" disabled={(!skillName && !customSkill.trim()) || createTrack.isPending}>
+                    {createTrack.isPending ? 'Adding...' : 'Add Skill Track'}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
       </div>
+
+      {/* Analytics Panel */}
+      {showAnalytics && (
+        <SkillProgressAnalytics session={session} userId={userId} />
+      )}
 
       {/* Empty state */}
       {tracks.length === 0 && (
