@@ -894,6 +894,41 @@ export type Database = {
           },
         ]
       }
+      skill_endorsements: {
+        Row: {
+          comment: string | null
+          created_at: string
+          endorsed_by: string
+          endorsed_user_id: string
+          id: string
+          member_skill_id: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          endorsed_by: string
+          endorsed_user_id: string
+          id?: string
+          member_skill_id: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          endorsed_by?: string
+          endorsed_user_id?: string
+          id?: string
+          member_skill_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skill_endorsements_member_skill_id_fkey"
+            columns: ["member_skill_id"]
+            isOneToOne: false
+            referencedRelation: "member_skills"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       skill_flowchart_blocks: {
         Row: {
           created_at: string
@@ -934,6 +969,94 @@ export type Database = {
             columns: ["skill_track_id"]
             isOneToOne: false
             referencedRelation: "skill_tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      skill_reflections: {
+        Row: {
+          challenges: string | null
+          content: string
+          created_at: string
+          id: string
+          next_steps: string | null
+          skill_track_id: string
+          updated_at: string
+          user_id: string
+          week_start: string
+        }
+        Insert: {
+          challenges?: string | null
+          content: string
+          created_at?: string
+          id?: string
+          next_steps?: string | null
+          skill_track_id: string
+          updated_at?: string
+          user_id: string
+          week_start: string
+        }
+        Update: {
+          challenges?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          next_steps?: string | null
+          skill_track_id?: string
+          updated_at?: string
+          user_id?: string
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skill_reflections_skill_track_id_fkey"
+            columns: ["skill_track_id"]
+            isOneToOne: false
+            referencedRelation: "skill_tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      skill_streaks: {
+        Row: {
+          created_at: string
+          current_streak: number
+          id: string
+          last_active_date: string | null
+          longest_streak: number
+          session_id: string
+          total_active_days: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_streak?: number
+          id?: string
+          last_active_date?: string | null
+          longest_streak?: number
+          session_id: string
+          total_active_days?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_streak?: number
+          id?: string
+          last_active_date?: string | null
+          longest_streak?: number
+          session_id?: string
+          total_active_days?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skill_streaks_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "grouping_sessions"
             referencedColumns: ["id"]
           },
         ]
