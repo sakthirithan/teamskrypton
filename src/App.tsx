@@ -58,6 +58,8 @@ const App = () => (
               <Route path="/pbl/projects" element={<PBLProjects />} />
               <Route path="/pbl/projects/:projectId" element={<ProjectDetail />} />
               <Route path="/pbl/analytics" element={<PBLAnalytics />} />
+              <Route path="/pbl/docs" element={<PBLDocumentation />} />
+              <Route path="/pbl/notifications" element={<PBLNotifications />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
