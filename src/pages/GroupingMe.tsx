@@ -525,58 +525,49 @@ const GroupingMe = () => {
     <div className="min-h-screen bg-background">
       <Header />
       <main className="container mx-auto px-3 sm:px-6 py-4 sm:py-6 safe-area-bottom page-enter">
-        <div className="space-y-4 sm:space-y-6">
-          {/* Profile Header with Role-Based Features */}
-          <Card className="overflow-hidden">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center">
+        <div className="space-y-3 sm:space-y-4">
+          {/* Compact Profile Header + Session in one row */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Card className="flex-1 overflow-hidden">
+              <CardContent className="p-3 sm:p-4 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center shrink-0">
                   <User className="w-5 h-5 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-lg font-bold truncate">{displayProfile?.full_name || 'Loading...'}</h2>
+                    <h2 className="text-base font-bold truncate">{displayProfile?.full_name || 'Loading...'}</h2>
                     {isViewingOther && !isTL && (
-                      <Badge variant="outline" className="flex items-center gap-1 text-xs">
+                      <Badge variant="outline" className="flex items-center gap-1 text-[10px] h-5">
                         <Eye className="w-3 h-3" />
                         Read-Only
                       </Badge>
                     )}
                     {isViewingOther && isTL && (
-                      <Badge variant="default" className="flex items-center gap-1 text-xs">
+                      <Badge variant="default" className="flex items-center gap-1 text-[10px] h-5">
                         <Edit2 className="w-3 h-3" />
                         Full Access
                       </Badge>
                     )}
                     {isSessionClosed && (
-                      <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                      <Badge variant="secondary" className="flex items-center gap-1 text-[10px] h-5">
                         <Lock className="w-3 h-3" />
                         Closed
                       </Badge>
                     )}
                   </div>
-                  
-                  {displayRole && (
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="outline" className="flex items-center gap-1 text-xs">
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                    {displayRole && (
+                      <Badge variant="outline" className="flex items-center gap-1 text-[10px] h-5">
                         <Shield className="w-3 h-3" />
                         {ROLE_LABELS[displayRole as KryptonRole] || displayRole}
                       </Badge>
-                    </div>
-                  )}
-
-                  {/* Member Skills Badges - below name */}
-                  {viewingUserId && (
-                    <MemberSkillsBadges userId={viewingUserId} />
-                  )}
-                  
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {isViewingOther ? `${displayProfile?.full_name}'s Grouping Space` : 'My Grouping Space'}
-                  </p>
+                    )}
+                    {viewingUserId && <MemberSkillsBadges userId={viewingUserId} />}
+                  </div>
                 </div>
-              </CardTitle>
-            </CardHeader>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Read-Only Mode Indicator */}
           {isReadOnlyMode && (
@@ -586,11 +577,10 @@ const GroupingMe = () => {
             />
           )}
 
-          {/* Test Mode Settings Panel - Guest Users Only, own profile only */}
+          {/* Test Mode Settings Panel */}
           {!isViewingOther && <TestModeSettingsPanel />}
 
-
-          {/* Session Card - Replaces the old session selector */}
+          {/* Session Card */}
           <SessionCard 
             sessions={sessions}
             activeSession={activeSession}
@@ -600,33 +590,33 @@ const GroupingMe = () => {
 
           {!viewingSession ? null : (
             <>
-              {/* Skill Assignment Panel - Users can add own skills, Leadership can manage anyone's */}
-              {viewingUserId && (
-                <SkillAssignmentPanel
-                  userId={viewingUserId}
-                  userName={displayProfile?.full_name || 'Member'}
-                  isSelfMode={!isViewingOther}
-                />
-              )}
-
-              {/* Personal Alerts Panel - session-bound, only show for own workspace or TL */}
-              {(!isViewingOther || isTL) && (
-                <MySpaceAlertsPanel 
-                  userId={viewingUserId} 
-                  isViewingOther={isViewingOther && !isTL}
-                  session={viewingSession}
-                />
-              )}
-
-              {/* Main Tabs: Skill Tracker (primary) | PS Entries (secondary) */}
+              {/* Main Tabs - Skills | PS Entries | Manage */}
               <Tabs defaultValue="skills" className="w-full">
                 <TabsList className="w-full grid grid-cols-2">
-                  <TabsTrigger value="skills">🎯 Skill Tracker</TabsTrigger>
-                  <TabsTrigger value="ps-entries">📝 PS Entries</TabsTrigger>
+                  <TabsTrigger value="skills" className="text-xs sm:text-sm">🎯 Skill Tracker</TabsTrigger>
+                  <TabsTrigger value="ps-entries" className="text-xs sm:text-sm">📝 PS Entries</TabsTrigger>
                 </TabsList>
 
                 {/* Skill Tracker Tab */}
-                <TabsContent value="skills" className="mt-4">
+                <TabsContent value="skills" className="mt-3 space-y-3">
+                  {/* Skill Assignment - compact inside tab */}
+                  {viewingUserId && (
+                    <SkillAssignmentPanel
+                      userId={viewingUserId}
+                      userName={displayProfile?.full_name || 'Member'}
+                      isSelfMode={!isViewingOther}
+                    />
+                  )}
+
+                  {/* Alerts inside tab */}
+                  {(!isViewingOther || isTL) && (
+                    <MySpaceAlertsPanel 
+                      userId={viewingUserId} 
+                      isViewingOther={isViewingOther && !isTL}
+                      session={viewingSession}
+                    />
+                  )}
+
                   {viewingUserId && (
                     <SkillTracker
                       session={viewingSession}
@@ -637,7 +627,7 @@ const GroupingMe = () => {
                 </TabsContent>
 
                 {/* PS Entries Tab */}
-                <TabsContent value="ps-entries" className="mt-4 space-y-4 sm:space-y-6">
+                <TabsContent value="ps-entries" className="mt-3 space-y-3">
 
               {/* Points & Stats Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

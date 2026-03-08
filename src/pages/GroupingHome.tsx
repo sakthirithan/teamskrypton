@@ -51,32 +51,32 @@ const GroupingHome = () => {
       <Header />
       <main className="container mx-auto px-3 sm:px-6 py-4 sm:py-6 safe-area-bottom page-enter">
         
-        <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className={`flex flex-col ${isCaptainOrVice ? 'lg:grid lg:grid-cols-3' : ''} gap-4`}>
           {/* Main content area */}
-          <div className="lg:col-span-2 space-y-4 sm:space-y-6 order-1">
+          <div className={`${isCaptainOrVice ? 'lg:col-span-2' : ''} space-y-3 sm:space-y-4 order-1`}>
             {isLeadership ? (
               <Tabs defaultValue="skills" className="w-full">
-                <TabsList className="grid w-full grid-cols-4 mb-4">
-                  <TabsTrigger value="skills" className="flex items-center gap-2">
-                    <BookOpen className="w-4 h-4" />
+                <TabsList className="grid w-full grid-cols-4 mb-3">
+                  <TabsTrigger value="skills" className="flex items-center gap-1.5 text-xs sm:text-sm">
+                    <BookOpen className="w-3.5 h-3.5" />
                     <span className="hidden sm:inline">Skills</span>
                   </TabsTrigger>
-                  <TabsTrigger value="ps" className="flex items-center gap-2">
-                    <ClipboardList className="w-4 h-4" />
+                  <TabsTrigger value="ps" className="flex items-center gap-1.5 text-xs sm:text-sm">
+                    <ClipboardList className="w-3.5 h-3.5" />
                     <span className="hidden sm:inline">PS</span>
                   </TabsTrigger>
-                  <TabsTrigger value="reflections" className="flex items-center gap-2">
-                    <NotebookPen className="w-4 h-4" />
+                  <TabsTrigger value="reflections" className="flex items-center gap-1.5 text-xs sm:text-sm">
+                    <NotebookPen className="w-3.5 h-3.5" />
                     <span className="hidden sm:inline">Reflections</span>
                   </TabsTrigger>
-                  <TabsTrigger value="notes" className="flex items-center gap-2">
-                    <MessageSquare className="w-4 h-4" />
+                  <TabsTrigger value="notes" className="flex items-center gap-1.5 text-xs sm:text-sm">
+                    <MessageSquare className="w-3.5 h-3.5" />
                     <span className="hidden sm:inline">Notes</span>
                   </TabsTrigger>
                 </TabsList>
 
                 {/* Session Selector */}
-                <div className="mb-4">
+                <div className="mb-3">
                   <SessionCard 
                     sessions={sessions}
                     activeSession={activeSession}
@@ -98,22 +98,22 @@ const GroupingHome = () => {
                   )}
                 </TabsContent>
 
-                {/* PS Tab - All PS related: Targets, Bulk Entry, Target Actions, Alerts */}
+                {/* PS Tab */}
                 <TabsContent value="ps" className="mt-0">
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     <GroupingPanel session={viewingSession} />
                     
                     {viewingSession && !isSessionClosed && (
                       <Card>
-                        <CardHeader className="pb-3">
-                          <CardTitle className="flex items-center gap-2 text-base">
+                        <CardHeader className="pb-2 pt-3">
+                          <CardTitle className="flex items-center gap-2 text-sm">
                             <ClipboardList className="w-4 h-4" />
                             PS Quick Actions
                           </CardTitle>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="pb-3">
                           <BulkEntryCreation session={viewingSession} />
-                          <p className="text-xs text-muted-foreground mt-2">
+                          <p className="text-xs text-muted-foreground mt-1.5">
                             Create PS entries for multiple members at once
                           </p>
                         </CardContent>
@@ -138,21 +138,21 @@ const GroupingHome = () => {
             ) : (
               /* TEAM MEMBERS */
               <Tabs defaultValue="ps" className="w-full">
-                <TabsList className="grid w-full grid-cols-3 mb-4">
-                  <TabsTrigger value="ps" className="flex items-center gap-2">
-                    <ClipboardList className="w-4 h-4" />
+                <TabsList className="grid w-full grid-cols-3 mb-3">
+                  <TabsTrigger value="ps" className="flex items-center gap-1.5 text-xs sm:text-sm">
+                    <ClipboardList className="w-3.5 h-3.5" />
                     PS
                   </TabsTrigger>
-                  <TabsTrigger value="reflections" className="flex items-center gap-2">
-                    <NotebookPen className="w-4 h-4" />
+                  <TabsTrigger value="reflections" className="flex items-center gap-1.5 text-xs sm:text-sm">
+                    <NotebookPen className="w-3.5 h-3.5" />
                     Reflections
                   </TabsTrigger>
-                  <TabsTrigger value="notes" className="flex items-center gap-2">
-                    <MessageSquare className="w-4 h-4" />
+                  <TabsTrigger value="notes" className="flex items-center gap-1.5 text-xs sm:text-sm">
+                    <MessageSquare className="w-3.5 h-3.5" />
                     Notes
                   </TabsTrigger>
                 </TabsList>
-                <div className="mb-4">
+                <div className="mb-3">
                   <SessionCard 
                     sessions={sessions}
                     activeSession={activeSession}
@@ -161,7 +161,7 @@ const GroupingHome = () => {
                   />
                 </div>
                 <TabsContent value="ps" className="mt-0">
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     <GroupingPanel session={viewingSession} />
                     <TargetActionPanel session={viewingSession} />
                     <GroupingAlertsPanel session={viewingSession} />
@@ -177,11 +177,12 @@ const GroupingHome = () => {
             )}
           </div>
           
-          {/* Sidebar */}
-          <div className="space-y-4 sm:space-y-6 order-2">
-            {/* Session Management for TL/VC only */}
-            {isCaptainOrVice && <SessionManagementPanel />}
-          </div>
+          {/* Sidebar - only show when TL/VC has content */}
+          {isCaptainOrVice && (
+            <div className="space-y-3 sm:space-y-4 order-2">
+              <SessionManagementPanel />
+            </div>
+          )}
         </div>
       </main>
     </div>
