@@ -66,6 +66,7 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
     });
     setForm({ title: '', description: '', resource_url: '' });
     setIsAddOpen(false);
+    onFlowchartUpdate?.();
   };
 
   const handleUpdate = async () => {
