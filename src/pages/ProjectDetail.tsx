@@ -151,7 +151,7 @@ const ProjectDetail = () => {
 
         {/* Tabbed Content Area */}
         <Tabs defaultValue="board" className="w-full">
-          <TabsList className="mb-4">
+          <TabsList className="mb-4 flex-wrap">
             <TabsTrigger value="board" className="flex items-center gap-1.5 text-xs">
               <KanbanSquare className="w-3.5 h-3.5" />
               Board
@@ -159,6 +159,10 @@ const ProjectDetail = () => {
             <TabsTrigger value="timeline" className="flex items-center gap-1.5 text-xs">
               <GanttChart className="w-3.5 h-3.5" />
               Timeline
+            </TabsTrigger>
+            <TabsTrigger value="staffing" className="flex items-center gap-1.5 text-xs">
+              <Briefcase className="w-3.5 h-3.5" />
+              Staffing
             </TabsTrigger>
             <TabsTrigger value="docs" className="flex items-center gap-1.5 text-xs">
               <FileText className="w-3.5 h-3.5" />
