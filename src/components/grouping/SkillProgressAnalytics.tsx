@@ -66,7 +66,7 @@ export function SkillProgressAnalytics({ session, userId }: SkillProgressAnalyti
           <CardContent className="p-3 text-center">
             <Trophy className="w-5 h-5 mx-auto mb-1 text-amber-500" />
             <p className="text-2xl font-bold">{streakData.longest_streak}</p>
-            <p className="text-[10px] text-muted-foreground">Best Streak</p>
+            <p className="text-[10px] text-muted-foreground">Best Week Streak</p>
           </CardContent>
         </Card>
         <Card>
