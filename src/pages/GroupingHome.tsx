@@ -16,7 +16,7 @@ import { AllReflectionsPanel } from '@/components/grouping/AllReflectionsPanel';
 import { useGroupingSessions } from '@/hooks/useGroupingSessions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
-import { Target, MessageSquare, BookOpen, ClipboardList, NotebookPen, Trophy, Swords } from 'lucide-react';
+import { Target, MessageSquare, BookOpen, ClipboardList, NotebookPen } from 'lucide-react';
 
 const GroupingHome = () => {
   const { user, isLoading, isLeadership, isCaptainOrVice, role } = useAuth();
