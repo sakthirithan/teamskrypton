@@ -345,8 +345,8 @@ export function KryptonIdCard({
               <span className="font-medium">{format(new Date(profile.created_at), 'MMM yyyy')}</span>
             </div>
 
-            {/* Grouping Targets Section */}
-            <GroupingTargetsSection userId={profile.user_id} />
+            {/* Skill Portfolio Section */}
+            <SkillPortfolioSection userId={profile.user_id} />
           </div>
         ) : (
           /* Default PBL mode - original details */
