@@ -12,6 +12,7 @@ import { LearningFlowchart } from '@/components/grouping/LearningFlowchart';
 import { SkillProgressAnalytics } from '@/components/grouping/SkillProgressAnalytics';
 import { SkillHistoryExport } from '@/components/grouping/SkillHistoryExport';
 import { GroupingSession } from '@/hooks/useGroupingSessions';
+import { useAuth } from '@/hooks/useAuth';
 import { format, startOfWeek } from 'date-fns';
 
 interface SkillTrackerProps {
