@@ -11,6 +11,7 @@ import { useSkillStreaks } from '@/hooks/useSkillStreaks';
 import { LearningFlowchart } from '@/components/grouping/LearningFlowchart';
 import { SkillProgressAnalytics } from '@/components/grouping/SkillProgressAnalytics';
 import { SkillHistoryExport } from '@/components/grouping/SkillHistoryExport';
+import { AISkillRecommendations } from '@/components/grouping/AISkillRecommendations';
 import { GroupingSession } from '@/hooks/useGroupingSessions';
 import { useAuth } from '@/hooks/useAuth';
 import { format, startOfWeek } from 'date-fns';
