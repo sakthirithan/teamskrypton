@@ -397,7 +397,7 @@ const Team = () => {
 
   const content = (
     <>
-      <div className={isPBL ? '' : 'container mx-auto px-6 py-6'}>
+      <div>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <div className="flex items-center gap-2">
             <h2 className="text-2xl font-display font-bold flex items-center gap-2">
