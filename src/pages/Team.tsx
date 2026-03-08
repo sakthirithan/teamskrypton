@@ -7,8 +7,6 @@ import { Header } from '@/components/layout/Header';
 import { PBLLayout } from '@/components/pbl/PBLLayout';
 import { KryptonIdCard } from '@/components/team/KryptonIdCard';
 import { SkillWiseMemberList } from '@/components/team/SkillWiseMemberList';
-import { SkillLeaderboard } from '@/components/grouping/SkillLeaderboard';
-import { useGroupingSessions } from '@/hooks/useGroupingSessions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -47,7 +45,7 @@ const Team = () => {
   const { user, isLoading, isLeadership, isCaptainOrVice, role } = useAuth();
   const { mode, isGroupingMode } = useAppMode();
   const { toast } = useToast();
-  const { activeSession } = useGroupingSessions();
+  
   const navigate = useNavigate();
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [isFetching, setIsFetching] = useState(true);
@@ -597,7 +595,7 @@ const Team = () => {
 
   const content = isGroupingMode ? (
     <Tabs defaultValue="directory" className="w-full">
-      <TabsList className="grid w-full grid-cols-3 mb-6">
+      <TabsList className="grid w-full grid-cols-2 mb-6">
         <TabsTrigger value="directory" className="flex items-center gap-2">
           <Users className="w-4 h-4" />
           Directory
@@ -606,24 +604,12 @@ const Team = () => {
           <Layers className="w-4 h-4" />
           Skill Map
         </TabsTrigger>
-        <TabsTrigger value="leaderboard" className="flex items-center gap-2">
-          <Target className="w-4 h-4" />
-          Leaderboard
-        </TabsTrigger>
       </TabsList>
       <TabsContent value="directory" className="mt-0">
         {teamDirectoryContent}
       </TabsContent>
       <TabsContent value="skills" className="mt-0">
         <SkillWiseMemberList />
-      </TabsContent>
-      <TabsContent value="leaderboard" className="mt-0">
-        {(() => {
-          const activeS = activeSession || null;
-          return activeS ? <SkillLeaderboard sessionId={activeS.id} /> : (
-            <div className="py-12 text-center text-muted-foreground text-sm">No active session for leaderboard.</div>
-          );
-        })()}
       </TabsContent>
     </Tabs>
   ) : (
