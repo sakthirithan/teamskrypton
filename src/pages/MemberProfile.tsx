@@ -249,16 +249,22 @@ const MemberProfile = () => {
   }
 
   if (!member) {
+    const notFoundContent = (
+      <div className="text-center py-12">
+        <p className="text-muted-foreground mb-4">Member not found</p>
+        <Button onClick={() => navigate('/team')}>
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Team
+        </Button>
+      </div>
+    );
+    if (isPBL) {
+      return <PBLLayout title="Member Profile">{notFoundContent}</PBLLayout>;
+    }
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <div className="container mx-auto px-6 py-12 text-center">
-          <p className="text-muted-foreground mb-4">Member not found</p>
-          <Button onClick={() => navigate('/team')}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Team
-          </Button>
-        </div>
+        <div className="container mx-auto px-6 py-12">{notFoundContent}</div>
       </div>
     );
   }
