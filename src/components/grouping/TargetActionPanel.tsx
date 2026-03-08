@@ -534,6 +534,64 @@ export function TargetActionPanel({ session }: TargetActionPanelProps) {
           </div>
         )}
 
+        {/* View All Individual Targets Dialog */}
+        <Dialog open={isViewAllOpen} onOpenChange={setIsViewAllOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <User className="w-5 h-5 text-primary" />
+                All Individual Targets
+              </DialogTitle>
+            </DialogHeader>
+            <ScrollArea className="max-h-[60vh] pr-2">
+              <div className="space-y-3 pt-2">
+                {targets
+                  .filter(t => t.target_scope === 'individual')
+                  .map(target => {
+                    const member = teamMembers.find(m => m.user_id === target.user_id);
+                    const achieved = earnedPointsMap[target.user_id ?? ''] ?? 0;
+                    const progress = target.target_points > 0 ? Math.min(100, (achieved / target.target_points) * 100) : 0;
+                    const isDone = achieved >= target.target_points;
+
+                    return (
+                      <div key={target.id} className="p-3 rounded-lg border bg-card space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${isDone ? 'bg-emerald-500' : progress > 50 ? 'bg-amber-500' : 'bg-red-500'}`} />
+                            <span className="font-medium text-sm">{member?.full_name || 'Unknown'}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground tabular-nums">
+                              {achieved}/{target.target_points} pts
+                            </span>
+                            {!isSessionClosed && (
+                              <div className="flex items-center gap-0.5">
+                                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { setIsViewAllOpen(false); openEdit(target); }}>
+                                  <Edit2 className="w-3 h-3" />
+                                </Button>
+                                <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => { setIsViewAllOpen(false); setDeleteTargetId(target.id); }}>
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <Progress value={progress} className="h-1.5" />
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>{progress.toFixed(0)}% complete</span>
+                          {target.notes && <span className="italic truncate max-w-[60%]">{target.notes}</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                {targets.filter(t => t.target_scope === 'individual').length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">No individual targets assigned.</p>
+                )}
+              </div>
+            </ScrollArea>
+          </DialogContent>
+        </Dialog>
+
         {/* Edit Dialog */}
         <Dialog open={!!editingTarget} onOpenChange={(open) => !open && setEditingTarget(null)}>
           <DialogContent>
