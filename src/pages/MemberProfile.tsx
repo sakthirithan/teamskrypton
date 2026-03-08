@@ -68,6 +68,7 @@ interface Approval {
 const MemberProfile = () => {
   const { userId } = useParams<{ userId: string }>();
   const { user, isLoading, isLeadership, isCaptainOrVice } = useAuth();
+  const { mode } = useAppMode();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [member, setMember] = useState<MemberData | null>(null);
