@@ -12,11 +12,13 @@ import { SessionCard } from '@/components/grouping/SessionCard';
 import { TeamSkillOverview } from '@/components/grouping/TeamSkillOverview';
 import { SkillAssignmentPanel } from '@/components/grouping/SkillAssignmentPanel';
 import { AllReflectionsPanel } from '@/components/grouping/AllReflectionsPanel';
+import { SkillLeaderboard } from '@/components/grouping/SkillLeaderboard';
+import { SkillChallengesPanel } from '@/components/grouping/SkillChallengesPanel';
 
 import { useGroupingSessions } from '@/hooks/useGroupingSessions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
-import { Target, MessageSquare, BookOpen, ClipboardList, NotebookPen } from 'lucide-react';
+import { Target, MessageSquare, BookOpen, ClipboardList, NotebookPen, Trophy, Swords } from 'lucide-react';
 
 const GroupingHome = () => {
   const { user, isLoading, isLeadership, isCaptainOrVice, role } = useAuth();
@@ -73,22 +75,30 @@ const GroupingHome = () => {
           <div className={`${isCaptainOrVice ? 'lg:col-span-2' : ''} space-y-3 order-1`}>
             {isLeadership ? (
               <Tabs defaultValue="skills" className="w-full">
-                <TabsList className="grid w-full grid-cols-4 h-10 mb-3">
-                  <TabsTrigger value="skills" className="flex items-center gap-1.5 text-xs sm:text-sm px-2">
+                <TabsList className="grid w-full grid-cols-6 h-10 mb-3">
+                  <TabsTrigger value="skills" className="flex items-center gap-1 text-[10px] sm:text-xs px-1 sm:px-2">
                     <BookOpen className="w-3.5 h-3.5 shrink-0" />
-                    <span className="truncate">Skills</span>
+                    <span className="hidden sm:inline truncate">Skills</span>
                   </TabsTrigger>
-                  <TabsTrigger value="ps" className="flex items-center gap-1.5 text-xs sm:text-sm px-2">
+                  <TabsTrigger value="leaderboard" className="flex items-center gap-1 text-[10px] sm:text-xs px-1 sm:px-2">
+                    <Trophy className="w-3.5 h-3.5 shrink-0" />
+                    <span className="hidden sm:inline truncate">Ranks</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="challenges" className="flex items-center gap-1 text-[10px] sm:text-xs px-1 sm:px-2">
+                    <Swords className="w-3.5 h-3.5 shrink-0" />
+                    <span className="hidden sm:inline truncate">Quests</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="ps" className="flex items-center gap-1 text-[10px] sm:text-xs px-1 sm:px-2">
                     <ClipboardList className="w-3.5 h-3.5 shrink-0" />
-                    <span className="truncate">PS</span>
+                    <span className="hidden sm:inline truncate">PS</span>
                   </TabsTrigger>
-                  <TabsTrigger value="reflections" className="flex items-center gap-1.5 text-xs sm:text-sm px-2">
+                  <TabsTrigger value="reflections" className="flex items-center gap-1 text-[10px] sm:text-xs px-1 sm:px-2">
                     <NotebookPen className="w-3.5 h-3.5 shrink-0" />
-                    <span className="truncate">Reflections</span>
+                    <span className="hidden sm:inline truncate">Reflect</span>
                   </TabsTrigger>
-                  <TabsTrigger value="notes" className="flex items-center gap-1.5 text-xs sm:text-sm px-2">
+                  <TabsTrigger value="notes" className="flex items-center gap-1 text-[10px] sm:text-xs px-1 sm:px-2">
                     <MessageSquare className="w-3.5 h-3.5 shrink-0" />
-                    <span className="truncate">Notes</span>
+                    <span className="hidden sm:inline truncate">Notes</span>
                   </TabsTrigger>
                 </TabsList>
 
@@ -108,6 +118,24 @@ const GroupingHome = () => {
                 <TabsContent value="skills" className="mt-0">
                   {viewingSession ? (
                     <TeamSkillOverview session={viewingSession} />
+                  ) : (
+                    <NoSessionPlaceholder />
+                  )}
+                </TabsContent>
+
+                {/* Leaderboard Tab */}
+                <TabsContent value="leaderboard" className="mt-0">
+                  {viewingSession ? (
+                    <SkillLeaderboard sessionId={viewingSession.id} />
+                  ) : (
+                    <NoSessionPlaceholder />
+                  )}
+                </TabsContent>
+
+                {/* Challenges Tab */}
+                <TabsContent value="challenges" className="mt-0">
+                  {viewingSession ? (
+                    <SkillChallengesPanel sessionId={viewingSession.id} />
                   ) : (
                     <NoSessionPlaceholder />
                   )}
@@ -155,18 +183,26 @@ const GroupingHome = () => {
             ) : (
               /* TEAM MEMBERS */
               <Tabs defaultValue="ps" className="w-full">
-                <TabsList className="grid w-full grid-cols-3 h-10 mb-3">
-                  <TabsTrigger value="ps" className="flex items-center gap-1.5 text-xs sm:text-sm px-2">
+                <TabsList className="grid w-full grid-cols-5 h-10 mb-3">
+                  <TabsTrigger value="ps" className="flex items-center gap-1 text-[10px] sm:text-xs px-1 sm:px-2">
                     <ClipboardList className="w-3.5 h-3.5 shrink-0" />
-                    <span className="truncate">PS</span>
+                    <span className="hidden sm:inline truncate">PS</span>
                   </TabsTrigger>
-                  <TabsTrigger value="reflections" className="flex items-center gap-1.5 text-xs sm:text-sm px-2">
+                  <TabsTrigger value="leaderboard" className="flex items-center gap-1 text-[10px] sm:text-xs px-1 sm:px-2">
+                    <Trophy className="w-3.5 h-3.5 shrink-0" />
+                    <span className="hidden sm:inline truncate">Ranks</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="challenges" className="flex items-center gap-1 text-[10px] sm:text-xs px-1 sm:px-2">
+                    <Swords className="w-3.5 h-3.5 shrink-0" />
+                    <span className="hidden sm:inline truncate">Quests</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="reflections" className="flex items-center gap-1 text-[10px] sm:text-xs px-1 sm:px-2">
                     <NotebookPen className="w-3.5 h-3.5 shrink-0" />
-                    <span className="truncate">Reflections</span>
+                    <span className="hidden sm:inline truncate">Reflect</span>
                   </TabsTrigger>
-                  <TabsTrigger value="notes" className="flex items-center gap-1.5 text-xs sm:text-sm px-2">
+                  <TabsTrigger value="notes" className="flex items-center gap-1 text-[10px] sm:text-xs px-1 sm:px-2">
                     <MessageSquare className="w-3.5 h-3.5 shrink-0" />
-                    <span className="truncate">Notes</span>
+                    <span className="hidden sm:inline truncate">Notes</span>
                   </TabsTrigger>
                 </TabsList>
 
@@ -189,6 +225,20 @@ const GroupingHome = () => {
                       <TargetActionPanel session={viewingSession} />
                       <GroupingAlertsPanel session={viewingSession} />
                     </div>
+                  ) : (
+                    <NoSessionPlaceholder />
+                  )}
+                </TabsContent>
+                <TabsContent value="leaderboard" className="mt-0">
+                  {viewingSession ? (
+                    <SkillLeaderboard sessionId={viewingSession.id} />
+                  ) : (
+                    <NoSessionPlaceholder />
+                  )}
+                </TabsContent>
+                <TabsContent value="challenges" className="mt-0">
+                  {viewingSession ? (
+                    <SkillChallengesPanel sessionId={viewingSession.id} />
                   ) : (
                     <NoSessionPlaceholder />
                   )}

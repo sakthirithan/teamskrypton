@@ -7,6 +7,7 @@ import { Header } from '@/components/layout/Header';
 import { PBLLayout } from '@/components/pbl/PBLLayout';
 import { KryptonIdCard } from '@/components/team/KryptonIdCard';
 import { SkillWiseMemberList } from '@/components/team/SkillWiseMemberList';
+import { SkillLeaderboard } from '@/components/grouping/SkillLeaderboard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -594,14 +595,18 @@ const Team = () => {
 
   const content = isGroupingMode ? (
     <Tabs defaultValue="directory" className="w-full">
-      <TabsList className="grid w-full grid-cols-2 mb-6">
+      <TabsList className="grid w-full grid-cols-3 mb-6">
         <TabsTrigger value="directory" className="flex items-center gap-2">
           <Users className="w-4 h-4" />
-          Team Directory
+          Directory
         </TabsTrigger>
         <TabsTrigger value="skills" className="flex items-center gap-2">
           <Layers className="w-4 h-4" />
           Skill Map
+        </TabsTrigger>
+        <TabsTrigger value="leaderboard" className="flex items-center gap-2">
+          <Target className="w-4 h-4" />
+          Leaderboard
         </TabsTrigger>
       </TabsList>
       <TabsContent value="directory" className="mt-0">
@@ -609,6 +614,14 @@ const Team = () => {
       </TabsContent>
       <TabsContent value="skills" className="mt-0">
         <SkillWiseMemberList />
+      </TabsContent>
+      <TabsContent value="leaderboard" className="mt-0">
+        {(() => {
+          const activeS = members.length > 0 ? sessions?.find((s: any) => s.status === 'active') : null;
+          return activeS ? <SkillLeaderboard sessionId={activeS.id} /> : (
+            <div className="py-12 text-center text-muted-foreground text-sm">No active session for leaderboard.</div>
+          );
+        })()}
       </TabsContent>
     </Tabs>
   ) : (
