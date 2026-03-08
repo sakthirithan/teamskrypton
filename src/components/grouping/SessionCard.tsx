@@ -93,20 +93,14 @@ export function SessionCard({
 
             {/* Progress bar */}
             <div className="space-y-1">
-              <div className="h-2 bg-muted rounded-full overflow-hidden">
+              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                 <div 
                   className={`h-full rounded-full transition-all ${
-                    isHistorical ? 'bg-muted-foreground' : 'bg-primary'
+                    isHistorical ? 'bg-muted-foreground/50' : 'bg-primary'
                   }`}
                   style={{ width: `${isHistorical ? 100 : progressPercent}%` }}
                 />
               </div>
-              <p className="text-xs text-muted-foreground">
-                {isHistorical 
-                  ? 'Session completed' 
-                  : `Day ${daysElapsed} of ${totalDays}`
-                }
-              </p>
             </div>
           </div>
 

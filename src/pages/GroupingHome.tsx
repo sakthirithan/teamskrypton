@@ -15,8 +15,8 @@ import { AllReflectionsPanel } from '@/components/grouping/AllReflectionsPanel';
 
 import { useGroupingSessions } from '@/hooks/useGroupingSessions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Target, MessageSquare, Users, BookOpen, ClipboardList, NotebookPen } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Target, MessageSquare, BookOpen, ClipboardList, NotebookPen } from 'lucide-react';
 
 const GroupingHome = () => {
   const { user, isLoading, isLeadership, isCaptainOrVice, role } = useAuth();
@@ -46,6 +46,23 @@ const GroupingHome = () => {
 
   if (!user) return null;
 
+  // Shared empty state when no session exists
+  const NoSessionPlaceholder = () => (
+    <Card className="border-dashed border-2 border-muted-foreground/20">
+      <CardContent className="py-12 text-center">
+        <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-muted/60 flex items-center justify-center">
+          <Target className="w-7 h-7 text-muted-foreground/40" />
+        </div>
+        <p className="text-sm font-medium text-muted-foreground">No Active Session</p>
+        <p className="text-xs text-muted-foreground/70 mt-1">
+          {isCaptainOrVice 
+            ? 'Create a new session from the Sessions panel to get started.' 
+            : 'Wait for leadership to create a session.'}
+        </p>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -53,76 +70,76 @@ const GroupingHome = () => {
         
         <div className={`flex flex-col ${isCaptainOrVice ? 'lg:grid lg:grid-cols-3' : ''} gap-4`}>
           {/* Main content area */}
-          <div className={`${isCaptainOrVice ? 'lg:col-span-2' : ''} space-y-3 sm:space-y-4 order-1`}>
+          <div className={`${isCaptainOrVice ? 'lg:col-span-2' : ''} space-y-3 order-1`}>
             {isLeadership ? (
               <Tabs defaultValue="skills" className="w-full">
-                <TabsList className="grid w-full grid-cols-4 mb-3">
-                  <TabsTrigger value="skills" className="flex items-center gap-1.5 text-xs sm:text-sm">
-                    <BookOpen className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Skills</span>
+                <TabsList className="grid w-full grid-cols-4 h-10 mb-3">
+                  <TabsTrigger value="skills" className="flex items-center gap-1.5 text-xs sm:text-sm px-2">
+                    <BookOpen className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">Skills</span>
                   </TabsTrigger>
-                  <TabsTrigger value="ps" className="flex items-center gap-1.5 text-xs sm:text-sm">
-                    <ClipboardList className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">PS</span>
+                  <TabsTrigger value="ps" className="flex items-center gap-1.5 text-xs sm:text-sm px-2">
+                    <ClipboardList className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">PS</span>
                   </TabsTrigger>
-                  <TabsTrigger value="reflections" className="flex items-center gap-1.5 text-xs sm:text-sm">
-                    <NotebookPen className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Reflections</span>
+                  <TabsTrigger value="reflections" className="flex items-center gap-1.5 text-xs sm:text-sm px-2">
+                    <NotebookPen className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">Reflections</span>
                   </TabsTrigger>
-                  <TabsTrigger value="notes" className="flex items-center gap-1.5 text-xs sm:text-sm">
-                    <MessageSquare className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Notes</span>
+                  <TabsTrigger value="notes" className="flex items-center gap-1.5 text-xs sm:text-sm px-2">
+                    <MessageSquare className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">Notes</span>
                   </TabsTrigger>
                 </TabsList>
 
-                {/* Session Selector */}
-                <div className="mb-3">
-                  <SessionCard 
-                    sessions={sessions}
-                    activeSession={activeSession}
-                    selectedSession={viewingSession}
-                    onSessionChange={setSelectedSessionId}
-                  />
-                </div>
+                {/* Session Selector - only show if sessions exist */}
+                {sessions.length > 0 && (
+                  <div className="mb-3">
+                    <SessionCard 
+                      sessions={sessions}
+                      activeSession={activeSession}
+                      selectedSession={viewingSession}
+                      onSessionChange={setSelectedSessionId}
+                    />
+                  </div>
+                )}
 
                 {/* Skills Tab */}
                 <TabsContent value="skills" className="mt-0">
                   {viewingSession ? (
                     <TeamSkillOverview session={viewingSession} />
                   ) : (
-                    <Card>
-                      <CardContent className="py-8 text-center text-muted-foreground">
-                        No active session. Create a session to view skill data.
-                      </CardContent>
-                    </Card>
+                    <NoSessionPlaceholder />
                   )}
                 </TabsContent>
 
                 {/* PS Tab */}
                 <TabsContent value="ps" className="mt-0">
-                  <div className="space-y-3">
-                    <GroupingPanel session={viewingSession} />
-                    
-                    {viewingSession && !isSessionClosed && (
-                      <Card>
-                        <CardHeader className="pb-2 pt-3">
-                          <CardTitle className="flex items-center gap-2 text-sm">
-                            <ClipboardList className="w-4 h-4" />
-                            PS Quick Actions
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="pb-3">
-                          <BulkEntryCreation session={viewingSession} />
-                          <p className="text-xs text-muted-foreground mt-1.5">
-                            Create PS entries for multiple members at once
-                          </p>
-                        </CardContent>
-                      </Card>
-                    )}
-                    
-                    <TargetActionPanel session={viewingSession} />
-                    <GroupingAlertsPanel session={viewingSession} />
-                  </div>
+                  {viewingSession ? (
+                    <div className="space-y-3">
+                      <GroupingPanel session={viewingSession} />
+                      
+                      {!isSessionClosed && (
+                        <Card>
+                          <CardContent className="p-4">
+                            <div className="flex items-center gap-2 mb-2">
+                              <ClipboardList className="w-4 h-4 text-primary" />
+                              <span className="text-sm font-medium">PS Quick Actions</span>
+                            </div>
+                            <BulkEntryCreation session={viewingSession} />
+                            <p className="text-xs text-muted-foreground mt-2">
+                              Create PS entries for multiple members at once
+                            </p>
+                          </CardContent>
+                        </Card>
+                      )}
+                      
+                      <TargetActionPanel session={viewingSession} />
+                      <GroupingAlertsPanel session={viewingSession} />
+                    </div>
+                  ) : (
+                    <NoSessionPlaceholder />
+                  )}
                 </TabsContent>
 
                 {/* Reflections Tab */}
@@ -138,34 +155,43 @@ const GroupingHome = () => {
             ) : (
               /* TEAM MEMBERS */
               <Tabs defaultValue="ps" className="w-full">
-                <TabsList className="grid w-full grid-cols-3 mb-3">
-                  <TabsTrigger value="ps" className="flex items-center gap-1.5 text-xs sm:text-sm">
-                    <ClipboardList className="w-3.5 h-3.5" />
-                    PS
+                <TabsList className="grid w-full grid-cols-3 h-10 mb-3">
+                  <TabsTrigger value="ps" className="flex items-center gap-1.5 text-xs sm:text-sm px-2">
+                    <ClipboardList className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">PS</span>
                   </TabsTrigger>
-                  <TabsTrigger value="reflections" className="flex items-center gap-1.5 text-xs sm:text-sm">
-                    <NotebookPen className="w-3.5 h-3.5" />
-                    Reflections
+                  <TabsTrigger value="reflections" className="flex items-center gap-1.5 text-xs sm:text-sm px-2">
+                    <NotebookPen className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">Reflections</span>
                   </TabsTrigger>
-                  <TabsTrigger value="notes" className="flex items-center gap-1.5 text-xs sm:text-sm">
-                    <MessageSquare className="w-3.5 h-3.5" />
-                    Notes
+                  <TabsTrigger value="notes" className="flex items-center gap-1.5 text-xs sm:text-sm px-2">
+                    <MessageSquare className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">Notes</span>
                   </TabsTrigger>
                 </TabsList>
-                <div className="mb-3">
-                  <SessionCard 
-                    sessions={sessions}
-                    activeSession={activeSession}
-                    selectedSession={viewingSession}
-                    onSessionChange={setSelectedSessionId}
-                  />
-                </div>
-                <TabsContent value="ps" className="mt-0">
-                  <div className="space-y-3">
-                    <GroupingPanel session={viewingSession} />
-                    <TargetActionPanel session={viewingSession} />
-                    <GroupingAlertsPanel session={viewingSession} />
+
+                {/* Session Selector - only show if sessions exist */}
+                {sessions.length > 0 && (
+                  <div className="mb-3">
+                    <SessionCard 
+                      sessions={sessions}
+                      activeSession={activeSession}
+                      selectedSession={viewingSession}
+                      onSessionChange={setSelectedSessionId}
+                    />
                   </div>
+                )}
+
+                <TabsContent value="ps" className="mt-0">
+                  {viewingSession ? (
+                    <div className="space-y-3">
+                      <GroupingPanel session={viewingSession} />
+                      <TargetActionPanel session={viewingSession} />
+                      <GroupingAlertsPanel session={viewingSession} />
+                    </div>
+                  ) : (
+                    <NoSessionPlaceholder />
+                  )}
                 </TabsContent>
                 <TabsContent value="reflections" className="mt-0">
                   <AllReflectionsPanel />
@@ -177,9 +203,9 @@ const GroupingHome = () => {
             )}
           </div>
           
-          {/* Sidebar - only show when TL/VC has content */}
+          {/* Sidebar - only for TL/VC */}
           {isCaptainOrVice && (
-            <div className="space-y-3 sm:space-y-4 order-2">
+            <div className="space-y-3 order-2">
               <SessionManagementPanel />
             </div>
           )}
