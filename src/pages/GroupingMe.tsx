@@ -627,7 +627,7 @@ const GroupingMe = () => {
                 </TabsContent>
 
                 {/* PS Entries Tab */}
-                <TabsContent value="ps-entries" className="mt-4 space-y-4 sm:space-y-6">
+                <TabsContent value="ps-entries" className="mt-3 space-y-3">
 
               {/* Points & Stats Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
