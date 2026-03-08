@@ -74,7 +74,7 @@ export function SkillTracker({ session, userId, isReadOnly = false }: SkillTrack
           Skill Development Tracker
           {isLeadership && streak && streak.current_streak > 0 && (
             <Badge variant="outline" className="text-xs bg-orange-500/10 text-orange-600 border-orange-500/20">
-              🔥 {streak.current_streak}d streak
+              🔥 {streak.current_streak}w streak
             </Badge>
           )}
         </h3>
