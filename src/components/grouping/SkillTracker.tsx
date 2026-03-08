@@ -86,11 +86,15 @@ export function SkillTracker({ session, userId, isReadOnly = false }: SkillTrack
           )}
         </h3>
         <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={() => setShowAnalytics(!showAnalytics)}>
-            <BarChart3 className="w-4 h-4 mr-1" />
-            {showAnalytics ? 'Hide' : 'Analytics'}
-          </Button>
-          <SkillHistoryExport sessionId={session.id} userId={userId} userName={userId} />
+          {isLeadership && (
+            <Button size="sm" variant="outline" onClick={() => setShowAnalytics(!showAnalytics)}>
+              <BarChart3 className="w-4 h-4 mr-1" />
+              {showAnalytics ? 'Hide' : 'Analytics'}
+            </Button>
+          )}
+          {isLeadership && (
+            <SkillHistoryExport sessionId={session.id} userId={userId} userName={userId} />
+          )}
           {!isReadOnly && (
             <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
               <DialogTrigger asChild>
