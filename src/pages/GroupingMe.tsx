@@ -40,6 +40,7 @@ import { CombinedTargetsCard } from '@/components/grouping/CombinedTargetsCard';
 import { ProductivityInsights } from '@/components/grouping/ProductivityInsights';
 import { QuickEntryWidget } from '@/components/grouping/QuickEntryWidget';
 import { PointsDisplay } from '@/components/points/PointsDisplay';
+import { SkillTracker } from '@/components/grouping/SkillTracker';
 import { ROLE_LABELS, KryptonRole } from '@/lib/constants';
 import { 
   calculateSessionDays, 
