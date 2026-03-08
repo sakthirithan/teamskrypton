@@ -168,9 +168,9 @@ export function SessionCard({
 
         {/* Read-only indicator for historical sessions */}
         {isHistorical && (
-          <div className="mt-3 p-2 rounded bg-muted/50 text-sm text-muted-foreground flex items-center gap-2">
-            <Lock className="w-4 h-4" />
-            <span>Viewing historical data. Changes are not allowed.</span>
+          <div className="mt-2 px-2.5 py-1.5 rounded-md bg-muted/50 text-xs text-muted-foreground flex items-center gap-1.5">
+            <Lock className="w-3 h-3 shrink-0" />
+            <span>Read-only — viewing historical data</span>
           </div>
         )}
       </CardContent>
