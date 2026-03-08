@@ -73,11 +73,22 @@ export function SkillTracker({ session, userId, isReadOnly = false }: SkillTrack
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <h3 className="text-lg font-semibold flex items-center gap-2">
           <BookOpen className="w-5 h-5 text-primary" />
           Skill Development Tracker
+          {streak && streak.current_streak > 0 && (
+            <Badge variant="outline" className="text-xs bg-orange-500/10 text-orange-600 border-orange-500/20">
+              🔥 {streak.current_streak}d streak
+            </Badge>
+          )}
         </h3>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => setShowAnalytics(!showAnalytics)}>
+            <BarChart3 className="w-4 h-4 mr-1" />
+            {showAnalytics ? 'Hide' : 'Analytics'}
+          </Button>
+          <SkillHistoryExport sessionId={session.id} userId={userId} userName={userId} />
         {!isReadOnly && (
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
             <DialogTrigger asChild>
