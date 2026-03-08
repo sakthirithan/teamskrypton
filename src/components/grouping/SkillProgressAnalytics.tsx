@@ -73,7 +73,7 @@ export function SkillProgressAnalytics({ session, userId }: SkillProgressAnalyti
           <CardContent className="p-3 text-center">
             <Calendar className="w-5 h-5 mx-auto mb-1 text-green-500" />
             <p className="text-2xl font-bold">{streakData.total_active_days}</p>
-            <p className="text-[10px] text-muted-foreground">Active Days</p>
+            <p className="text-[10px] text-muted-foreground">Active Weeks</p>
           </CardContent>
         </Card>
       </div>
