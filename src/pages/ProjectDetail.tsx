@@ -6,6 +6,9 @@ import { MilestonePanel } from '@/components/pbl/MilestonePanel';
 import { TaskBoard } from '@/components/pbl/TaskBoard';
 import { ActivityFeed } from '@/components/pbl/ActivityFeed';
 import { EditProjectDialog } from '@/components/pbl/EditProjectDialog';
+import { ProjectCommentsPanel } from '@/components/pbl/ProjectCommentsPanel';
+import { ProjectDocumentsPanel } from '@/components/pbl/ProjectDocumentsPanel';
+import { ProjectTimelinePanel } from '@/components/pbl/ProjectTimelinePanel';
 import {
   useProject,
   useMilestones,
@@ -21,8 +24,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar, Users, ArrowLeft, Pencil, UserPlus, X } from 'lucide-react';
+import { Calendar, Users, ArrowLeft, Pencil, UserPlus, X, KanbanSquare, GanttChart, MessageSquare, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 
 const statusLabels: Record<string, string> = {
@@ -144,94 +148,138 @@ const ProjectDetail = () => {
           </CardContent>
         </Card>
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left: Milestones + Members */}
-          <div className="lg:col-span-3 space-y-4">
-            <MilestonePanel
-              projectId={project.id}
+        {/* Tabbed Content Area */}
+        <Tabs defaultValue="board" className="w-full">
+          <TabsList className="mb-4">
+            <TabsTrigger value="board" className="flex items-center gap-1.5 text-xs">
+              <KanbanSquare className="w-3.5 h-3.5" />
+              Board
+            </TabsTrigger>
+            <TabsTrigger value="timeline" className="flex items-center gap-1.5 text-xs">
+              <GanttChart className="w-3.5 h-3.5" />
+              Timeline
+            </TabsTrigger>
+            <TabsTrigger value="docs" className="flex items-center gap-1.5 text-xs">
+              <FileText className="w-3.5 h-3.5" />
+              Docs
+            </TabsTrigger>
+            <TabsTrigger value="discussion" className="flex items-center gap-1.5 text-xs">
+              <MessageSquare className="w-3.5 h-3.5" />
+              Discussion
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Board Tab */}
+          <TabsContent value="board" className="mt-0">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Left: Milestones + Members */}
+              <div className="lg:col-span-3 space-y-4">
+                <MilestonePanel
+                  projectId={project.id}
+                  milestones={milestones}
+                  tasks={tasks}
+                  onMilestoneSelect={setSelectedMilestone}
+                  selectedMilestoneId={selectedMilestone}
+                />
+
+                {/* Members */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-semibold">Team</CardTitle>
+                      {isLeadership && (
+                        <Button size="sm" variant="ghost" onClick={() => setShowAddMember(!showAddMember)} className="h-7 text-xs">
+                          <UserPlus className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-2 max-h-[200px] overflow-y-auto scrollbar-thin">
+                    {showAddMember && (
+                      <Select onValueChange={(userId) => {
+                        addMember.mutate({ project_id: project.id, user_id: userId });
+                        setShowAddMember(false);
+                      }}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Add member..." /></SelectTrigger>
+                        <SelectContent>
+                          {nonMembers.map(p => (
+                            <SelectItem key={p.user_id} value={p.user_id} className="text-xs">{p.full_name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    {memberProfiles.map(m => (
+                      <div key={m.id} className="flex items-center justify-between py-1 group">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary text-[10px] font-semibold">
+                            {m.full_name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="text-xs">{m.full_name}</span>
+                        </div>
+                        {isLeadership && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-5 w-5 opacity-0 group-hover:opacity-100"
+                            onClick={() => removeMember.mutate({ id: m.id, projectId: project.id })}
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                    {members.length === 0 && (
+                      <p className="text-xs text-muted-foreground text-center py-3">No members</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Center: Task Board */}
+              <div className="lg:col-span-6">
+                {selectedMilestone ? (
+                  <TaskBoard
+                    projectId={project.id}
+                    milestoneId={selectedMilestone}
+                    tasks={milestoneTasks}
+                    profiles={profiles}
+                  />
+                ) : (
+                  <div className="text-center py-16 border border-dashed border-border rounded-lg">
+                    <p className="text-sm text-muted-foreground">
+                      Select a milestone to view its tasks
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Right: Activity Feed */}
+              <div className="lg:col-span-3">
+                <ActivityFeed activities={activities} profiles={profiles} />
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Timeline Tab */}
+          <TabsContent value="timeline" className="mt-0">
+            <ProjectTimelinePanel
               milestones={milestones}
               tasks={tasks}
-              onMilestoneSelect={setSelectedMilestone}
-              selectedMilestoneId={selectedMilestone}
+              startDate={project.start_date}
+              deadline={project.deadline}
             />
+          </TabsContent>
 
-            {/* Members */}
-            <Card>
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-semibold">Team</CardTitle>
-                  {isLeadership && (
-                    <Button size="sm" variant="ghost" onClick={() => setShowAddMember(!showAddMember)} className="h-7 text-xs">
-                      <UserPlus className="w-3.5 h-3.5" />
-                    </Button>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2 max-h-[200px] overflow-y-auto scrollbar-thin">
-                {showAddMember && (
-                  <Select onValueChange={(userId) => {
-                    addMember.mutate({ project_id: project.id, user_id: userId });
-                    setShowAddMember(false);
-                  }}>
-                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Add member..." /></SelectTrigger>
-                    <SelectContent>
-                      {nonMembers.map(p => (
-                        <SelectItem key={p.user_id} value={p.user_id} className="text-xs">{p.full_name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-                {memberProfiles.map(m => (
-                  <div key={m.id} className="flex items-center justify-between py-1 group">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary text-[10px] font-semibold">
-                        {m.full_name.charAt(0).toUpperCase()}
-                      </div>
-                      <span className="text-xs">{m.full_name}</span>
-                    </div>
-                    {isLeadership && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-5 w-5 opacity-0 group-hover:opacity-100"
-                        onClick={() => removeMember.mutate({ id: m.id, projectId: project.id })}
-                      >
-                        <X className="w-3 h-3" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-                {members.length === 0 && (
-                  <p className="text-xs text-muted-foreground text-center py-3">No members</p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+          {/* Docs Tab */}
+          <TabsContent value="docs" className="mt-0">
+            <ProjectDocumentsPanel projectId={project.id} />
+          </TabsContent>
 
-          {/* Center: Task Board */}
-          <div className="lg:col-span-6">
-            {selectedMilestone ? (
-              <TaskBoard
-                projectId={project.id}
-                milestoneId={selectedMilestone}
-                tasks={milestoneTasks}
-                profiles={profiles}
-              />
-            ) : (
-              <div className="text-center py-16 border border-dashed border-border rounded-lg">
-                <p className="text-sm text-muted-foreground">
-                  Select a milestone to view its tasks
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Right: Activity Feed */}
-          <div className="lg:col-span-3">
-            <ActivityFeed activities={activities} profiles={profiles} />
-          </div>
-        </div>
+          {/* Discussion Tab */}
+          <TabsContent value="discussion" className="mt-0">
+            <ProjectCommentsPanel projectId={project.id} />
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Edit Project Dialog */}
