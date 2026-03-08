@@ -564,6 +564,11 @@ const GroupingMe = () => {
                       </Badge>
                     </div>
                   )}
+
+                  {/* Member Skills Badges - below name */}
+                  {viewingUserId && (
+                    <MemberSkillsBadges userId={viewingUserId} />
+                  )}
                   
                   <p className="text-xs text-muted-foreground mt-1">
                     {isViewingOther ? `${displayProfile?.full_name}'s Grouping Space` : 'My Grouping Space'}
