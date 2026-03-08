@@ -1,5 +1,5 @@
 import { useState, memo, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -10,10 +10,10 @@ import {
   PriorityLevel,
   useCreateProjectTask,
   useUpdateProjectTask,
-  useDeleteProjectTask,
 } from '@/hooks/useProjects';
 import { useAuth } from '@/hooks/useAuth';
-import { Plus, CheckCircle2, Circle, Clock, Eye, Trash2, Loader2, User } from 'lucide-react';
+import { EditTaskDialog } from './EditTaskDialog';
+import { Plus, CheckCircle2, Circle, Clock, Eye, Loader2, User, Pencil } from 'lucide-react';
 
 interface TaskBoardProps {
   projectId: string;
@@ -40,11 +40,11 @@ export const TaskBoard = memo(function TaskBoard({ projectId, milestoneId, tasks
   const { user, isLeadership } = useAuth();
   const createTask = useCreateProjectTask();
   const updateTask = useUpdateProjectTask();
-  const deleteTask = useDeleteProjectTask();
   const [showAdd, setShowAdd] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newAssignee, setNewAssignee] = useState('');
   const [newPriority, setNewPriority] = useState<PriorityLevel>('medium');
+  const [editingTask, setEditingTask] = useState<ProjectTask | null>(null);
 
   const tasksByStatus = useMemo(() => {
     const map: Record<ProjectTaskStatus, ProjectTask[]> = {
@@ -84,15 +84,19 @@ export const TaskBoard = memo(function TaskBoard({ projectId, milestoneId, tasks
     });
   };
 
+  const canEdit = (task: ProjectTask) => isLeadership || task.assigned_to === user?.id || task.created_by === user?.id;
+
   return (
     <div className="space-y-4">
-      {/* Header with add button */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Tasks</h3>
-        <Button size="sm" variant="outline" onClick={() => setShowAdd(!showAdd)} className="h-7 text-xs">
-          <Plus className="w-3.5 h-3.5 mr-1" />
-          Add Task
-        </Button>
+        {(isLeadership || user) && (
+          <Button size="sm" variant="outline" onClick={() => setShowAdd(!showAdd)} className="h-7 text-xs">
+            <Plus className="w-3.5 h-3.5 mr-1" />
+            Add Task
+          </Button>
+        )}
       </div>
 
       {/* Quick Add */}
@@ -104,6 +108,7 @@ export const TaskBoard = memo(function TaskBoard({ projectId, milestoneId, tasks
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
               className="h-8 text-sm"
+              onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
             />
             <div className="flex gap-2">
               <Select value={newAssignee} onValueChange={setNewAssignee}>
@@ -149,7 +154,22 @@ export const TaskBoard = memo(function TaskBoard({ projectId, milestoneId, tasks
               {tasksByStatus[col.key].map(task => (
                 <Card key={task.id} className="group">
                   <CardContent className="p-2.5 space-y-1.5">
-                    <p className="text-xs font-medium leading-tight">{task.title}</p>
+                    <div className="flex items-start justify-between gap-1">
+                      <p className="text-xs font-medium leading-tight flex-1">{task.title}</p>
+                      {canEdit(task) && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                          onClick={(e) => { e.stopPropagation(); setEditingTask(task); }}
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </Button>
+                      )}
+                    </div>
+                    {task.description && (
+                      <p className="text-[10px] text-muted-foreground line-clamp-2">{task.description}</p>
+                    )}
                     <div className="flex items-center justify-between">
                       <Badge variant="secondary" className={`text-[9px] h-4 ${priorityColors[task.priority]}`}>
                         {task.priority}
@@ -160,19 +180,21 @@ export const TaskBoard = memo(function TaskBoard({ projectId, milestoneId, tasks
                       </div>
                     </div>
                     {/* Status Selector */}
-                    <Select
-                      value={task.status}
-                      onValueChange={(v: ProjectTaskStatus) => handleStatusChange(task.id, v)}
-                    >
-                      <SelectTrigger className="h-6 text-[10px] border-none bg-muted/50 p-1 px-2">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {columns.map(c => (
-                          <SelectItem key={c.key} value={c.key} className="text-xs">{c.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    {canEdit(task) && (
+                      <Select
+                        value={task.status}
+                        onValueChange={(v: ProjectTaskStatus) => handleStatusChange(task.id, v)}
+                      >
+                        <SelectTrigger className="h-6 text-[10px] border-none bg-muted/50 p-1 px-2">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {columns.map(c => (
+                            <SelectItem key={c.key} value={c.key} className="text-xs">{c.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   </CardContent>
                 </Card>
               ))}
@@ -185,6 +207,16 @@ export const TaskBoard = memo(function TaskBoard({ projectId, milestoneId, tasks
           </div>
         ))}
       </div>
+
+      {/* Edit Task Dialog */}
+      {editingTask && (
+        <EditTaskDialog
+          open={!!editingTask}
+          onOpenChange={(open) => !open && setEditingTask(null)}
+          task={editingTask}
+          profiles={profiles}
+        />
+      )}
     </div>
   );
 });
