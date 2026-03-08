@@ -342,250 +342,191 @@ const MemberProfile = () => {
 
         <div className="lg:col-span-3 space-y-6">
 
-            {/* Projects Tab */}
-            <TabsContent value="projects" className="mt-0 space-y-6">
-              <MemberProjectsPanel memberId={userId!} memberName={member.profile.full_name} />
-            </TabsContent>
-
-            {/* Tasks Tab (original execution tasks) */}
-            <TabsContent value="tasks" className="mt-0 space-y-6">
-              {/* Alerts Panel (Read-only view) */}
-              <Card className={totalAlerts > 0 ? 'border-[hsl(var(--status-pending))]/50' : ''}>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 font-display text-[hsl(var(--status-pending))]">
-                    <AlertTriangle className="w-5 h-5" />
-                    Alerts
-                    {totalAlerts > 0 && (
-                      <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-[hsl(var(--status-pending))]/20">
-                        {totalAlerts}
-                      </span>
-                    )}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {totalAlerts === 0 ? (
-                    <p className="text-center text-muted-foreground py-4">No alerts - you're on track!</p>
-                  ) : (
-                    <div className="space-y-4">
-                      {pendingTasks.map(task => (
-                        <div key={task.id} className="p-4 rounded-lg border border-[hsl(var(--status-pending))]/30 bg-[hsl(var(--status-pending))]/5">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <h5 className="font-semibold">{task.title}</h5>
-                              <p className="text-sm text-muted-foreground">
-                                Deadline: {format(new Date(task.deadline), 'MMM dd, HH:mm')}
-                              </p>
-                            </div>
-                            <span className="status-badge status-pending">Pending</span>
-                          </div>
+          {/* Alerts Panel */}
+          <Card className={totalAlerts > 0 ? 'border-[hsl(var(--status-pending))]/50' : ''}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 font-display text-[hsl(var(--status-pending))]">
+                <AlertTriangle className="w-5 h-5" />
+                Alerts
+                {totalAlerts > 0 && (
+                  <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-[hsl(var(--status-pending))]/20">
+                    {totalAlerts}
+                  </span>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {totalAlerts === 0 ? (
+                <p className="text-center text-muted-foreground py-4">No alerts - you're on track!</p>
+              ) : (
+                <div className="space-y-4">
+                  {pendingTasks.map(task => (
+                    <div key={task.id} className="p-4 rounded-lg border border-[hsl(var(--status-pending))]/30 bg-[hsl(var(--status-pending))]/5">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h5 className="font-semibold">{task.title}</h5>
+                          <p className="text-sm text-muted-foreground">
+                            Deadline: {format(new Date(task.deadline), 'MMM dd, HH:mm')}
+                          </p>
                         </div>
-                      ))}
-                      {approvals.map(approval => (
-                        <div key={approval.id} className="p-4 rounded-lg border bg-muted/30">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <h5 className="font-semibold">{approval.task_title}</h5>
-                              <p className="text-sm text-muted-foreground mb-2">
-                                Reason submitted: {format(new Date(approval.created_at), 'MMM dd, HH:mm')}
-                              </p>
-                              {approval.reason && (
-                                <p className="text-sm bg-background p-2 rounded border italic">
-                                  "{approval.reason}"
-                                </p>
-                              )}
-                            </div>
-                            <span className="px-2 py-1 text-xs rounded bg-amber-500/20 text-amber-700">
-                              Awaiting Approval
-                            </span>
-                          </div>
-                        </div>
-                      ))}
+                        <span className="status-badge status-pending">Pending</span>
+                      </div>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* In Progress Tasks */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 font-display">
-                    <Clock className="w-5 h-5 text-[hsl(var(--status-working))]" />
-                    In Progress
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {inProgressTasks.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-4">No tasks in progress</p>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Task</TableHead>
-                          <TableHead>Assigned By</TableHead>
-                          <TableHead>Started</TableHead>
-                          <TableHead>Deadline</TableHead>
-                          <TableHead>Status</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {inProgressTasks.map((task) => (
-                          <TableRow key={task.id}>
-                            <TableCell className="font-medium">{task.title}</TableCell>
-                            <TableCell>
-                              {task.assigner_name ? (
-                                <span>
-                                  {task.assigner_name}
-                                  {task.assigner_role && (
-                                    <span className="text-xs text-muted-foreground ml-1">
-                                      ({task.assigner_role})
-                                    </span>
-                                  )}
-                                </span>
-                              ) : '-'}
-                            </TableCell>
-                            <TableCell>{task.accepted_at ? format(new Date(task.accepted_at), 'HH:mm') : '-'}</TableCell>
-                            <TableCell>{format(new Date(task.deadline), 'MMM dd, HH:mm')}</TableCell>
-                            <TableCell><span className="status-badge status-working">Working</span></TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Personal Log */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between font-display">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="w-5 h-5 text-[hsl(var(--status-completed))]" />
-                      Personal Log
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button variant="outline" size="sm">
-                            <CalendarIcon className="w-4 h-4 mr-2" />
-                            {selectedLogDate ? format(selectedLogDate, 'MMM dd') : 'All Dates'}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="p-0" align="end">
-                          <Calendar
-                            mode="single"
-                            selected={selectedLogDate}
-                            onSelect={setSelectedLogDate}
-                            initialFocus
-                          />
-                          {selectedLogDate && (
-                            <div className="p-2 border-t">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="w-full"
-                                onClick={() => setSelectedLogDate(undefined)}
-                              >
-                                Clear filter
-                              </Button>
-                            </div>
+                  ))}
+                  {approvals.map(approval => (
+                    <div key={approval.id} className="p-4 rounded-lg border bg-muted/30">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h5 className="font-semibold">{approval.task_title}</h5>
+                          <p className="text-sm text-muted-foreground mb-2">
+                            Reason submitted: {format(new Date(approval.created_at), 'MMM dd, HH:mm')}
+                          </p>
+                          {approval.reason && (
+                            <p className="text-sm bg-background p-2 rounded border italic">"{approval.reason}"</p>
                           )}
-                        </PopoverContent>
-                      </Popover>
-
-                      <Button variant="outline" size="sm" onClick={() => setShowExportDialog(true)}>
-                        <Download className="w-4 h-4 mr-2" />
-                        Export
-                      </Button>
+                        </div>
+                        <span className="px-2 py-1 text-xs rounded bg-amber-500/20 text-amber-700">Awaiting Approval</span>
+                      </div>
                     </div>
-                  </CardTitle>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-                </CardHeader>
-                <CardContent>
-                  {completedTasks.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-4">
-                      No completed tasks yet.
-                    </p>
-                    ) : filteredCompletedTasks.length === 0 ? (
-                      <p className="text-center text-muted-foreground py-4">
-                        No completed tasks on this date.
-                      </p>
-                    ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Task</TableHead>
-                          <TableHead>Assigned By</TableHead>
-                          <TableHead>Start</TableHead>
-                          <TableHead>End</TableHead>
-                          <TableHead>Duration</TableHead>
-                          <TableHead>Docs</TableHead>
-                          {isCaptainOrVice && <TableHead>Actions</TableHead>}
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredCompletedTasks.slice(0, 20).map((task) => (
-                          <TableRow key={task.id}>
-                            <TableCell>{task.completed_at ? format(new Date(task.completed_at), 'MMM dd') : '-'}</TableCell>
-                            <TableCell className="font-medium">{task.title}</TableCell>
-                            <TableCell>
-                              {task.assigner_name ? (
-                                <span>
-                                  {task.assigner_name}
-                                  {task.assigner_role && (
-                                    <span className="text-xs text-muted-foreground ml-1">
-                                      ({task.assigner_role})
-                                    </span>
-                                  )}
-                                </span>
-                              ) : '-'}
-                            </TableCell>
-                            <TableCell>{task.accepted_at ? format(new Date(task.accepted_at), 'HH:mm') : '-'}</TableCell>
-                            <TableCell>{task.completed_at ? format(new Date(task.completed_at), 'HH:mm') : '-'}</TableCell>
-                            <TableCell>{formatDuration(task.duration_minutes)}</TableCell>
+          {/* In Progress Tasks */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 font-display">
+                <Clock className="w-5 h-5 text-[hsl(var(--status-working))]" />
+                In Progress
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {inProgressTasks.length === 0 ? (
+                <p className="text-center text-muted-foreground py-4">No tasks in progress</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Task</TableHead>
+                      <TableHead>Assigned By</TableHead>
+                      <TableHead>Started</TableHead>
+                      <TableHead>Deadline</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {inProgressTasks.map((task) => (
+                      <TableRow key={task.id}>
+                        <TableCell className="font-medium">{task.title}</TableCell>
+                        <TableCell>
+                          {task.assigner_name ? (
+                            <span>{task.assigner_name}{task.assigner_role && <span className="text-xs text-muted-foreground ml-1">({task.assigner_role})</span>}</span>
+                          ) : '-'}
+                        </TableCell>
+                        <TableCell>{task.accepted_at ? format(new Date(task.accepted_at), 'HH:mm') : '-'}</TableCell>
+                        <TableCell>{format(new Date(task.deadline), 'MMM dd, HH:mm')}</TableCell>
+                        <TableCell><span className="status-badge status-working">Working</span></TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
 
-                            <TableCell>
-                              {taskDocs.has(task.id) ? (
-                                <a 
-                                  href={taskDocs.get(task.id)} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="text-primary hover:underline flex items-center gap-1"
-                                >
-                                  <ExternalLink className="w-3 h-3" />
-                                  View
-                                </a>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </TableCell>
-                            {isCaptainOrVice && (
-                              <TableCell>
-                                <Button 
-                                  size="sm" 
-                                  variant="ghost"
-                                  className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0"
-                                  onClick={() => setDeleteConfirmTask(task)}
-                                  title="Reset/Delete Task"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </TableCell>
-                            )}
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+          {/* Personal Log */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between font-display">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-5 h-5 text-[hsl(var(--status-completed))]" />
+                  Personal Log
+                </div>
+                <div className="flex items-center gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <CalendarIcon className="w-4 h-4 mr-2" />
+                        {selectedLogDate ? format(selectedLogDate, 'MMM dd') : 'All Dates'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="p-0" align="end">
+                      <Calendar mode="single" selected={selectedLogDate} onSelect={setSelectedLogDate} initialFocus />
+                      {selectedLogDate && (
+                        <div className="p-2 border-t">
+                          <Button size="sm" variant="ghost" className="w-full" onClick={() => setSelectedLogDate(undefined)}>Clear filter</Button>
+                        </div>
+                      )}
+                    </PopoverContent>
+                  </Popover>
+                  <Button variant="outline" size="sm" onClick={() => setShowExportDialog(true)}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Export
+                  </Button>
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {completedTasks.length === 0 ? (
+                <p className="text-center text-muted-foreground py-4">No completed tasks yet.</p>
+              ) : filteredCompletedTasks.length === 0 ? (
+                <p className="text-center text-muted-foreground py-4">No completed tasks on this date.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Task</TableHead>
+                      <TableHead>Assigned By</TableHead>
+                      <TableHead>Start</TableHead>
+                      <TableHead>End</TableHead>
+                      <TableHead>Duration</TableHead>
+                      <TableHead>Docs</TableHead>
+                      {isCaptainOrVice && <TableHead>Actions</TableHead>}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredCompletedTasks.slice(0, 20).map((task) => (
+                      <TableRow key={task.id}>
+                        <TableCell>{task.completed_at ? format(new Date(task.completed_at), 'MMM dd') : '-'}</TableCell>
+                        <TableCell className="font-medium">{task.title}</TableCell>
+                        <TableCell>
+                          {task.assigner_name ? (
+                            <span>{task.assigner_name}{task.assigner_role && <span className="text-xs text-muted-foreground ml-1">({task.assigner_role})</span>}</span>
+                          ) : '-'}
+                        </TableCell>
+                        <TableCell>{task.accepted_at ? format(new Date(task.accepted_at), 'HH:mm') : '-'}</TableCell>
+                        <TableCell>{task.completed_at ? format(new Date(task.completed_at), 'HH:mm') : '-'}</TableCell>
+                        <TableCell>{formatDuration(task.duration_minutes)}</TableCell>
+                        <TableCell>
+                          {taskDocs.has(task.id) ? (
+                            <a href={taskDocs.get(task.id)} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1">
+                              <ExternalLink className="w-3 h-3" />View
+                            </a>
+                          ) : <span className="text-muted-foreground">-</span>}
+                        </TableCell>
+                        {isCaptainOrVice && (
+                          <TableCell>
+                            <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0" onClick={() => setDeleteConfirmTask(task)} title="Reset/Delete Task">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </>
   );
+
+  const profileContent = isPBL ? pblContent : groupingContent;
 
   if (isPBL) {
     return <PBLLayout title={member.profile.full_name}>{profileContent}</PBLLayout>;
