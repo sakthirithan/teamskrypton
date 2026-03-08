@@ -50,6 +50,7 @@ export function TargetActionPanel({ session }: TargetActionPanelProps) {
 
   
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isViewAllOpen, setIsViewAllOpen] = useState(false);
   const [editingTarget, setEditingTarget] = useState<GroupingTarget | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   
