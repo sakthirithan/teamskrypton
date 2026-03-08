@@ -355,8 +355,8 @@ function StepBlock({ block, isReadOnly, onStatusToggle, onEdit, onDelete }: {
           )}
           {block.resource_url && (
             <a href={block.resource_url} target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-1">
-              <ExternalLink className="w-3 h-3" /> Resource Link
+              className="inline-flex items-center gap-1 text-xs text-primary underline hover:opacity-80 mt-1 cursor-pointer z-10 relative">
+              <ExternalLink className="w-3 h-3" /> {block.resource_url.length > 40 ? block.resource_url.slice(0, 40) + '…' : block.resource_url}
             </a>
           )}
         </div>
@@ -393,14 +393,17 @@ function LinkBlock({ link, isReadOnly, onDelete }: {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <a href={link.url} target="_blank" rel="noopener noreferrer"
-              className="font-medium text-sm text-primary hover:underline truncate">
+              className="font-medium text-sm text-primary underline hover:opacity-80 truncate cursor-pointer z-10 relative">
               {link.title}
             </a>
             <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
               {typeConfig.label}
             </Badge>
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5 truncate">{link.url}</p>
+          <a href={link.url} target="_blank" rel="noopener noreferrer"
+            className="text-xs text-muted-foreground mt-0.5 truncate block underline hover:text-primary cursor-pointer z-10 relative">
+            {link.url}
+          </a>
         </div>
 
         {!isReadOnly && (
