@@ -18,6 +18,8 @@ import PBLDashboard from "./pages/PBLDashboard";
 import PBLProjects from "./pages/PBLProjects";
 import PBLAnalytics from "./pages/PBLAnalytics";
 import ProjectDetail from "./pages/ProjectDetail";
+import PBLDocumentation from "./pages/PBLDocumentation";
+import PBLNotifications from "./pages/PBLNotifications";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
