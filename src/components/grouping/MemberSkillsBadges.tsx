@@ -1,5 +1,6 @@
 import { Badge } from '@/components/ui/badge';
 import { useMemberSkills, SKILL_TYPE_LABELS, SKILL_DOMAIN_LABELS, SkillType, SkillDomain } from '@/hooks/useMemberSkills';
+import { SkillEndorsementBadge } from '@/components/grouping/SkillEndorsementBadge';
 
 interface MemberSkillsBadgesProps {
   userId: string;
@@ -53,9 +54,12 @@ export function MemberSkillsBadges({ userId, compact = false }: MemberSkillsBadg
               {type === 'specialization' ? 'Spec' : SKILL_TYPE_LABELS[type]}
             </span>
             {items.map(skill => (
-              <Badge key={skill.id} variant="outline" className={`text-[10px] px-1.5 py-0 ${getSkillTypeColor(skill.skill_type)}`}>
-                {skill.skill_name}
-              </Badge>
+              <div key={skill.id} className="inline-flex items-center gap-0.5">
+                <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${getSkillTypeColor(skill.skill_type)}`}>
+                  {skill.skill_name}
+                </Badge>
+                <SkillEndorsementBadge memberSkillId={skill.id} skillUserId={userId} />
+              </div>
             ))}
           </div>
         );

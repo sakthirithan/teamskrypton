@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plus, ExternalLink, Edit2, Trash2, CheckCircle, Circle, ArrowDown, Loader2, Link2, Github, Globe } from 'lucide-react';
 import { useSkillTracks, FlowchartBlock } from '@/hooks/useSkillTracks';
 import { useSkillDevLinks, SkillDevLink } from '@/hooks/useSkillDevLinks';
+import { SkillReflectionPanel } from '@/components/grouping/SkillReflectionPanel';
 
 interface LearningFlowchartProps {
   trackId: string;
@@ -300,6 +301,8 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
           </div>
         </DialogContent>
       </Dialog>
+      {/* Weekly Reflections */}
+      <SkillReflectionPanel trackId={trackId} isReadOnly={isReadOnly} />
     </div>
   );
 }
