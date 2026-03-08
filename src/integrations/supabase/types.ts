@@ -856,6 +856,44 @@ export type Database = {
         }
         Relationships: []
       }
+      skill_dev_links: {
+        Row: {
+          created_at: string
+          id: string
+          link_type: string
+          skill_track_id: string
+          title: string
+          url: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          link_type?: string
+          skill_track_id: string
+          title: string
+          url: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          link_type?: string
+          skill_track_id?: string
+          title?: string
+          url?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skill_dev_links_skill_track_id_fkey"
+            columns: ["skill_track_id"]
+            isOneToOne: false
+            referencedRelation: "skill_tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       skill_flowchart_blocks: {
         Row: {
           created_at: string
