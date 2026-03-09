@@ -553,8 +553,8 @@ function StepBlock({ block, isReadOnly, isLocked, isSequential, onStatusToggle, 
             </Tooltip>
           ) : (
             <StatusIcon className={`w-6 h-6 mt-1 shrink-0 ${
-              block.status === 'completed' ? 'text-green-500' :
-              block.status === 'in_progress' ? 'text-blue-500' :
+              block.status === 'completed' ? 'text-success' :
+              block.status === 'in_progress' ? 'text-info' :
               'text-muted-foreground'
             }`} />
           )}
