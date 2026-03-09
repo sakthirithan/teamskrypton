@@ -12,13 +12,11 @@ import { SessionCard } from '@/components/grouping/SessionCard';
 import { TeamSkillOverview } from '@/components/grouping/TeamSkillOverview';
 import { SkillAssignmentPanel } from '@/components/grouping/SkillAssignmentPanel';
 import { AllReflectionsPanel } from '@/components/grouping/AllReflectionsPanel';
-import { SkillActivityFeed } from '@/components/grouping/SkillActivityFeed';
-import { TeamAnalyticsReport } from '@/components/grouping/TeamAnalyticsReport';
 
 import { useGroupingSessions } from '@/hooks/useGroupingSessions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
-import { Target, MessageSquare, BookOpen, ClipboardList, NotebookPen, Activity, BarChart3 } from 'lucide-react';
+import { Target, MessageSquare, BookOpen, ClipboardList, NotebookPen } from 'lucide-react';
 
 const GroupingHome = () => {
   const { user, isLoading, isLeadership, isCaptainOrVice, role } = useAuth();
