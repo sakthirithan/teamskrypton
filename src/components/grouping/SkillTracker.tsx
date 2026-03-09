@@ -285,8 +285,8 @@ export function SkillTracker({ session, userId, isReadOnly = false }: SkillTrack
         </Card>
       ))}
 
-      {/* AI Skill Recommendations */}
-      {!isReadOnly && <AISkillRecommendations userId={userId} sessionId={session.id} />}
+      {/* Daily Study Board */}
+      {!isReadOnly && <DailyStudyBoard sessionId={session.id} userId={userId} />}
     </div>
   );
 }
