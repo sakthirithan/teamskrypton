@@ -73,18 +73,10 @@ const GroupingHome = () => {
           <div className={`${isCaptainOrVice ? 'lg:col-span-2' : ''} space-y-3 order-1`}>
             {isLeadership ? (
               <Tabs defaultValue="skills" className="w-full">
-                <TabsList className="grid w-full grid-cols-6 h-10 mb-3">
+                <TabsList className="grid w-full grid-cols-4 h-10 mb-3">
                   <TabsTrigger value="skills" className="flex items-center gap-1 text-[10px] sm:text-xs px-1 sm:px-2">
                     <BookOpen className="w-3.5 h-3.5 shrink-0" />
                     <span className="hidden sm:inline truncate">Skills</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="activity" className="flex items-center gap-1 text-[10px] sm:text-xs px-1 sm:px-2">
-                    <Activity className="w-3.5 h-3.5 shrink-0" />
-                    <span className="hidden sm:inline truncate">Feed</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="analytics" className="flex items-center gap-1 text-[10px] sm:text-xs px-1 sm:px-2">
-                    <BarChart3 className="w-3.5 h-3.5 shrink-0" />
-                    <span className="hidden sm:inline truncate">Reports</span>
                   </TabsTrigger>
                   <TabsTrigger value="ps" className="flex items-center gap-1 text-[10px] sm:text-xs px-1 sm:px-2">
                     <ClipboardList className="w-3.5 h-3.5 shrink-0" />
