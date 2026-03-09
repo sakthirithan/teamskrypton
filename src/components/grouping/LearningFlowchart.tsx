@@ -26,8 +26,8 @@ interface LearningFlowchartProps {
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof CheckCircle }> = {
   not_started: { label: 'Not Started', color: 'bg-muted text-muted-foreground', icon: Circle },
-  in_progress: { label: 'In Progress', color: 'bg-blue-500/10 text-blue-600 border-blue-500/20', icon: Loader2 },
-  completed: { label: 'Completed', color: 'bg-green-500/10 text-green-600 border-green-500/20', icon: CheckCircle },
+  in_progress: { label: 'In Progress', color: 'bg-info/10 text-info border-info/20', icon: Loader2 },
+  completed: { label: 'Completed', color: 'bg-success/10 text-success border-success/20', icon: CheckCircle },
 };
 
 const LINK_TYPE_CONFIG: Record<string, { label: string; icon: typeof Github }> = {
