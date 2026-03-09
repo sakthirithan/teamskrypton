@@ -22,6 +22,7 @@ export interface FlowchartBlock {
   resource_url: string | null;
   sort_order: number;
   status: string;
+  block_shape: string;
   created_at: string;
   updated_at: string;
 }
