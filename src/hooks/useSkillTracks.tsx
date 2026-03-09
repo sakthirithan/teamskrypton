@@ -9,6 +9,7 @@ export interface SkillTrack {
   user_id: string;
   skill_name: string;
   is_primary: boolean;
+  is_sequential: boolean;
   week_start: string;
   created_at: string;
   updated_at: string;
