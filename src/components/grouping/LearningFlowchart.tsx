@@ -541,8 +541,8 @@ function StepBlock({ block, isReadOnly, isLocked, isSequential, onStatusToggle, 
                   title="Click to change status"
                 >
                   <StatusIcon className={`w-6 h-6 ${
-                    block.status === 'completed' ? 'text-green-500' :
-                    block.status === 'in_progress' ? 'text-blue-500 animate-spin' :
+                    block.status === 'completed' ? 'text-success' :
+                    block.status === 'in_progress' ? 'text-info animate-spin' :
                     'text-muted-foreground hover:text-primary'
                   }`} />
                 </button>
