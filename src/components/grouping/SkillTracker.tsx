@@ -276,7 +276,7 @@ export function SkillTracker({ session, userId, isReadOnly = false }: SkillTrack
                       trackId={track.id}
                       sessionId={session.id}
                       userId={userId}
-                      isReadOnly={isReadOnly}
+                      isReadOnly={!canEdit}
                       isSequential={track.is_sequential}
                       onFlowchartUpdate={() => recordWeekActivity.mutate()}
                     />
