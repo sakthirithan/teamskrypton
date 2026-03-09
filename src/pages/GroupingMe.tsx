@@ -41,6 +41,8 @@ import { ProductivityInsights } from '@/components/grouping/ProductivityInsights
 import { QuickEntryWidget } from '@/components/grouping/QuickEntryWidget';
 import { PointsDisplay } from '@/components/points/PointsDisplay';
 import { SkillTracker } from '@/components/grouping/SkillTracker';
+import { SkillActivityFeed } from '@/components/grouping/SkillActivityFeed';
+import { TeamAnalyticsReport } from '@/components/grouping/TeamAnalyticsReport';
 import { MemberSkillsBadges } from '@/components/grouping/MemberSkillsBadges';
 import { SkillAssignmentPanel } from '@/components/grouping/SkillAssignmentPanel';
 import { ROLE_LABELS, KryptonRole } from '@/lib/constants';
@@ -592,9 +594,12 @@ const GroupingMe = () => {
             <>
               {/* Main Tabs - Skills | PS Entries | Manage */}
               <Tabs defaultValue="skills" className="w-full">
-                <TabsList className="w-full grid grid-cols-2">
+                <TabsList className={`w-full grid ${isLeadership ? 'grid-cols-3' : 'grid-cols-2'}`}>
                   <TabsTrigger value="skills" className="text-xs sm:text-sm">🎯 Skill Tracker</TabsTrigger>
                   <TabsTrigger value="ps-entries" className="text-xs sm:text-sm">📝 PS Entries</TabsTrigger>
+                  {isLeadership && (
+                    <TabsTrigger value="feed-reports" className="text-xs sm:text-sm">📊 Feed & Reports</TabsTrigger>
+                  )}
                 </TabsList>
 
                 {/* Skill Tracker Tab */}
@@ -1119,6 +1124,14 @@ const GroupingMe = () => {
               </Card>
 
                 </TabsContent>
+
+                {/* Feed & Reports Tab - Leadership Only */}
+                {isLeadership && (
+                  <TabsContent value="feed-reports" className="mt-3 space-y-4">
+                    <SkillActivityFeed session={viewingSession} />
+                    <TeamAnalyticsReport session={viewingSession} />
+                  </TabsContent>
+                )}
               </Tabs>
             </>
           )}
