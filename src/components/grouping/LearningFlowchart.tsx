@@ -186,61 +186,35 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
 
   return (
     <TooltipProvider>
-      <div className="space-y-5">
-        {/* Enhanced Progress Section */}
+      <div className="space-y-4">
+        {/* Minimal Progress Bar */}
         {blocks.length > 0 && (
-          <div className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-r from-card to-card/60 border">
-            <div className="flex-1 space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Progress</span>
-                <span className="font-semibold">{progress}%</span>
-              </div>
-              <div className="h-3 rounded-full bg-muted overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-primary to-primary/80 transition-all duration-500"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full rounded-full bg-primary transition-all duration-500"
+                style={{ width: `${progress}%` }}
+              />
             </div>
-            <div className="text-right">
-              <p className="text-sm font-semibold text-muted-foreground">
-                {completedCount}/{blocks.length} steps
-              </p>
-              {isSequential && (
-                <Badge variant="outline" className="text-xs gap-1 bg-primary/5 text-primary border-primary/20 mt-1">
-                  <Lock className="w-3 h-3" />
-                  Sequential
-                </Badge>
-              )}
-            </div>
+            <span className="text-xs font-medium text-muted-foreground tabular-nums whitespace-nowrap">
+              {completedCount}/{blocks.length}
+            </span>
+            {isSequential && (
+              <Lock className="w-3.5 h-3.5 text-muted-foreground/60" />
+            )}
           </div>
         )}
 
-        {/* Enhanced Timeline */}
-        <GlobalScrollLayout className="space-y-4" maxHeight="60vh">
+        {/* Minimal Timeline */}
+        <div className="space-y-2">
           {timeline.length === 0 && (
-            <div className="text-center py-12 border-2 border-dashed border-border/50 rounded-2xl">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/10 to-[hsl(var(--info))]/10 flex items-center justify-center mx-auto mb-4">
-                <Circle className="w-8 h-8 text-primary/40" />
-              </div>
-              <p className="text-base font-medium text-muted-foreground mb-2">No learning steps yet</p>
-              {!isReadOnly && (
-                <p className="text-sm text-muted-foreground/70">Add your first learning step or development link below</p>
-              )}
+            <div className="text-center py-8 border border-dashed border-border/60 rounded-lg">
+              <p className="text-sm text-muted-foreground">No learning steps yet</p>
             </div>
           )}
 
           {timeline.map((item, idx) => (
             <div key={item.kind === 'step' ? `s-${item.data.id}` : `l-${item.data.id}`}>
-              {/* Enhanced Connector */}
-              {idx > 0 && (
-                <div className="flex justify-center py-2">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-b from-primary/20 to-primary/40 flex items-center justify-center">
-                    <ArrowDown className="w-4 h-4 text-primary" />
-                  </div>
-                </div>
-              )}
-
               {item.kind === 'step' ? (
                 <StepBlock
                   block={item.data}
@@ -260,7 +234,7 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
               )}
             </div>
           ))}
-        </GlobalScrollLayout>
+        </div>
 
         {/* Enhanced Action Buttons */}
         {!isReadOnly && (
