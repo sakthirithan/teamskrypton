@@ -186,61 +186,35 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
 
   return (
     <TooltipProvider>
-      <div className="space-y-5">
-        {/* Enhanced Progress Section */}
+      <div className="space-y-4">
+        {/* Minimal Progress Bar */}
         {blocks.length > 0 && (
-          <div className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-r from-card to-card/60 border">
-            <div className="flex-1 space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Progress</span>
-                <span className="font-semibold">{progress}%</span>
-              </div>
-              <div className="h-3 rounded-full bg-muted overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-primary to-primary/80 transition-all duration-500"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full rounded-full bg-primary transition-all duration-500"
+                style={{ width: `${progress}%` }}
+              />
             </div>
-            <div className="text-right">
-              <p className="text-sm font-semibold text-muted-foreground">
-                {completedCount}/{blocks.length} steps
-              </p>
-              {isSequential && (
-                <Badge variant="outline" className="text-xs gap-1 bg-primary/5 text-primary border-primary/20 mt-1">
-                  <Lock className="w-3 h-3" />
-                  Sequential
-                </Badge>
-              )}
-            </div>
+            <span className="text-xs font-medium text-muted-foreground tabular-nums whitespace-nowrap">
+              {completedCount}/{blocks.length}
+            </span>
+            {isSequential && (
+              <Lock className="w-3.5 h-3.5 text-muted-foreground/60" />
+            )}
           </div>
         )}
 
-        {/* Enhanced Timeline */}
-        <GlobalScrollLayout className="space-y-4" maxHeight="60vh">
+        {/* Minimal Timeline */}
+        <div className="space-y-2">
           {timeline.length === 0 && (
-            <div className="text-center py-12 border-2 border-dashed border-border/50 rounded-2xl">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/10 to-[hsl(var(--info))]/10 flex items-center justify-center mx-auto mb-4">
-                <Circle className="w-8 h-8 text-primary/40" />
-              </div>
-              <p className="text-base font-medium text-muted-foreground mb-2">No learning steps yet</p>
-              {!isReadOnly && (
-                <p className="text-sm text-muted-foreground/70">Add your first learning step or development link below</p>
-              )}
+            <div className="text-center py-8 border border-dashed border-border/60 rounded-lg">
+              <p className="text-sm text-muted-foreground">No learning steps yet</p>
             </div>
           )}
 
           {timeline.map((item, idx) => (
             <div key={item.kind === 'step' ? `s-${item.data.id}` : `l-${item.data.id}`}>
-              {/* Enhanced Connector */}
-              {idx > 0 && (
-                <div className="flex justify-center py-2">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-b from-primary/20 to-primary/40 flex items-center justify-center">
-                    <ArrowDown className="w-4 h-4 text-primary" />
-                  </div>
-                </div>
-              )}
-
               {item.kind === 'step' ? (
                 <StepBlock
                   block={item.data}
@@ -260,16 +234,16 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
               )}
             </div>
           ))}
-        </GlobalScrollLayout>
+        </div>
 
-        {/* Enhanced Action Buttons */}
+        {/* Minimal Action Buttons */}
         {!isReadOnly && (
-          <div className="flex gap-3">
+          <div className="flex gap-2 pt-2">
             <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="flex-1 h-10 gap-2 shadow-sm hover:shadow-md transition-shadow">
-                  <Plus className="w-4 h-4" />
-                  Add Learning Step
+                <Button variant="outline" size="sm" className="flex-1 h-9 gap-1.5 text-xs">
+                  <Plus className="w-3.5 h-3.5" />
+                  Add Step
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-2xl">
@@ -347,9 +321,9 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
 
             <Dialog open={isAddLinkOpen} onOpenChange={setIsAddLinkOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="flex-1 h-10 gap-2 shadow-sm hover:shadow-md transition-shadow">
-                  <Link2 className="w-4 h-4" />
-                  Add Dev Link
+                <Button variant="outline" size="sm" className="flex-1 h-9 gap-1.5 text-xs">
+                  <Link2 className="w-3.5 h-3.5" />
+                  Add Link
                 </Button>
               </DialogTrigger>
               <DialogContent>
@@ -483,7 +457,7 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
   );
 }
 
-/** Enhanced Step Block Component */
+/** Minimal Step Block Component */
 function StepBlock({ block, isReadOnly, isLocked, isSequential, onStatusToggle, onEdit, onDelete }: {
   block: FlowchartBlock;
   isReadOnly: boolean;
@@ -495,170 +469,95 @@ function StepBlock({ block, isReadOnly, isLocked, isSequential, onStatusToggle, 
 }) {
   const config = STATUS_CONFIG[block.status] || STATUS_CONFIG.not_started;
   const StatusIcon = config.icon;
-  const shape = block.block_shape || 'rectangle';
-  const shapeClass = getShapeClasses(shape);
-  
-  const useClipShape = shape === 'diamond' || shape === 'hexagon' || shape === 'octagon';
 
   return (
-    <div className={`relative transition-all duration-200 ${isLocked ? 'opacity-70' : ''}`}>
-      {/* Enhanced Shape Indicator */}
-      {useClipShape && (
-        <div className="absolute -left-2 top-1/2 -translate-y-1/2 z-10">
-          <div className={`w-8 h-8 ${shapeClass} shadow-lg ${
-            block.status === 'completed' ? 'bg-gradient-to-br from-success/70 to-success' :
-            block.status === 'in_progress' ? 'bg-gradient-to-br from-info/70 to-info' :
-            'bg-gradient-to-br from-muted-foreground/20 to-muted-foreground/40'
+    <div className={`group flex items-start gap-3 p-3 rounded-lg border transition-all ${
+      isLocked ? 'opacity-50 bg-muted/30 border-border/50' :
+      block.status === 'completed' ? 'bg-success/5 border-success/30' :
+      block.status === 'in_progress' ? 'bg-info/5 border-info/30' :
+      'bg-card border-border hover:border-primary/40'
+    }`}>
+      {/* Status Toggle */}
+      {isLocked ? (
+        <Lock className="w-5 h-5 text-muted-foreground/50 mt-0.5 shrink-0" />
+      ) : !isReadOnly ? (
+        <button 
+          onClick={() => onStatusToggle(block)} 
+          className="mt-0.5 shrink-0 hover:scale-110 transition-transform"
+        >
+          <StatusIcon className={`w-5 h-5 ${
+            block.status === 'completed' ? 'text-success' :
+            block.status === 'in_progress' ? 'text-info animate-spin' :
+            'text-muted-foreground/60 hover:text-primary'
           }`} />
+        </button>
+      ) : (
+        <StatusIcon className={`w-5 h-5 mt-0.5 shrink-0 ${
+          block.status === 'completed' ? 'text-success' :
+          block.status === 'in_progress' ? 'text-info' :
+          'text-muted-foreground/60'
+        }`} />
+      )}
+
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        <p className={`text-sm font-medium leading-tight ${isLocked ? 'text-muted-foreground' : ''}`}>
+          {block.title}
+        </p>
+        {block.description && (
+          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+            {block.description}
+          </p>
+        )}
+        {block.resource_url && !isLocked && (
+          <a 
+            href={block.resource_url} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-1"
+          >
+            <ExternalLink className="w-3 h-3" /> Resource
+          </a>
+        )}
+      </div>
+
+      {/* Actions - visible on hover */}
+      {!isReadOnly && !isLocked && (
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onEdit(block)}>
+            <Edit2 className="w-3.5 h-3.5" />
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive/70 hover:text-destructive">
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Step</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Delete "{block.title}"? This cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={() => onDelete(block.id)}
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       )}
-      
-      <div className={`border-2 p-5 transition-all duration-200 shadow-sm hover:shadow-md ${
-        useClipShape ? 'rounded-xl ml-6' : shapeClass
-      } ${
-        block.status === 'completed' ? 'border-success/40 bg-success/5' :
-        block.status === 'in_progress' ? 'border-info/40 bg-info/5' :
-        'border-border hover:border-primary/30 bg-card/50'
-      } ${isLocked ? 'border-dashed' : ''}`}>
-        <div className="flex items-start gap-4">
-          {isLocked ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="mt-1 shrink-0 cursor-not-allowed">
-                  <Lock className="w-6 h-6 text-muted-foreground/50" />
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="text-sm">Complete previous steps first to unlock</p>
-              </TooltipContent>
-            </Tooltip>
-          ) : !isReadOnly ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button 
-                  onClick={() => onStatusToggle(block)} 
-                  className="mt-1 shrink-0 hover:scale-110 transition-transform" 
-                  title="Click to change status"
-                >
-                  <StatusIcon className={`w-6 h-6 ${
-                    block.status === 'completed' ? 'text-success' :
-                    block.status === 'in_progress' ? 'text-info animate-spin' :
-                    'text-muted-foreground hover:text-primary'
-                  }`} />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="text-sm">Click to change status</p>
-              </TooltipContent>
-            </Tooltip>
-          ) : (
-            <StatusIcon className={`w-6 h-6 mt-1 shrink-0 ${
-              block.status === 'completed' ? 'text-success' :
-              block.status === 'in_progress' ? 'text-info' :
-              'text-muted-foreground'
-            }`} />
-          )}
-
-          <div className="flex-1 min-w-0 space-y-2">
-            <div className="flex items-center gap-3 flex-wrap">
-              <h4 className={`font-semibold text-base leading-tight ${isLocked ? 'text-muted-foreground' : ''}`}>
-                {block.title}
-              </h4>
-              <Badge variant="outline" className={`text-xs px-2 py-1 ${config.color} shadow-sm`}>
-                {config.label}
-              </Badge>
-              {isLocked && (
-                <Badge variant="outline" className="text-xs gap-1 text-muted-foreground border-dashed">
-                  <Lock className="w-3 h-3" /> Locked
-                </Badge>
-              )}
-              {shape !== 'rectangle' && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="text-lg text-muted-foreground/60 cursor-help">
-                      {BLOCK_SHAPES.find(s => s.value === shape)?.icon}
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="text-xs">{BLOCK_SHAPES.find(s => s.value === shape)?.label} shape</p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
-            </div>
-            {block.description && (
-              <p className={`text-sm leading-relaxed ${
-                isLocked ? 'text-muted-foreground/60' : 'text-muted-foreground'
-              }`}>
-                {block.description}
-              </p>
-            )}
-            {block.resource_url && !isLocked && (
-              <a 
-                href={block.resource_url} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-sm text-primary underline hover:opacity-80 transition-opacity cursor-pointer font-medium"
-              >
-                <ExternalLink className="w-4 h-4" /> 
-                <span className="truncate max-w-md">
-                  {block.resource_url.length > 50 ? block.resource_url.slice(0, 50) + '…' : block.resource_url}
-                </span>
-              </a>
-            )}
-          </div>
-
-          {!isReadOnly && !isLocked && (
-            <div className="flex items-center gap-2 shrink-0">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-primary/10" onClick={() => onEdit(block)}>
-                    <Edit2 className="w-4 h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-xs">Edit step</p>
-                </TooltipContent>
-              </Tooltip>
-              <AlertDialog>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <AlertDialogTrigger asChild>
-                      <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="text-xs">Delete step</p>
-                  </TooltipContent>
-                </Tooltip>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete Step</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Are you sure you want to delete the step "{block.title}"? This action cannot be undone and will permanently remove all associated data.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      onClick={() => onDelete(block.id)}
-                    >
-                      Delete
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   );
 }
 
-/** Enhanced Link Block Component */
+/** Minimal Link Block Component */
 function LinkBlock({ link, isReadOnly, onDelete }: {
   link: SkillDevLink;
   isReadOnly: boolean;
@@ -668,69 +567,48 @@ function LinkBlock({ link, isReadOnly, onDelete }: {
   const LinkIcon = typeConfig.icon;
 
   return (
-    <div className="relative border-2 rounded-xl p-5 border-primary/30 bg-gradient-to-br from-primary/8 to-primary/4 transition-all hover:shadow-lg hover:border-primary/40">
-      <div className="flex items-center gap-4">
-        <div className="shrink-0 w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
-          <LinkIcon className="w-5 h-5 text-primary" />
-        </div>
-        <div className="flex-1 min-w-0 space-y-1">
-          <div className="flex items-center gap-3 flex-wrap">
-            <a 
-              href={link.url} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="font-semibold text-base text-primary underline hover:opacity-80 truncate transition-opacity"
-            >
-              {link.title}
-            </a>
-            <Badge variant="outline" className="text-xs bg-primary/15 text-primary border-primary/30 shadow-sm">
-              {typeConfig.label}
-            </Badge>
-          </div>
-          <a 
-            href={link.url} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="text-sm text-muted-foreground truncate block underline hover:text-primary transition-colors"
-          >
-            {link.url.length > 60 ? link.url.slice(0, 60) + '…' : link.url}
-          </a>
-        </div>
-
-        {!isReadOnly && (
-          <AlertDialog>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <AlertDialogTrigger asChild>
-                  <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0">
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </AlertDialogTrigger>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="text-xs">Delete link</p>
-              </TooltipContent>
-            </Tooltip>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete Link</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to delete the link "{link.title}"? This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  onClick={() => onDelete(link.id)}
-                >
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        )}
+    <div className="group flex items-center gap-3 p-3 rounded-lg border border-primary/20 bg-primary/5 transition-all hover:border-primary/40">
+      <div className="shrink-0 w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
+        <LinkIcon className="w-4 h-4 text-primary" />
       </div>
+      <div className="flex-1 min-w-0">
+        <a 
+          href={link.url} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="text-sm font-medium text-primary hover:underline truncate block"
+        >
+          {link.title}
+        </a>
+        <span className="text-xs text-muted-foreground">{typeConfig.label}</span>
+      </div>
+
+      {!isReadOnly && (
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive/70 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+              <Trash2 className="w-3.5 h-3.5" />
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Link</AlertDialogTitle>
+              <AlertDialogDescription>
+                Delete "{link.title}"? This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={() => onDelete(link.id)}
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 }
