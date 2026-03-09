@@ -289,7 +289,7 @@ export function SkillTracker({ session, userId, isReadOnly = false }: SkillTrack
       ))}
 
       {/* Daily Study Board */}
-      {!isReadOnly && <DailyStudyBoard sessionId={session.id} userId={userId} />}
+      {canEdit && <DailyStudyBoard sessionId={session.id} userId={userId} />}
     </div>
   );
 }
