@@ -522,10 +522,30 @@ function StepBlock({ block, isReadOnly, isLocked, isSequential, onStatusToggle, 
               <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onEdit(block)}>
                 <Edit2 className="w-3 h-3" />
               </Button>
-              <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive"
-                onClick={() => onDelete(block.id)}>
-                <Trash2 className="w-3 h-3" />
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive">
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Step</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete the step "{block.title}"? This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={() => onDelete(block.id)}
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           )}
         </div>
