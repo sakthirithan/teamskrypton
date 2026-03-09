@@ -144,7 +144,7 @@ export function useSkillTracks(sessionId?: string, userId?: string) {
 
   // Create flowchart block
   const createBlock = useMutation({
-    mutationFn: async (params: { skill_track_id: string; title: string; description?: string; resource_url?: string; sort_order: number }) => {
+    mutationFn: async (params: { skill_track_id: string; title: string; description?: string; resource_url?: string; sort_order: number; block_shape?: string }) => {
       const { data, error } = await supabase
         .from('skill_flowchart_blocks')
         .insert(params)
