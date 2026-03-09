@@ -1058,7 +1058,7 @@ const GroupingMe = () => {
                                             <Button
                                               size="icon"
                                               variant="ghost"
-                                              className="h-7 w-7 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-500/10"
+                                            className="h-7 w-7 text-warning hover:text-warning hover:bg-warning/10"
                                               onClick={() => handleRevertEntry(entry.id)}
                                             >
                                               <RotateCcw className="w-3 h-3" />
