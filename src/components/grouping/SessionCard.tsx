@@ -57,7 +57,7 @@ export function SessionCard({
   };
 
   return (
-    <Card className={`${isHistorical ? 'border-muted bg-muted/20' : 'border-primary/20 bg-primary/5'}`}>
+    <Card className={`overflow-hidden border-0 shadow-sm ${isHistorical ? 'bg-muted/30' : 'bg-gradient-to-r from-primary/5 to-info/5'}`}>
       <CardContent className="py-3 px-4">
         <div className="flex items-start justify-between gap-3">
           {/* Session Info */}
@@ -73,7 +73,7 @@ export function SessionCard({
                   Closed
                 </Badge>
               ) : (
-                <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30 text-[10px] px-1.5 py-0">
+                <Badge variant="outline" className="bg-success/10 text-success border-success/30 text-[10px] px-1.5 py-0">
                   Active
                 </Badge>
               )}

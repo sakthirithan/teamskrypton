@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Trash2, Eye, Lock, Shield, Coins, Zap, Filter } from 'lucide-react';
+import { Trash2, Eye, Lock, Shield, Coins, Zap, Filter, ClipboardList } from 'lucide-react';
 import { 
   Target, 
   Calendar, 
@@ -528,24 +528,25 @@ const GroupingMe = () => {
       <Header />
       <main className="container mx-auto px-3 sm:px-6 py-4 sm:py-6 safe-area-bottom page-enter">
         <div className="space-y-3 sm:space-y-4">
-          {/* Compact Profile Header + Session in one row */}
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Card className="flex-1 overflow-hidden">
-              <CardContent className="p-3 sm:p-4 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center shrink-0">
-                  <User className="w-5 h-5 text-primary" />
+          {/* Profile Header */}
+          <Card className="overflow-hidden border-0 shadow-md">
+            <div className="h-1.5 bg-gradient-to-r from-primary via-primary/80 to-info" />
+            <CardContent className="p-4 sm:p-5">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shrink-0 shadow-lg shadow-primary/20">
+                  <User className="w-6 h-6 text-primary-foreground" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-base font-bold truncate">{displayProfile?.full_name || 'Loading...'}</h2>
+                    <h2 className="text-lg font-bold tracking-tight truncate">{displayProfile?.full_name || 'Loading...'}</h2>
                     {isViewingOther && !isTL && (
-                      <Badge variant="outline" className="flex items-center gap-1 text-[10px] h-5">
+                      <Badge variant="outline" className="flex items-center gap-1 text-[10px] h-5 bg-muted/50">
                         <Eye className="w-3 h-3" />
                         Read-Only
                       </Badge>
                     )}
                     {isViewingOther && isTL && (
-                      <Badge variant="default" className="flex items-center gap-1 text-[10px] h-5">
+                      <Badge variant="default" className="flex items-center gap-1 text-[10px] h-5 shadow-sm">
                         <Edit2 className="w-3 h-3" />
                         Full Access
                       </Badge>
@@ -557,9 +558,9 @@ const GroupingMe = () => {
                       </Badge>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
                     {displayRole && (
-                      <Badge variant="outline" className="flex items-center gap-1 text-[10px] h-5">
+                      <Badge variant="outline" className="flex items-center gap-1 text-[10px] h-5 bg-primary/5 text-primary border-primary/20">
                         <Shield className="w-3 h-3" />
                         {ROLE_LABELS[displayRole as KryptonRole] || displayRole}
                       </Badge>
@@ -567,9 +568,9 @@ const GroupingMe = () => {
                     {viewingUserId && <MemberSkillsBadges userId={viewingUserId} />}
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Read-Only Mode Indicator */}
           {isReadOnlyMode && (
@@ -594,11 +595,20 @@ const GroupingMe = () => {
             <>
               {/* Main Tabs - Skills | PS Entries | Manage */}
               <Tabs defaultValue="skills" className="w-full">
-                <TabsList className={`w-full grid ${isLeadership ? 'grid-cols-3' : 'grid-cols-2'}`}>
-                  <TabsTrigger value="skills" className="text-xs sm:text-sm">🎯 Skill Tracker</TabsTrigger>
-                  <TabsTrigger value="ps-entries" className="text-xs sm:text-sm">📝 PS Entries</TabsTrigger>
+                <TabsList className={`w-full grid ${isLeadership ? 'grid-cols-3' : 'grid-cols-2'} h-12`}>
+                  <TabsTrigger value="skills" className="text-xs sm:text-sm gap-1.5">
+                    <Target className="w-4 h-4" />
+                    Skill Tracker
+                  </TabsTrigger>
+                  <TabsTrigger value="ps-entries" className="text-xs sm:text-sm gap-1.5">
+                    <ClipboardList className="w-4 h-4" />
+                    PS Entries
+                  </TabsTrigger>
                   {isLeadership && (
-                    <TabsTrigger value="feed-reports" className="text-xs sm:text-sm">📊 Feed & Reports</TabsTrigger>
+                    <TabsTrigger value="feed-reports" className="text-xs sm:text-sm gap-1.5">
+                      <TrendingUp className="w-4 h-4" />
+                      Feed & Reports
+                    </TabsTrigger>
                   )}
                 </TabsList>
 
