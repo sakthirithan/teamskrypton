@@ -506,8 +506,8 @@ function StepBlock({ block, isReadOnly, isLocked, isSequential, onStatusToggle, 
       {useClipShape && (
         <div className="absolute -left-2 top-1/2 -translate-y-1/2 z-10">
           <div className={`w-8 h-8 ${shapeClass} shadow-lg ${
-            block.status === 'completed' ? 'bg-gradient-to-br from-green-400 to-green-600' :
-            block.status === 'in_progress' ? 'bg-gradient-to-br from-blue-400 to-blue-600' :
+            block.status === 'completed' ? 'bg-gradient-to-br from-success/70 to-success' :
+            block.status === 'in_progress' ? 'bg-gradient-to-br from-info/70 to-info' :
             'bg-gradient-to-br from-muted-foreground/20 to-muted-foreground/40'
           }`} />
         </div>
@@ -516,8 +516,8 @@ function StepBlock({ block, isReadOnly, isLocked, isSequential, onStatusToggle, 
       <div className={`border-2 p-5 transition-all duration-200 shadow-sm hover:shadow-md ${
         useClipShape ? 'rounded-xl ml-6' : shapeClass
       } ${
-        block.status === 'completed' ? 'border-green-500/40 bg-green-500/10 shadow-green-500/20' :
-        block.status === 'in_progress' ? 'border-blue-500/40 bg-blue-500/10 shadow-blue-500/20' :
+        block.status === 'completed' ? 'border-success/40 bg-success/5' :
+        block.status === 'in_progress' ? 'border-info/40 bg-info/5' :
         'border-border hover:border-primary/30 bg-card/50'
       } ${isLocked ? 'border-dashed' : ''}`}>
         <div className="flex items-start gap-4">
