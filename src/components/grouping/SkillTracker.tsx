@@ -72,8 +72,7 @@ export function SkillTracker({ session, userId, isReadOnly = false }: SkillTrack
   };
 
   return (
-    <GlobalScrollLayout className="p-6" maxHeight="85vh">
-      <div className="space-y-6 max-w-5xl mx-auto">
+    <div className="space-y-3">
         {/* Enhanced Header Card */}
         <Card className="overflow-hidden border-0 shadow-lg bg-gradient-to-br from-card to-card/80">
           <CardHeader className="pb-4 bg-gradient-to-r from-primary/8 via-primary/5 to-[hsl(var(--info))]/8 border-b border-border/40">
@@ -325,7 +324,6 @@ export function SkillTracker({ session, userId, isReadOnly = false }: SkillTrack
             <DailyStudyBoard sessionId={session.id} userId={userId} />
           </div>
         )}
-      </div>
-    </GlobalScrollLayout>
+    </div>
   );
 }
