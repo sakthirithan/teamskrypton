@@ -85,7 +85,7 @@ const PointsDisplayInline = memo(function PointsDisplayInline({ userId }: { user
   const { getUserPoints } = useUserPoints();
   const points = getUserPoints(userId);
   return (
-    <p className="text-2xl font-bold text-amber-700 dark:text-amber-400">{points}</p>
+    <p className="text-2xl font-bold text-warning">{points}</p>
   );
 });
 
