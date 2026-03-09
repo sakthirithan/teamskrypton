@@ -116,7 +116,7 @@ export function useSkillTracks(sessionId?: string, userId?: string) {
 
   // Update skill track
   const updateTrack = useMutation({
-    mutationFn: async (params: { id: string; skill_name?: string; is_primary?: boolean }) => {
+    mutationFn: async (params: { id: string; skill_name?: string; is_primary?: boolean; is_sequential?: boolean }) => {
       const { id, ...updates } = params;
       const { error } = await supabase
         .from('skill_tracks')
