@@ -41,6 +41,8 @@ import { ProductivityInsights } from '@/components/grouping/ProductivityInsights
 import { QuickEntryWidget } from '@/components/grouping/QuickEntryWidget';
 import { PointsDisplay } from '@/components/points/PointsDisplay';
 import { SkillTracker } from '@/components/grouping/SkillTracker';
+import { SkillActivityFeed } from '@/components/grouping/SkillActivityFeed';
+import { TeamAnalyticsReport } from '@/components/grouping/TeamAnalyticsReport';
 import { MemberSkillsBadges } from '@/components/grouping/MemberSkillsBadges';
 import { SkillAssignmentPanel } from '@/components/grouping/SkillAssignmentPanel';
 import { ROLE_LABELS, KryptonRole } from '@/lib/constants';
