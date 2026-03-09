@@ -103,7 +103,7 @@ export function SkillTracker({ session, userId, isReadOnly = false }: SkillTrack
               {isLeadership && (
                 <SkillHistoryExport sessionId={session.id} userId={userId} userName={userId} />
               )}
-              {!isReadOnly && (
+              {canEdit && (
                 <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
                   <DialogTrigger asChild>
                     <Button size="sm" className="h-8 text-xs gap-1.5">
