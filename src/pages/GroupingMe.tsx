@@ -685,18 +685,18 @@ const GroupingMe = () => {
                   </CardContent>
                 </Card>
 
-                <Card className="overflow-hidden">
+                <Card className="overflow-hidden border-border/60">
                   <CardContent className="pt-4 pb-3 px-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-xs text-muted-foreground">Group</p>
+                        <p className="text-xs text-muted-foreground font-medium">Group</p>
                         <p className="text-xl font-bold tabular-nums">{groupAchievedPoints || 0}</p>
                         <p className="text-xs text-muted-foreground tabular-nums">
                           of {groupTarget?.target_points || 0} pts
                         </p>
                       </div>
-                      <div className="p-2 rounded-xl bg-accent/10">
-                        <Target className="w-5 h-5 text-accent" />
+                      <div className="p-2 rounded-xl bg-info/10">
+                        <Target className="w-5 h-5 text-info" />
                       </div>
                     </div>
                   </CardContent>
