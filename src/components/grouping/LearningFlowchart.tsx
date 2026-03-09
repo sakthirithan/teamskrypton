@@ -236,14 +236,14 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
           ))}
         </div>
 
-        {/* Enhanced Action Buttons */}
+        {/* Minimal Action Buttons */}
         {!isReadOnly && (
-          <div className="flex gap-3">
+          <div className="flex gap-2 pt-2">
             <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="flex-1 h-10 gap-2 shadow-sm hover:shadow-md transition-shadow">
-                  <Plus className="w-4 h-4" />
-                  Add Learning Step
+                <Button variant="outline" size="sm" className="flex-1 h-9 gap-1.5 text-xs">
+                  <Plus className="w-3.5 h-3.5" />
+                  Add Step
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-2xl">
