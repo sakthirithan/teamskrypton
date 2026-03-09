@@ -653,18 +653,18 @@ const GroupingMe = () => {
                   </CardContent>
                 </Card>
 
-                <Card className="overflow-hidden">
+                <Card className="overflow-hidden border-border/60">
                   <CardContent className="pt-4 pb-3 px-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-xs text-muted-foreground">Pending</p>
-                        <p className="text-xl font-bold tabular-nums text-amber-600">{pendingCount}</p>
+                        <p className="text-xs text-muted-foreground font-medium">Pending</p>
+                        <p className="text-xl font-bold tabular-nums text-warning">{pendingCount}</p>
                         <p className="text-xs text-muted-foreground tabular-nums">
                           {pendingPointsSum} pts waiting
                         </p>
                       </div>
-                      <div className="p-2 rounded-xl bg-amber-500/10">
-                        <Clock className="w-5 h-5 text-amber-500" />
+                      <div className="p-2 rounded-xl bg-warning/10">
+                        <Clock className="w-5 h-5 text-warning" />
                       </div>
                     </div>
                   </CardContent>
