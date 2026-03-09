@@ -12,11 +12,13 @@ import { SessionCard } from '@/components/grouping/SessionCard';
 import { TeamSkillOverview } from '@/components/grouping/TeamSkillOverview';
 import { SkillAssignmentPanel } from '@/components/grouping/SkillAssignmentPanel';
 import { AllReflectionsPanel } from '@/components/grouping/AllReflectionsPanel';
+import { SkillActivityFeed } from '@/components/grouping/SkillActivityFeed';
+import { TeamAnalyticsReport } from '@/components/grouping/TeamAnalyticsReport';
 
 import { useGroupingSessions } from '@/hooks/useGroupingSessions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
-import { Target, MessageSquare, BookOpen, ClipboardList, NotebookPen } from 'lucide-react';
+import { Target, MessageSquare, BookOpen, ClipboardList, NotebookPen, Activity, BarChart3 } from 'lucide-react';
 
 const GroupingHome = () => {
   const { user, isLoading, isLeadership, isCaptainOrVice, role } = useAuth();
@@ -73,10 +75,18 @@ const GroupingHome = () => {
           <div className={`${isCaptainOrVice ? 'lg:col-span-2' : ''} space-y-3 order-1`}>
             {isLeadership ? (
               <Tabs defaultValue="skills" className="w-full">
-                <TabsList className="grid w-full grid-cols-4 h-10 mb-3">
+                <TabsList className="grid w-full grid-cols-6 h-10 mb-3">
                   <TabsTrigger value="skills" className="flex items-center gap-1 text-[10px] sm:text-xs px-1 sm:px-2">
                     <BookOpen className="w-3.5 h-3.5 shrink-0" />
                     <span className="hidden sm:inline truncate">Skills</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="activity" className="flex items-center gap-1 text-[10px] sm:text-xs px-1 sm:px-2">
+                    <Activity className="w-3.5 h-3.5 shrink-0" />
+                    <span className="hidden sm:inline truncate">Feed</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="analytics" className="flex items-center gap-1 text-[10px] sm:text-xs px-1 sm:px-2">
+                    <BarChart3 className="w-3.5 h-3.5 shrink-0" />
+                    <span className="hidden sm:inline truncate">Reports</span>
                   </TabsTrigger>
                   <TabsTrigger value="ps" className="flex items-center gap-1 text-[10px] sm:text-xs px-1 sm:px-2">
                     <ClipboardList className="w-3.5 h-3.5 shrink-0" />
@@ -113,8 +123,25 @@ const GroupingHome = () => {
                   )}
                 </TabsContent>
 
+                {/* Activity Feed Tab */}
+                <TabsContent value="activity" className="mt-0">
+                  {viewingSession ? (
+                    <SkillActivityFeed session={viewingSession} />
+                  ) : (
+                    <NoSessionPlaceholder />
+                  )}
+                </TabsContent>
 
-                {/* PS Tab */}
+                {/* Analytics & Reports Tab */}
+                <TabsContent value="analytics" className="mt-0">
+                  {viewingSession ? (
+                    <TeamAnalyticsReport session={viewingSession} />
+                  ) : (
+                    <NoSessionPlaceholder />
+                  )}
+                </TabsContent>
+
+
                 <TabsContent value="ps" className="mt-0">
                   {viewingSession ? (
                     <div className="space-y-3">

@@ -5,16 +5,20 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, ExternalLink, Edit2, Trash2, CheckCircle, Circle, ArrowDown, Loader2, Link2, Github, Globe } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Plus, ExternalLink, Edit2, Trash2, CheckCircle, Circle, ArrowDown, Loader2, Link2, Github, Globe, Lock, Square, Diamond, Hexagon, Pentagon, Triangle, Octagon } from 'lucide-react';
 import { useSkillTracks, FlowchartBlock } from '@/hooks/useSkillTracks';
 import { useSkillDevLinks, SkillDevLink } from '@/hooks/useSkillDevLinks';
 import { SkillReflectionPanel } from '@/components/grouping/SkillReflectionPanel';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 interface LearningFlowchartProps {
   trackId: string;
   sessionId: string;
   userId: string;
   isReadOnly?: boolean;
+  isSequential?: boolean;
   onFlowchartUpdate?: () => void;
 }
 
@@ -30,11 +34,32 @@ const LINK_TYPE_CONFIG: Record<string, { label: string; icon: typeof Github }> =
   other: { label: 'Other', icon: Link2 },
 };
 
+const BLOCK_SHAPES = [
+  { value: 'rectangle', label: 'Rectangle', icon: '▬' },
+  { value: 'diamond', label: 'Diamond', icon: '◆' },
+  { value: 'hexagon', label: 'Hexagon', icon: '⬡' },
+  { value: 'rounded', label: 'Rounded', icon: '▢' },
+  { value: 'pill', label: 'Pill', icon: '⬭' },
+  { value: 'octagon', label: 'Octagon', icon: '⯃' },
+] as const;
+
+const getShapeClasses = (shape: string) => {
+  switch (shape) {
+    case 'diamond': return 'rounded-none rotate-0 [clip-path:polygon(50%_0%,100%_50%,50%_100%,0%_50%)]';
+    case 'hexagon': return '[clip-path:polygon(25%_0%,75%_0%,100%_50%,75%_100%,25%_100%,0%_50%)]';
+    case 'rounded': return 'rounded-2xl';
+    case 'pill': return 'rounded-full';
+    case 'octagon': return '[clip-path:polygon(30%_0%,70%_0%,100%_30%,100%_70%,70%_100%,30%_100%,0%_70%,0%_30%)]';
+    default: return 'rounded-lg';
+  }
+};
+
 type TimelineItem =
   | { kind: 'step'; data: FlowchartBlock; created_at: string }
   | { kind: 'link'; data: SkillDevLink; created_at: string };
 
-export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = false, onFlowchartUpdate }: LearningFlowchartProps) {
+export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = false, isSequential = false, onFlowchartUpdate }: LearningFlowchartProps) {
+  const { user } = useAuth();
   const { useFlowchartBlocks, createBlock, updateBlock, deleteBlock } = useSkillTracks(sessionId, userId);
   const { data: blocks = [], isLoading } = useFlowchartBlocks(trackId);
   const { links, addLink, removeLink } = useSkillDevLinks(trackId);
@@ -42,7 +67,7 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isAddLinkOpen, setIsAddLinkOpen] = useState(false);
   const [editingBlock, setEditingBlock] = useState<FlowchartBlock | null>(null);
-  const [form, setForm] = useState({ title: '', description: '', resource_url: '' });
+  const [form, setForm] = useState({ title: '', description: '', resource_url: '', block_shape: 'rectangle' });
   const [linkForm, setLinkForm] = useState({ title: '', url: '', link_type: 'github' });
 
   // Merge steps + links into a single chronological timeline
@@ -55,16 +80,45 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
     return items;
   }, [blocks, links]);
 
+  // Sequential enforcement: determine which blocks are locked
+  const isBlockLocked = (block: FlowchartBlock): boolean => {
+    if (!isSequential) return false;
+    const sortedBlocks = [...blocks].sort((a, b) => a.sort_order - b.sort_order);
+    const idx = sortedBlocks.findIndex(b => b.id === block.id);
+    if (idx <= 0) return false; // First block is always unlocked
+    // Check if all previous blocks are completed
+    for (let i = 0; i < idx; i++) {
+      if (sortedBlocks[i].status !== 'completed') return true;
+    }
+    return false;
+  };
+
+  const logActivity = async (activityType: string, description: string, entityId?: string) => {
+    if (!user) return;
+    try {
+      await supabase.from('skill_activity_log').insert({
+        user_id: user.id,
+        session_id: sessionId,
+        activity_type: activityType,
+        entity_type: 'flowchart_block',
+        entity_id: entityId,
+        description,
+      });
+    } catch { /* silent */ }
+  };
+
   const handleAdd = async () => {
     if (!form.title.trim()) return;
-    await createBlock.mutateAsync({
+    const result = await createBlock.mutateAsync({
       skill_track_id: trackId,
       title: form.title.trim(),
       description: form.description || undefined,
       resource_url: form.resource_url || undefined,
       sort_order: blocks.length,
+      block_shape: form.block_shape,
     });
-    setForm({ title: '', description: '', resource_url: '' });
+    await logActivity('step_added', `Added learning step: ${form.title.trim()}`, result?.id);
+    setForm({ title: '', description: '', resource_url: '', block_shape: 'rectangle' });
     setIsAddOpen(false);
     onFlowchartUpdate?.();
   };
@@ -77,9 +131,11 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
       title: form.title.trim(),
       description: form.description || undefined,
       resource_url: form.resource_url || undefined,
+      block_shape: form.block_shape,
     });
+    await logActivity('step_updated', `Updated step: ${form.title.trim()}`, editingBlock.id);
     setEditingBlock(null);
-    setForm({ title: '', description: '', resource_url: '' });
+    setForm({ title: '', description: '', resource_url: '', block_shape: 'rectangle' });
     onFlowchartUpdate?.();
   };
 
@@ -90,18 +146,22 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
       url: linkForm.url.trim(),
       link_type: linkForm.link_type,
     });
+    await logActivity('link_added', `Added dev link: ${linkForm.title.trim()}`);
     setLinkForm({ title: '', url: '', link_type: 'github' });
     setIsAddLinkOpen(false);
   };
 
   const handleStatusToggle = async (block: FlowchartBlock) => {
+    if (isBlockLocked(block)) return;
     const order = ['not_started', 'in_progress', 'completed'];
     const nextIdx = (order.indexOf(block.status) + 1) % order.length;
+    const newStatus = order[nextIdx];
     await updateBlock.mutateAsync({
       id: block.id,
       skill_track_id: trackId,
-      status: order[nextIdx],
+      status: newStatus,
     });
+    await logActivity('status_changed', `${block.title}: ${STATUS_CONFIG[block.status].label} → ${STATUS_CONFIG[newStatus].label}`, block.id);
     onFlowchartUpdate?.();
   };
 
@@ -111,6 +171,7 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
       title: block.title,
       description: block.description || '',
       resource_url: block.resource_url || '',
+      block_shape: block.block_shape || 'rectangle',
     });
   };
 
@@ -122,6 +183,7 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
   const progress = blocks.length > 0 ? Math.round((completedCount / blocks.length) * 100) : 0;
 
   return (
+    <TooltipProvider>
     <div className="space-y-3">
       {/* Progress bar */}
       {blocks.length > 0 && (
@@ -135,6 +197,12 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
           <span className="text-xs text-muted-foreground whitespace-nowrap">
             {completedCount}/{blocks.length} steps
           </span>
+          {isSequential && (
+            <Badge variant="outline" className="text-[9px] gap-0.5 bg-primary/5 text-primary border-primary/20">
+              <Lock className="w-2.5 h-2.5" />
+              Sequential
+            </Badge>
+          )}
         </div>
       )}
 
@@ -159,6 +227,8 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
               <StepBlock
                 block={item.data}
                 isReadOnly={isReadOnly}
+                isLocked={isBlockLocked(item.data)}
+                isSequential={isSequential}
                 onStatusToggle={handleStatusToggle}
                 onEdit={openEdit}
                 onDelete={(id) => deleteBlock.mutate({ id, skill_track_id: trackId })}
@@ -212,6 +282,26 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
                     onChange={e => setForm({ ...form, resource_url: e.target.value })}
                     placeholder="https://..."
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label>Block Shape</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {BLOCK_SHAPES.map(shape => (
+                      <button
+                        key={shape.value}
+                        type="button"
+                        onClick={() => setForm({ ...form, block_shape: shape.value })}
+                        className={`flex items-center gap-2 p-2.5 rounded-lg border text-sm transition-all ${
+                          form.block_shape === shape.value
+                            ? 'border-primary bg-primary/10 text-primary font-medium'
+                            : 'border-border hover:border-primary/40 text-muted-foreground'
+                        }`}
+                      >
+                        <span className="text-base">{shape.icon}</span>
+                        <span className="text-xs">{shape.label}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <Button onClick={handleAdd} className="w-full" disabled={!form.title.trim() || createBlock.isPending}>
                   {createBlock.isPending ? 'Adding...' : 'Add Step'}
@@ -299,6 +389,26 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
               <Label>Resource / Study Link</Label>
               <Input value={form.resource_url} onChange={e => setForm({ ...form, resource_url: e.target.value })} />
             </div>
+            <div className="space-y-2">
+              <Label>Block Shape</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {BLOCK_SHAPES.map(shape => (
+                  <button
+                    key={shape.value}
+                    type="button"
+                    onClick={() => setForm({ ...form, block_shape: shape.value })}
+                    className={`flex items-center gap-2 p-2.5 rounded-lg border text-sm transition-all ${
+                      form.block_shape === shape.value
+                        ? 'border-primary bg-primary/10 text-primary font-medium'
+                        : 'border-border hover:border-primary/40 text-muted-foreground'
+                    }`}
+                  >
+                    <span className="text-base">{shape.icon}</span>
+                    <span className="text-xs">{shape.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
             <Button onClick={handleUpdate} className="w-full" disabled={!form.title.trim() || updateBlock.isPending}>
               {updateBlock.isPending ? 'Saving...' : 'Save Changes'}
             </Button>
@@ -308,70 +418,116 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
       {/* Weekly Reflections */}
       <SkillReflectionPanel trackId={trackId} isReadOnly={isReadOnly} />
     </div>
+    </TooltipProvider>
   );
 }
 
-/** Renders a learning step block */
-function StepBlock({ block, isReadOnly, onStatusToggle, onEdit, onDelete }: {
+/** Renders a learning step block with shape support */
+function StepBlock({ block, isReadOnly, isLocked, isSequential, onStatusToggle, onEdit, onDelete }: {
   block: FlowchartBlock;
   isReadOnly: boolean;
+  isLocked: boolean;
+  isSequential: boolean;
   onStatusToggle: (b: FlowchartBlock) => void;
   onEdit: (b: FlowchartBlock) => void;
   onDelete: (id: string) => void;
 }) {
   const config = STATUS_CONFIG[block.status] || STATUS_CONFIG.not_started;
   const StatusIcon = config.icon;
+  const shape = block.block_shape || 'rectangle';
+  const shapeClass = getShapeClasses(shape);
+  const isDiamond = shape === 'diamond';
+
+  // For diamond/hexagon shapes, we use a visual indicator but keep content readable
+  const useClipShape = shape === 'diamond' || shape === 'hexagon' || shape === 'octagon';
 
   return (
-    <div className={`relative border rounded-lg p-3 transition-colors ${
-      block.status === 'completed' ? 'border-green-500/30 bg-green-500/5' :
-      block.status === 'in_progress' ? 'border-blue-500/30 bg-blue-500/5' :
-      'border-border'
-    }`}>
-      <div className="flex items-start gap-3">
-        {!isReadOnly ? (
-          <button onClick={() => onStatusToggle(block)} className="mt-0.5 shrink-0" title="Click to change status">
-            <StatusIcon className={`w-5 h-5 ${
+    <div className={`relative transition-colors ${isLocked ? 'opacity-60' : ''}`}>
+      {/* Shape indicator */}
+      {useClipShape && (
+        <div className="absolute -left-1 top-1/2 -translate-y-1/2 z-10">
+          <div className={`w-6 h-6 ${shapeClass} ${
+            block.status === 'completed' ? 'bg-green-500/30' :
+            block.status === 'in_progress' ? 'bg-blue-500/30' :
+            'bg-muted'
+          }`} />
+        </div>
+      )}
+      
+      <div className={`border p-3 transition-colors ${
+        useClipShape ? 'rounded-lg ml-4' :
+        shapeClass
+      } ${
+        block.status === 'completed' ? 'border-green-500/30 bg-green-500/5' :
+        block.status === 'in_progress' ? 'border-blue-500/30 bg-blue-500/5' :
+        'border-border'
+      } ${isLocked ? 'border-dashed' : ''}`}>
+        <div className="flex items-start gap-3">
+          {isLocked ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="mt-0.5 shrink-0 cursor-not-allowed">
+                  <Lock className="w-5 h-5 text-muted-foreground/50" />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-xs">Complete previous steps first to unlock</p>
+              </TooltipContent>
+            </Tooltip>
+          ) : !isReadOnly ? (
+            <button onClick={() => onStatusToggle(block)} className="mt-0.5 shrink-0" title="Click to change status">
+              <StatusIcon className={`w-5 h-5 ${
+                block.status === 'completed' ? 'text-green-500' :
+                block.status === 'in_progress' ? 'text-blue-500 animate-spin' :
+                'text-muted-foreground'
+              }`} />
+            </button>
+          ) : (
+            <StatusIcon className={`w-5 h-5 mt-0.5 shrink-0 ${
               block.status === 'completed' ? 'text-green-500' :
-              block.status === 'in_progress' ? 'text-blue-500 animate-spin' :
+              block.status === 'in_progress' ? 'text-blue-500' :
               'text-muted-foreground'
             }`} />
-          </button>
-        ) : (
-          <StatusIcon className={`w-5 h-5 mt-0.5 shrink-0 ${
-            block.status === 'completed' ? 'text-green-500' :
-            block.status === 'in_progress' ? 'text-blue-500' :
-            'text-muted-foreground'
-          }`} />
-        )}
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-medium text-sm">{block.title}</span>
-            <Badge variant="outline" className={`text-xs ${config.color}`}>{config.label}</Badge>
-          </div>
-          {block.description && (
-            <p className="text-xs text-muted-foreground mt-1">{block.description}</p>
           )}
-          {block.resource_url && (
-            <a href={block.resource_url} target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-xs text-primary underline hover:opacity-80 mt-1 cursor-pointer z-10 relative">
-              <ExternalLink className="w-3 h-3" /> {block.resource_url.length > 40 ? block.resource_url.slice(0, 40) + '…' : block.resource_url}
-            </a>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className={`font-medium text-sm ${isLocked ? 'text-muted-foreground' : ''}`}>{block.title}</span>
+              <Badge variant="outline" className={`text-xs ${config.color}`}>{config.label}</Badge>
+              {isLocked && (
+                <Badge variant="outline" className="text-[9px] gap-0.5 text-muted-foreground">
+                  <Lock className="w-2.5 h-2.5" /> Locked
+                </Badge>
+              )}
+              {shape !== 'rectangle' && (
+                <span className="text-xs text-muted-foreground/60">
+                  {BLOCK_SHAPES.find(s => s.value === shape)?.icon}
+                </span>
+              )}
+            </div>
+            {block.description && (
+              <p className={`text-xs mt-1 ${isLocked ? 'text-muted-foreground/50' : 'text-muted-foreground'}`}>{block.description}</p>
+            )}
+            {block.resource_url && !isLocked && (
+              <a href={block.resource_url} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-primary underline hover:opacity-80 mt-1 cursor-pointer z-10 relative">
+                <ExternalLink className="w-3 h-3" /> {block.resource_url.length > 40 ? block.resource_url.slice(0, 40) + '…' : block.resource_url}
+              </a>
+            )}
+          </div>
+
+          {!isReadOnly && !isLocked && (
+            <div className="flex items-center gap-1 shrink-0">
+              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onEdit(block)}>
+                <Edit2 className="w-3 h-3" />
+              </Button>
+              <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive"
+                onClick={() => onDelete(block.id)}>
+                <Trash2 className="w-3 h-3" />
+              </Button>
+            </div>
           )}
         </div>
-
-        {!isReadOnly && (
-          <div className="flex items-center gap-1 shrink-0">
-            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onEdit(block)}>
-              <Edit2 className="w-3 h-3" />
-            </Button>
-            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive"
-              onClick={() => onDelete(block.id)}>
-              <Trash2 className="w-3 h-3" />
-            </Button>
-          </div>
-        )}
       </div>
     </div>
   );

@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Star, BookOpen, Trash2, ChevronDown, ChevronRight, BarChart3, Calendar } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Plus, Star, BookOpen, Trash2, ChevronDown, ChevronRight, BarChart3, Calendar, Lock, Unlock } from 'lucide-react';
 import { useSkillTracks, SkillTrack } from '@/hooks/useSkillTracks';
 import { useSkillStreaks } from '@/hooks/useSkillStreaks';
 import { LearningFlowchart } from '@/components/grouping/LearningFlowchart';
@@ -206,6 +207,24 @@ export function SkillTracker({ session, userId, isReadOnly = false }: SkillTrack
                   )}
                   {!isReadOnly && (
                     <div className="flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className={`h-7 w-7 ${track.is_sequential ? 'text-primary' : 'text-muted-foreground/40'}`}
+                              onClick={() => updateTrack.mutate({ id: track.id, is_sequential: !track.is_sequential })}
+                              title={track.is_sequential ? 'Sequential mode ON' : 'Sequential mode OFF'}
+                            >
+                              {track.is_sequential ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs">{track.is_sequential ? 'Sequential: Must complete steps in order' : 'Click to enforce step order'}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                       <Button
                         size="icon"
                         variant="ghost"
@@ -234,6 +253,7 @@ export function SkillTracker({ session, userId, isReadOnly = false }: SkillTrack
                       sessionId={session.id}
                       userId={userId}
                       isReadOnly={isReadOnly}
+                      isSequential={track.is_sequential}
                       onFlowchartUpdate={() => recordWeekActivity.mutate()}
                     />
                   </div>

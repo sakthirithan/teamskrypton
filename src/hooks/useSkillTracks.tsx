@@ -9,6 +9,7 @@ export interface SkillTrack {
   user_id: string;
   skill_name: string;
   is_primary: boolean;
+  is_sequential: boolean;
   week_start: string;
   created_at: string;
   updated_at: string;
@@ -22,6 +23,7 @@ export interface FlowchartBlock {
   resource_url: string | null;
   sort_order: number;
   status: string;
+  block_shape: string;
   created_at: string;
   updated_at: string;
 }
@@ -114,7 +116,7 @@ export function useSkillTracks(sessionId?: string, userId?: string) {
 
   // Update skill track
   const updateTrack = useMutation({
-    mutationFn: async (params: { id: string; skill_name?: string; is_primary?: boolean }) => {
+    mutationFn: async (params: { id: string; skill_name?: string; is_primary?: boolean; is_sequential?: boolean }) => {
       const { id, ...updates } = params;
       const { error } = await supabase
         .from('skill_tracks')
@@ -143,7 +145,7 @@ export function useSkillTracks(sessionId?: string, userId?: string) {
 
   // Create flowchart block
   const createBlock = useMutation({
-    mutationFn: async (params: { skill_track_id: string; title: string; description?: string; resource_url?: string; sort_order: number }) => {
+    mutationFn: async (params: { skill_track_id: string; title: string; description?: string; resource_url?: string; sort_order: number; block_shape?: string }) => {
       const { data, error } = await supabase
         .from('skill_flowchart_blocks')
         .insert(params)
@@ -161,7 +163,7 @@ export function useSkillTracks(sessionId?: string, userId?: string) {
 
   // Update flowchart block
   const updateBlock = useMutation({
-    mutationFn: async (params: { id: string; skill_track_id: string; title?: string; description?: string; resource_url?: string; status?: string; sort_order?: number }) => {
+    mutationFn: async (params: { id: string; skill_track_id: string; title?: string; description?: string; resource_url?: string; status?: string; sort_order?: number; block_shape?: string }) => {
       const { id, skill_track_id, ...updates } = params;
       const { error } = await supabase
         .from('skill_flowchart_blocks')
