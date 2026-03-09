@@ -1024,7 +1024,7 @@ const GroupingMe = () => {
                                             <Button
                                               size="icon"
                                               variant="ghost"
-                                              className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-500/10"
+                                            className="h-7 w-7 text-success hover:text-success hover:bg-success/10"
                                               onClick={() => handleCompleteEntry(entry.id)}
                                             >
                                               <Check className="w-4 h-4" />
