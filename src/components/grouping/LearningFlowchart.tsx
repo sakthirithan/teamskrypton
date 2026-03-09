@@ -321,9 +321,9 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
 
             <Dialog open={isAddLinkOpen} onOpenChange={setIsAddLinkOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="flex-1 h-10 gap-2 shadow-sm hover:shadow-md transition-shadow">
-                  <Link2 className="w-4 h-4" />
-                  Add Dev Link
+                <Button variant="outline" size="sm" className="flex-1 h-9 gap-1.5 text-xs">
+                  <Link2 className="w-3.5 h-3.5" />
+                  Add Link
                 </Button>
               </DialogTrigger>
               <DialogContent>
