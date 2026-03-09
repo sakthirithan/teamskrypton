@@ -1092,7 +1092,7 @@ const GroupingMe = () => {
                                             <Button
                                               size="icon"
                                               variant="ghost"
-                                              className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-500/10"
+                                            className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
                                               onClick={() => handleDeleteEntry(entry.id)}
                                             >
                                               <Trash2 className="w-4 h-4" />
