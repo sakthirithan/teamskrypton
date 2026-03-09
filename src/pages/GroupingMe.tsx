@@ -984,8 +984,8 @@ const GroupingMe = () => {
                               <TableRow 
                                 key={entry.id} 
                                 className={
-                                  isPending ? 'bg-yellow-500/5' : 
-                                  isAttempt ? 'bg-blue-500/5' : ''
+                                  isPending ? 'bg-warning/5' : 
+                                  isAttempt ? 'bg-info/5' : ''
                                 }
                               >
                                 <TableCell className="font-medium">{idx + 1}</TableCell>
