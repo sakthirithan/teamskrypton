@@ -113,25 +113,6 @@ const GroupingHome = () => {
                   )}
                 </TabsContent>
 
-                {/* Activity Feed Tab */}
-                <TabsContent value="activity" className="mt-0">
-                  {viewingSession ? (
-                    <SkillActivityFeed session={viewingSession} />
-                  ) : (
-                    <NoSessionPlaceholder />
-                  )}
-                </TabsContent>
-
-                {/* Analytics & Reports Tab */}
-                <TabsContent value="analytics" className="mt-0">
-                  {viewingSession ? (
-                    <TeamAnalyticsReport session={viewingSession} />
-                  ) : (
-                    <NoSessionPlaceholder />
-                  )}
-                </TabsContent>
-
-
                 <TabsContent value="ps" className="mt-0">
                   {viewingSession ? (
                     <div className="space-y-3">
