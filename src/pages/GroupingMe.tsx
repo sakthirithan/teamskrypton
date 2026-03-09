@@ -85,7 +85,7 @@ const PointsDisplayInline = memo(function PointsDisplayInline({ userId }: { user
   const { getUserPoints } = useUserPoints();
   const points = getUserPoints(userId);
   return (
-    <p className="text-2xl font-bold text-amber-700 dark:text-amber-400">{points}</p>
+    <p className="text-2xl font-bold text-warning">{points}</p>
   );
 });
 
@@ -636,45 +636,45 @@ const GroupingMe = () => {
 
               {/* Points & Stats Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <Card className="overflow-hidden">
+                <Card className="overflow-hidden border-border/60">
                   <CardContent className="pt-4 pb-3 px-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-xs text-muted-foreground">Completed</p>
-                        <p className="text-xl font-bold tabular-nums text-emerald-600">{myAchievedPoints}</p>
+                        <p className="text-xs text-muted-foreground font-medium">Completed</p>
+                        <p className="text-xl font-bold tabular-nums text-success">{myAchievedPoints}</p>
                         <p className="text-xs text-muted-foreground tabular-nums">
                           of {myIndividualTarget?.target_points || 0} pts
                         </p>
                       </div>
-                      <div className="p-2 rounded-xl bg-emerald-500/10">
-                        <CheckCircle className="w-5 h-5 text-emerald-500" />
+                      <div className="p-2 rounded-xl bg-success/10">
+                        <CheckCircle className="w-5 h-5 text-success" />
                       </div>
                     </div>
                   </CardContent>
                 </Card>
 
-                <Card className="overflow-hidden">
+                <Card className="overflow-hidden border-border/60">
                   <CardContent className="pt-4 pb-3 px-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-xs text-muted-foreground">Pending</p>
-                        <p className="text-xl font-bold tabular-nums text-amber-600">{pendingCount}</p>
+                        <p className="text-xs text-muted-foreground font-medium">Pending</p>
+                        <p className="text-xl font-bold tabular-nums text-warning">{pendingCount}</p>
                         <p className="text-xs text-muted-foreground tabular-nums">
                           {pendingPointsSum} pts waiting
                         </p>
                       </div>
-                      <div className="p-2 rounded-xl bg-amber-500/10">
-                        <Clock className="w-5 h-5 text-amber-500" />
+                      <div className="p-2 rounded-xl bg-warning/10">
+                        <Clock className="w-5 h-5 text-warning" />
                       </div>
                     </div>
                   </CardContent>
                 </Card>
 
-                <Card className="overflow-hidden">
+                <Card className="overflow-hidden border-border/60">
                   <CardContent className="pt-4 pb-3 px-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-xs text-muted-foreground">Days Left</p>
+                        <p className="text-xs text-muted-foreground font-medium">Days Left</p>
                         <p className="text-xl font-bold tabular-nums">{daysRemaining}</p>
                         <p className="text-xs text-muted-foreground tabular-nums">of {totalDays} total</p>
                       </div>
@@ -685,18 +685,18 @@ const GroupingMe = () => {
                   </CardContent>
                 </Card>
 
-                <Card className="overflow-hidden">
+                <Card className="overflow-hidden border-border/60">
                   <CardContent className="pt-4 pb-3 px-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-xs text-muted-foreground">Group</p>
+                        <p className="text-xs text-muted-foreground font-medium">Group</p>
                         <p className="text-xl font-bold tabular-nums">{groupAchievedPoints || 0}</p>
                         <p className="text-xs text-muted-foreground tabular-nums">
                           of {groupTarget?.target_points || 0} pts
                         </p>
                       </div>
-                      <div className="p-2 rounded-xl bg-accent/10">
-                        <Target className="w-5 h-5 text-accent" />
+                      <div className="p-2 rounded-xl bg-info/10">
+                        <Target className="w-5 h-5 text-info" />
                       </div>
                     </div>
                   </CardContent>
@@ -760,7 +760,7 @@ const GroupingMe = () => {
                           </DialogHeader>
                           <div className="space-y-4 pt-4">
                             <div className="p-3 rounded-lg bg-muted/50 text-sm">
-                              <Clock className="w-4 h-4 inline mr-2 text-yellow-500" />
+                              <Clock className="w-4 h-4 inline mr-2 text-warning" />
                               Entry starts as <strong>Pending</strong>. Mark as completed to add to targets.
                             </div>
                             
@@ -984,8 +984,8 @@ const GroupingMe = () => {
                               <TableRow 
                                 key={entry.id} 
                                 className={
-                                  isPending ? 'bg-yellow-500/5' : 
-                                  isAttempt ? 'bg-blue-500/5' : ''
+                                  isPending ? 'bg-warning/5' : 
+                                  isAttempt ? 'bg-info/5' : ''
                                 }
                               >
                                 <TableCell className="font-medium">{idx + 1}</TableCell>
@@ -998,17 +998,17 @@ const GroupingMe = () => {
                                 <TableCell className="text-right">{entry.attempt_count}</TableCell>
                                 <TableCell>
                                   {isPending ? (
-                                    <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">
+                                    <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20">
                                       <Clock className="w-3 h-3 mr-1" />
                                       Pending
                                     </Badge>
                                   ) : isAttempt ? (
-                                    <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20">
+                                    <Badge variant="outline" className="bg-info/10 text-info border-info/20">
                                       <Zap className="w-3 h-3 mr-1" />
                                       Attempt
                                     </Badge>
                                   ) : (
-                                    <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">
+                                    <Badge variant="outline" className="bg-success/10 text-success border-success/20">
                                       <CheckCircle className="w-3 h-3 mr-1" />
                                       Completed
                                     </Badge>
@@ -1024,7 +1024,7 @@ const GroupingMe = () => {
                                             <Button
                                               size="icon"
                                               variant="ghost"
-                                              className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-500/10"
+                                            className="h-7 w-7 text-success hover:text-success hover:bg-success/10"
                                               onClick={() => handleCompleteEntry(entry.id)}
                                             >
                                               <Check className="w-4 h-4" />
@@ -1041,7 +1041,7 @@ const GroupingMe = () => {
                                             <Button
                                               size="icon"
                                               variant="ghost"
-                                              className="h-7 w-7 text-blue-600 hover:text-blue-700 hover:bg-blue-500/10"
+                                            className="h-7 w-7 text-info hover:text-info hover:bg-info/10"
                                               onClick={() => handleAttemptEntry(entry.id)}
                                             >
                                               <Zap className="w-4 h-4" />
@@ -1058,7 +1058,7 @@ const GroupingMe = () => {
                                             <Button
                                               size="icon"
                                               variant="ghost"
-                                              className="h-7 w-7 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-500/10"
+                                            className="h-7 w-7 text-warning hover:text-warning hover:bg-warning/10"
                                               onClick={() => handleRevertEntry(entry.id)}
                                             >
                                               <RotateCcw className="w-3 h-3" />
@@ -1092,7 +1092,7 @@ const GroupingMe = () => {
                                             <Button
                                               size="icon"
                                               variant="ghost"
-                                              className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-500/10"
+                                            className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
                                               onClick={() => handleDeleteEntry(entry.id)}
                                             >
                                               <Trash2 className="w-4 h-4" />

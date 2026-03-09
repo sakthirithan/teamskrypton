@@ -26,8 +26,8 @@ interface LearningFlowchartProps {
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof CheckCircle }> = {
   not_started: { label: 'Not Started', color: 'bg-muted text-muted-foreground', icon: Circle },
-  in_progress: { label: 'In Progress', color: 'bg-blue-500/10 text-blue-600 border-blue-500/20', icon: Loader2 },
-  completed: { label: 'Completed', color: 'bg-green-500/10 text-green-600 border-green-500/20', icon: CheckCircle },
+  in_progress: { label: 'In Progress', color: 'bg-info/10 text-info border-info/20', icon: Loader2 },
+  completed: { label: 'Completed', color: 'bg-success/10 text-success border-success/20', icon: CheckCircle },
 };
 
 const LINK_TYPE_CONFIG: Record<string, { label: string; icon: typeof Github }> = {
@@ -506,8 +506,8 @@ function StepBlock({ block, isReadOnly, isLocked, isSequential, onStatusToggle, 
       {useClipShape && (
         <div className="absolute -left-2 top-1/2 -translate-y-1/2 z-10">
           <div className={`w-8 h-8 ${shapeClass} shadow-lg ${
-            block.status === 'completed' ? 'bg-gradient-to-br from-green-400 to-green-600' :
-            block.status === 'in_progress' ? 'bg-gradient-to-br from-blue-400 to-blue-600' :
+            block.status === 'completed' ? 'bg-gradient-to-br from-success/70 to-success' :
+            block.status === 'in_progress' ? 'bg-gradient-to-br from-info/70 to-info' :
             'bg-gradient-to-br from-muted-foreground/20 to-muted-foreground/40'
           }`} />
         </div>
@@ -516,8 +516,8 @@ function StepBlock({ block, isReadOnly, isLocked, isSequential, onStatusToggle, 
       <div className={`border-2 p-5 transition-all duration-200 shadow-sm hover:shadow-md ${
         useClipShape ? 'rounded-xl ml-6' : shapeClass
       } ${
-        block.status === 'completed' ? 'border-green-500/40 bg-green-500/10 shadow-green-500/20' :
-        block.status === 'in_progress' ? 'border-blue-500/40 bg-blue-500/10 shadow-blue-500/20' :
+        block.status === 'completed' ? 'border-success/40 bg-success/5' :
+        block.status === 'in_progress' ? 'border-info/40 bg-info/5' :
         'border-border hover:border-primary/30 bg-card/50'
       } ${isLocked ? 'border-dashed' : ''}`}>
         <div className="flex items-start gap-4">
@@ -541,8 +541,8 @@ function StepBlock({ block, isReadOnly, isLocked, isSequential, onStatusToggle, 
                   title="Click to change status"
                 >
                   <StatusIcon className={`w-6 h-6 ${
-                    block.status === 'completed' ? 'text-green-500' :
-                    block.status === 'in_progress' ? 'text-blue-500 animate-spin' :
+                    block.status === 'completed' ? 'text-success' :
+                    block.status === 'in_progress' ? 'text-info animate-spin' :
                     'text-muted-foreground hover:text-primary'
                   }`} />
                 </button>
@@ -553,8 +553,8 @@ function StepBlock({ block, isReadOnly, isLocked, isSequential, onStatusToggle, 
             </Tooltip>
           ) : (
             <StatusIcon className={`w-6 h-6 mt-1 shrink-0 ${
-              block.status === 'completed' ? 'text-green-500' :
-              block.status === 'in_progress' ? 'text-blue-500' :
+              block.status === 'completed' ? 'text-success' :
+              block.status === 'in_progress' ? 'text-info' :
               'text-muted-foreground'
             }`} />
           )}
