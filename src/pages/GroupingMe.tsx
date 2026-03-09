@@ -1124,6 +1124,14 @@ const GroupingMe = () => {
               </Card>
 
                 </TabsContent>
+
+                {/* Feed & Reports Tab - Leadership Only */}
+                {isLeadership && (
+                  <TabsContent value="feed-reports" className="mt-3 space-y-4">
+                    <SkillActivityFeed session={viewingSession} />
+                    <TeamAnalyticsReport session={viewingSession} />
+                  </TabsContent>
+                )}
               </Tabs>
             </>
           )}
