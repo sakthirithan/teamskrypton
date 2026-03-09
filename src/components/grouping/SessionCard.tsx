@@ -57,7 +57,7 @@ export function SessionCard({
   };
 
   return (
-    <Card className={`${isHistorical ? 'border-muted bg-muted/20' : 'border-primary/20 bg-primary/5'}`}>
+    <Card className={`overflow-hidden border-0 shadow-sm ${isHistorical ? 'bg-muted/30' : 'bg-gradient-to-r from-primary/5 to-info/5'}`}>
       <CardContent className="py-3 px-4">
         <div className="flex items-start justify-between gap-3">
           {/* Session Info */}
