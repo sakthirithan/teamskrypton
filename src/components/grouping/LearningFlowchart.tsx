@@ -557,7 +557,7 @@ function StepBlock({ block, isReadOnly, isLocked, isSequential, onStatusToggle, 
   );
 }
 
-/** Enhanced Link Block Component */
+/** Minimal Link Block Component */
 function LinkBlock({ link, isReadOnly, onDelete }: {
   link: SkillDevLink;
   isReadOnly: boolean;
@@ -567,69 +567,48 @@ function LinkBlock({ link, isReadOnly, onDelete }: {
   const LinkIcon = typeConfig.icon;
 
   return (
-    <div className="relative border-2 rounded-xl p-5 border-primary/30 bg-gradient-to-br from-primary/8 to-primary/4 transition-all hover:shadow-lg hover:border-primary/40">
-      <div className="flex items-center gap-4">
-        <div className="shrink-0 w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
-          <LinkIcon className="w-5 h-5 text-primary" />
-        </div>
-        <div className="flex-1 min-w-0 space-y-1">
-          <div className="flex items-center gap-3 flex-wrap">
-            <a 
-              href={link.url} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="font-semibold text-base text-primary underline hover:opacity-80 truncate transition-opacity"
-            >
-              {link.title}
-            </a>
-            <Badge variant="outline" className="text-xs bg-primary/15 text-primary border-primary/30 shadow-sm">
-              {typeConfig.label}
-            </Badge>
-          </div>
-          <a 
-            href={link.url} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="text-sm text-muted-foreground truncate block underline hover:text-primary transition-colors"
-          >
-            {link.url.length > 60 ? link.url.slice(0, 60) + '…' : link.url}
-          </a>
-        </div>
-
-        {!isReadOnly && (
-          <AlertDialog>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <AlertDialogTrigger asChild>
-                  <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0">
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </AlertDialogTrigger>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="text-xs">Delete link</p>
-              </TooltipContent>
-            </Tooltip>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete Link</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to delete the link "{link.title}"? This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  onClick={() => onDelete(link.id)}
-                >
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        )}
+    <div className="group flex items-center gap-3 p-3 rounded-lg border border-primary/20 bg-primary/5 transition-all hover:border-primary/40">
+      <div className="shrink-0 w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
+        <LinkIcon className="w-4 h-4 text-primary" />
       </div>
+      <div className="flex-1 min-w-0">
+        <a 
+          href={link.url} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="text-sm font-medium text-primary hover:underline truncate block"
+        >
+          {link.title}
+        </a>
+        <span className="text-xs text-muted-foreground">{typeConfig.label}</span>
+      </div>
+
+      {!isReadOnly && (
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive/70 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+              <Trash2 className="w-3.5 h-3.5" />
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Link</AlertDialogTitle>
+              <AlertDialogDescription>
+                Delete "{link.title}"? This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={() => onDelete(link.id)}
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 }
