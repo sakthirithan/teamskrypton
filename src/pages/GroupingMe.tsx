@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Trash2, Eye, Lock, Shield, Coins, Zap, Filter } from 'lucide-react';
+import { Trash2, Eye, Lock, Shield, Coins, Zap, Filter, ClipboardList } from 'lucide-react';
 import { 
   Target, 
   Calendar, 
