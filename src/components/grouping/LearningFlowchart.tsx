@@ -434,7 +434,7 @@ function StepBlock({ block, isReadOnly, isLocked, isSequential, onStatusToggle, 
 }) {
   const config = STATUS_CONFIG[block.status] || STATUS_CONFIG.not_started;
   const StatusIcon = config.icon;
-  const shape = (block as any).block_shape || 'rectangle';
+  const shape = block.block_shape || 'rectangle';
   const shapeClass = getShapeClasses(shape);
   const isDiamond = shape === 'diamond';
 
