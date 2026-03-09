@@ -25,9 +25,12 @@ interface SkillTrackerProps {
 }
 
 export function SkillTracker({ session, userId, isReadOnly = false }: SkillTrackerProps) {
-  const { isLeadership } = useAuth();
+  const { isLeadership, user } = useAuth();
   const { tracks, suggestions, createTrack, deleteTrack, updateTrack } = useSkillTracks(session.id, userId);
   const { streak, recordWeekActivity } = useSkillStreaks(session.id, userId);
+  
+  // Leadership can always perform CRUD operations on any user's skill tracks
+  const canEdit = !isReadOnly && (isLeadership || userId === user?.id);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [skillName, setSkillName] = useState('');
