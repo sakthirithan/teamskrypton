@@ -1041,7 +1041,7 @@ const GroupingMe = () => {
                                             <Button
                                               size="icon"
                                               variant="ghost"
-                                              className="h-7 w-7 text-blue-600 hover:text-blue-700 hover:bg-blue-500/10"
+                                            className="h-7 w-7 text-info hover:text-info hover:bg-info/10"
                                               onClick={() => handleAttemptEntry(entry.id)}
                                             >
                                               <Zap className="w-4 h-4" />
