@@ -17,6 +17,7 @@ import { DailyStudyBoard } from '@/components/grouping/DailyStudyBoard';
 import { GroupingSession } from '@/hooks/useGroupingSessions';
 import { useAuth } from '@/hooks/useAuth';
 import { format, startOfWeek } from 'date-fns';
+import { GlobalScrollLayout } from '@/components/layout/GlobalScrollLayout';
 
 interface SkillTrackerProps {
   session: GroupingSession;
@@ -25,9 +26,13 @@ interface SkillTrackerProps {
 }
 
 export function SkillTracker({ session, userId, isReadOnly = false }: SkillTrackerProps) {
-  const { isLeadership } = useAuth();
+  const { isLeadership, user } = useAuth();
   const { tracks, suggestions, createTrack, deleteTrack, updateTrack } = useSkillTracks(session.id, userId);
   const { streak, recordWeekActivity } = useSkillStreaks(session.id, userId);
+  
+  // Leadership can always perform CRUD operations on any user's skill tracks
+  const canEdit = !isReadOnly && (isLeadership || userId === user?.id);
+
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [skillName, setSkillName] = useState('');
@@ -67,226 +72,260 @@ export function SkillTracker({ session, userId, isReadOnly = false }: SkillTrack
   };
 
   return (
-    <div className="space-y-5">
-      {/* Header Card */}
-      <Card className="overflow-hidden">
-        <CardHeader className="pb-3 bg-gradient-to-r from-primary/5 via-transparent to-[hsl(var(--info))]/5">
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-[hsl(var(--info))] flex items-center justify-center">
-                <BookOpen className="w-4.5 h-4.5 text-primary-foreground" />
+    <GlobalScrollLayout className="p-6" maxHeight="85vh">
+      <div className="space-y-6 max-w-5xl mx-auto">
+        {/* Enhanced Header Card */}
+        <Card className="overflow-hidden border-0 shadow-lg bg-gradient-to-br from-card to-card/80">
+          <CardHeader className="pb-4 bg-gradient-to-r from-primary/8 via-primary/5 to-[hsl(var(--info))]/8 border-b border-border/40">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-[hsl(var(--info))] flex items-center justify-center shadow-lg">
+                  <BookOpen className="w-6 h-6 text-primary-foreground" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl flex items-center gap-3">
+                    Skill Development Tracker
+                    {isLeadership && streak && streak.current_streak > 0 && (
+                      <Badge variant="outline" className="text-xs bg-[hsl(var(--warning))]/10 text-[hsl(var(--warning))] border-[hsl(var(--warning))]/20 gap-1">
+                        🔥 {streak.current_streak}w streak
+                      </Badge>
+                    )}
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {tracks.length} skill{tracks.length !== 1 ? 's' : ''} tracked across {weekKeys.length} week{weekKeys.length !== 1 ? 's' : ''}
+                  </p>
+                </div>
               </div>
-              <div>
-                <CardTitle className="text-base flex items-center gap-2">
-                  Skill Development Tracker
-                  {isLeadership && streak && streak.current_streak > 0 && (
-                    <Badge variant="outline" className="text-[10px] bg-[hsl(var(--warning))]/10 text-[hsl(var(--warning))] border-[hsl(var(--warning))]/20 gap-0.5">
-                      🔥 {streak.current_streak}w streak
-                    </Badge>
-                  )}
-                </CardTitle>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {tracks.length} skill{tracks.length !== 1 ? 's' : ''} tracked across {weekKeys.length} week{weekKeys.length !== 1 ? 's' : ''}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {isLeadership && (
-                <Button size="sm" variant="outline" onClick={() => setShowAnalytics(!showAnalytics)} className="h-8 text-xs gap-1.5">
-                  <BarChart3 className="w-3.5 h-3.5" />
-                  {showAnalytics ? 'Hide' : 'Analytics'}
-                </Button>
-              )}
-              {isLeadership && (
-                <SkillHistoryExport sessionId={session.id} userId={userId} userName={userId} />
-              )}
-              {!isReadOnly && (
-                <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-                  <DialogTrigger asChild>
-                    <Button size="sm" className="h-8 text-xs gap-1.5">
-                      <Plus className="w-3.5 h-3.5" />
-                      Add Skill
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Add Skill Track</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 pt-4">
-                      {suggestions.length > 0 && (
-                        <div className="space-y-2">
-                          <Label>Suggested Skills</Label>
-                          <div className="flex flex-wrap gap-2">
-                            {suggestions.map(s => (
-                              <Badge
-                                key={s.id}
-                                variant={skillName === s.name ? 'default' : 'outline'}
-                                className="cursor-pointer hover:bg-primary/10 transition-colors"
-                                onClick={() => { setSkillName(s.name); setCustomSkill(''); }}
-                              >
-                                {s.name}
-                              </Badge>
-                            ))}
+              <div className="flex items-center gap-3">
+                {isLeadership && (
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => setShowAnalytics(!showAnalytics)} 
+                    className="h-9 text-sm gap-2 shadow-sm hover:shadow-md transition-shadow"
+                  >
+                    <BarChart3 className="w-4 h-4" />
+                    {showAnalytics ? 'Hide Analytics' : 'View Analytics'}
+                  </Button>
+                )}
+                {isLeadership && (
+                  <SkillHistoryExport sessionId={session.id} userId={userId} userName={userId} />
+                )}
+                {canEdit && (
+                  <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+                    <DialogTrigger asChild>
+                      <Button size="sm" className="h-9 text-sm gap-2 shadow-sm hover:shadow-md transition-shadow">
+                        <Plus className="w-4 h-4" />
+                        Add Skill
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>Add Skill Track</DialogTitle>
+                      </DialogHeader>
+                      <GlobalScrollLayout maxHeight="70vh">
+                        <div className="space-y-5 pt-4">
+                          {suggestions.length > 0 && (
+                            <div className="space-y-3">
+                              <Label className="text-base font-medium">Suggested Skills</Label>
+                              <div className="flex flex-wrap gap-2">
+                                {suggestions.map(s => (
+                                  <Badge
+                                    key={s.id}
+                                    variant={skillName === s.name ? 'default' : 'outline'}
+                                    className="cursor-pointer hover:bg-primary/10 transition-all text-sm py-2 px-3"
+                                    onClick={() => { setSkillName(s.name); setCustomSkill(''); }}
+                                  >
+                                    {s.name}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          <div className="space-y-3">
+                            <Label className="text-base font-medium">Or enter custom skill</Label>
+                            <Input
+                              value={customSkill}
+                              onChange={e => { setCustomSkill(e.target.value); setSkillName(''); }}
+                              placeholder="e.g., React, Machine Learning, Docker"
+                              className="text-sm"
+                            />
                           </div>
+                          <div className="flex items-center gap-3 p-3 rounded-lg border bg-card/50">
+                            <input 
+                              type="checkbox" 
+                              id="isPrimary" 
+                              checked={isPrimary} 
+                              onChange={e => setIsPrimary(e.target.checked)} 
+                              className="w-4 h-4 rounded border-2 border-primary" 
+                            />
+                            <Label htmlFor="isPrimary" className="cursor-pointer flex items-center gap-2 text-sm">
+                              <Star className="w-4 h-4 text-[hsl(var(--warning))]" />
+                              Mark as primary focus this week
+                            </Label>
+                          </div>
+                          <Button 
+                            onClick={handleAdd} 
+                            className="w-full h-10" 
+                            disabled={(!skillName && !customSkill.trim()) || createTrack.isPending}
+                          >
+                            {createTrack.isPending ? 'Adding...' : 'Add Skill Track'}
+                          </Button>
                         </div>
-                      )}
-                      <div className="space-y-2">
-                        <Label>Or enter custom skill</Label>
-                        <Input
-                          value={customSkill}
-                          onChange={e => { setCustomSkill(e.target.value); setSkillName(''); }}
-                          placeholder="e.g., React, Machine Learning, Docker"
-                        />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <input type="checkbox" id="isPrimary" checked={isPrimary} onChange={e => setIsPrimary(e.target.checked)} className="rounded" />
-                        <Label htmlFor="isPrimary" className="cursor-pointer">
-                          <Star className="w-3 h-3 inline mr-1 text-[hsl(var(--warning))]" />
-                          Mark as primary focus this week
-                        </Label>
-                      </div>
-                      <Button onClick={handleAdd} className="w-full" disabled={(!skillName && !customSkill.trim()) || createTrack.isPending}>
-                        {createTrack.isPending ? 'Adding...' : 'Add Skill Track'}
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              )}
+                      </GlobalScrollLayout>
+                    </DialogContent>
+                  </Dialog>
+                )}
+              </div>
             </div>
-          </div>
-        </CardHeader>
-      </Card>
-
-      {/* Analytics Panel */}
-      {showAnalytics && <SkillProgressAnalytics session={session} userId={userId} />}
-
-      {/* Empty state */}
-      {tracks.length === 0 && (
-        <Card>
-          <CardContent className="py-10 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/10 to-[hsl(var(--info))]/10 flex items-center justify-center mx-auto mb-4">
-              <BookOpen className="w-7 h-7 text-primary/40" />
-            </div>
-            <p className="text-sm font-medium text-muted-foreground">No skill tracks yet</p>
-            {!isReadOnly && (
-              <p className="text-xs text-muted-foreground/70 mt-1">Add your first skill to start tracking your learning journey</p>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Tracks grouped by week */}
-      {weekKeys.map(week => (
-        <Card key={week} className="overflow-hidden">
-          <CardHeader className="pb-2 bg-secondary/30">
-            <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5" />
-              Week of {format(new Date(week), 'MMM dd, yyyy')}
-              <Badge variant="secondary" className="text-[10px] ml-auto h-4">
-                {tracksByWeek[week].length} skill{tracksByWeek[week].length !== 1 ? 's' : ''}
-              </Badge>
-            </CardTitle>
           </CardHeader>
-          <CardContent className="pt-3 space-y-2">
-            {tracksByWeek[week].map(track => (
-              <div key={track.id} className="rounded-xl border hover:border-primary/20 transition-all duration-200 overflow-hidden">
-                <div
-                  className="flex items-center gap-3 p-3.5 cursor-pointer hover:bg-secondary/30 transition-colors"
-                  onClick={() => setExpandedTrack(expandedTrack === track.id ? null : track.id)}
-                >
-                  {expandedTrack === track.id ? (
-                    <ChevronDown className="w-4 h-4 text-primary shrink-0" />
-                  ) : (
-                    <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
-                  )}
-                  <span className="font-medium text-sm flex-1">{track.skill_name}</span>
-                  {track.is_primary && (
-                    <Badge variant="default" className="bg-[hsl(var(--warning))]/10 text-[hsl(var(--warning))] border-[hsl(var(--warning))]/20 gap-0.5 text-[10px]">
-                      <Star className="w-3 h-3 fill-[hsl(var(--warning))]" />
-                      Primary
-                    </Badge>
-                  )}
-                  {!isReadOnly && (
-                    <div className="flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className={`h-7 w-7 ${track.is_sequential ? 'text-primary' : 'text-muted-foreground/40'}`}
-                              onClick={() => updateTrack.mutate({ id: track.id, is_sequential: !track.is_sequential })}
-                              title={track.is_sequential ? 'Sequential mode ON' : 'Sequential mode OFF'}
-                            >
-                              {track.is_sequential ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="text-xs">{track.is_sequential ? 'Sequential: Must complete steps in order' : 'Click to enforce step order'}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-7 w-7 hover:bg-[hsl(var(--warning))]/10"
-                        onClick={() => handleSetPrimary(track)}
-                        title={track.is_primary ? 'Remove primary' : 'Set as primary'}
-                      >
-                        <Star className={`w-3.5 h-3.5 ${track.is_primary ? 'fill-[hsl(var(--warning))] text-[hsl(var(--warning))]' : 'text-muted-foreground'}`} />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
+        </Card>
+
+        {/* Analytics Panel */}
+        {showAnalytics && (
+          <div className="animate-in slide-in-from-top-2 duration-200">
+            <SkillProgressAnalytics session={session} userId={userId} />
+          </div>
+        )}
+
+        {/* Enhanced Empty State */}
+        {tracks.length === 0 && (
+          <Card className="border-2 border-dashed border-border/50">
+            <CardContent className="py-16 text-center">
+              <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary/10 to-[hsl(var(--info))]/10 flex items-center justify-center mx-auto mb-6">
+                <BookOpen className="w-10 h-10 text-primary/40" />
+              </div>
+              <p className="text-lg font-medium text-muted-foreground mb-2">No skill tracks yet</p>
+              {canEdit && (
+                <p className="text-sm text-muted-foreground/70">Add your first skill to start tracking your learning journey</p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Enhanced Tracks Grouped by Week */}
+        {weekKeys.map(week => (
+          <Card key={week} className="overflow-hidden shadow-sm border-0 bg-gradient-to-br from-card to-card/60">
+            <CardHeader className="pb-3 bg-gradient-to-r from-secondary/50 to-secondary/30 border-b border-border/30">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+                  <Calendar className="w-4 h-4" />
+                  Week of {format(new Date(week), 'MMM dd, yyyy')}
+                </CardTitle>
+                <Badge variant="secondary" className="text-xs h-6">
+                  {tracksByWeek[week].length} skill{tracksByWeek[week].length !== 1 ? 's' : ''}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-4 space-y-3">
+              {tracksByWeek[week].map(track => (
+                <div key={track.id} className="rounded-2xl border-2 hover:border-primary/30 transition-all duration-300 overflow-hidden bg-card/50 backdrop-blur-sm">
+                  <div
+                    className="flex items-center gap-4 p-4 cursor-pointer hover:bg-secondary/30 transition-colors"
+                    onClick={() => setExpandedTrack(expandedTrack === track.id ? null : track.id)}
+                  >
+                    <div className="flex-shrink-0">
+                      {expandedTrack === track.id ? (
+                        <ChevronDown className="w-5 h-5 text-primary" />
+                      ) : (
+                        <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                      )}
+                    </div>
+                    <span className="font-semibold text-base flex-1">{track.skill_name}</span>
+                    <div className="flex items-center gap-3">
+                      {track.is_primary && (
+                        <Badge variant="default" className="bg-[hsl(var(--warning))]/15 text-[hsl(var(--warning))] border-[hsl(var(--warning))]/30 gap-1 text-xs py-1">
+                          <Star className="w-3.5 h-3.5 fill-[hsl(var(--warning))]" />
+                          Primary
+                        </Badge>
+                      )}
+                      {canEdit && (
+                        <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className={`h-8 w-8 ${track.is_sequential ? 'text-primary' : 'text-muted-foreground/40'}`}
+                                  onClick={() => updateTrack.mutate({ id: track.id, is_sequential: !track.is_sequential })}
+                                  title={track.is_sequential ? 'Sequential mode ON' : 'Sequential mode OFF'}
+                                >
+                                  {track.is_sequential ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="text-xs">{track.is_sequential ? 'Sequential: Must complete steps in order' : 'Click to enforce step order'}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-7 w-7 text-destructive/60 hover:text-destructive hover:bg-destructive/10"
+                            className="h-8 w-8 hover:bg-[hsl(var(--warning))]/15"
+                            onClick={() => handleSetPrimary(track)}
+                            title={track.is_primary ? 'Remove primary' : 'Set as primary'}
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Star className={`w-4 h-4 ${track.is_primary ? 'fill-[hsl(var(--warning))] text-[hsl(var(--warning))]' : 'text-muted-foreground'}`} />
                           </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Skill Track</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to delete "{track.skill_name}"? This will permanently remove the skill track and all its learning steps, links, and reflections.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              onClick={() => deleteTrack.mutate(track.id)}
-                            >
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 text-destructive/60 hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Skill Track</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete "{track.skill_name}"? This will permanently remove the skill track and all its learning steps, links, and reflections.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  onClick={() => deleteTrack.mutate(track.id)}
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {expandedTrack === track.id && (
+                    <div className="border-t bg-gradient-to-r from-secondary/20 to-secondary/10 p-4">
+                      <LearningFlowchart
+                        trackId={track.id}
+                        sessionId={session.id}
+                        userId={userId}
+                        isReadOnly={!canEdit}
+                        isSequential={track.is_sequential}
+                        onFlowchartUpdate={() => recordWeekActivity.mutate()}
+                      />
                     </div>
                   )}
                 </div>
+              ))}
+            </CardContent>
+          </Card>
+        ))}
 
-                {expandedTrack === track.id && (
-                  <div className="border-t bg-secondary/10 px-3.5 pb-3.5 pt-3">
-                    <LearningFlowchart
-                      trackId={track.id}
-                      sessionId={session.id}
-                      userId={userId}
-                      isReadOnly={isReadOnly}
-                      isSequential={track.is_sequential}
-                      onFlowchartUpdate={() => recordWeekActivity.mutate()}
-                    />
-                  </div>
-                )}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      ))}
-
-      {/* Daily Study Board */}
-      {!isReadOnly && <DailyStudyBoard sessionId={session.id} userId={userId} />}
-    </div>
+        {/* Daily Study Board */}
+        {canEdit && (
+          <div className="animate-in slide-in-from-bottom-2 duration-200">
+            <DailyStudyBoard sessionId={session.id} userId={userId} />
+          </div>
+        )}
+      </div>
+    </GlobalScrollLayout>
   );
 }
