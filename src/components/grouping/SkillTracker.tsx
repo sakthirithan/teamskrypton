@@ -207,6 +207,24 @@ export function SkillTracker({ session, userId, isReadOnly = false }: SkillTrack
                   )}
                   {!isReadOnly && (
                     <div className="flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className={`h-7 w-7 ${track.is_sequential ? 'text-primary' : 'text-muted-foreground/40'}`}
+                              onClick={() => updateTrack.mutate({ id: track.id, is_sequential: !track.is_sequential })}
+                              title={track.is_sequential ? 'Sequential mode ON' : 'Sequential mode OFF'}
+                            >
+                              {track.is_sequential ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs">{track.is_sequential ? 'Sequential: Must complete steps in order' : 'Click to enforce step order'}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                       <Button
                         size="icon"
                         variant="ghost"
