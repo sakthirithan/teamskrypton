@@ -13,7 +13,7 @@ import { useSkillStreaks } from '@/hooks/useSkillStreaks';
 import { LearningFlowchart } from '@/components/grouping/LearningFlowchart';
 import { SkillProgressAnalytics } from '@/components/grouping/SkillProgressAnalytics';
 import { SkillHistoryExport } from '@/components/grouping/SkillHistoryExport';
-import { AISkillRecommendations } from '@/components/grouping/AISkillRecommendations';
+import { DailyStudyBoard } from '@/components/grouping/DailyStudyBoard';
 import { GroupingSession } from '@/hooks/useGroupingSessions';
 import { useAuth } from '@/hooks/useAuth';
 import { format, startOfWeek } from 'date-fns';
@@ -285,8 +285,8 @@ export function SkillTracker({ session, userId, isReadOnly = false }: SkillTrack
         </Card>
       ))}
 
-      {/* AI Skill Recommendations */}
-      {!isReadOnly && <AISkillRecommendations userId={userId} sessionId={session.id} />}
+      {/* Daily Study Board */}
+      {!isReadOnly && <DailyStudyBoard sessionId={session.id} userId={userId} />}
     </div>
   );
 }
