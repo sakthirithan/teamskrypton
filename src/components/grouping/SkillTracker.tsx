@@ -171,7 +171,7 @@ export function SkillTracker({ session, userId, isReadOnly = false }: SkillTrack
               <BookOpen className="w-7 h-7 text-primary/40" />
             </div>
             <p className="text-sm font-medium text-muted-foreground">No skill tracks yet</p>
-            {!isReadOnly && (
+            {canEdit && (
               <p className="text-xs text-muted-foreground/70 mt-1">Add your first skill to start tracking your learning journey</p>
             )}
           </CardContent>
