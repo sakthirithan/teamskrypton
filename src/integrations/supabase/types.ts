@@ -99,6 +99,50 @@ export type Database = {
           },
         ]
       }
+      daily_study_items: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          is_completed: boolean
+          item_type: string
+          session_id: string
+          title: string
+          url: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          is_completed?: boolean
+          item_type?: string
+          session_id: string
+          title: string
+          url?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          is_completed?: boolean
+          item_type?: string
+          session_id?: string
+          title?: string
+          url?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_study_items_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "grouping_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       google_sheet_cache: {
         Row: {
           cell_value: string | null
@@ -1728,6 +1772,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cleanup_expired_study_items: { Args: never; Returns: undefined }
       cleanup_old_login_activity: { Args: never; Returns: undefined }
       get_simulated_role: {
         Args: { _user_id: string }
