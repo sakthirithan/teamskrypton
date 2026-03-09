@@ -171,7 +171,7 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
       title: block.title,
       description: block.description || '',
       resource_url: block.resource_url || '',
-      block_shape: (block as any).block_shape || 'rectangle',
+      block_shape: block.block_shape || 'rectangle',
     });
   };
 
