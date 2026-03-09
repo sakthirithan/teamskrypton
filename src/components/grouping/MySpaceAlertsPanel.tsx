@@ -108,14 +108,14 @@ export function MySpaceAlertsPanel({ userId, isViewingOther = false, session }: 
   if (alerts.length === 0) return null;
 
   return (
-    <Card className="border-yellow-500/20 bg-yellow-500/5">
+    <Card className="border-warning/20 bg-warning/5 overflow-hidden">
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-sm">
-          <AlertTriangle className="w-4 h-4 text-yellow-600" />
+          <AlertTriangle className="w-4 h-4 text-warning" />
           Your Alerts
           <Badge
             variant="outline"
-            className="ml-auto bg-yellow-500/10 text-yellow-600 border-yellow-500/20"
+            className="ml-auto bg-warning/10 text-warning border-warning/20"
           >
             {alerts.length}
           </Badge>
@@ -127,14 +127,14 @@ export function MySpaceAlertsPanel({ userId, isViewingOther = false, session }: 
           {alerts.map((alert, index) => (
             <div
               key={index}
-              className={`flex items-start gap-2 p-2 rounded text-sm ${
+              className={`flex items-start gap-2 p-2.5 rounded-lg text-sm ${
                 alert.type === 'behind'
-                  ? 'bg-red-500/10 text-red-700 dark:text-red-400'
+                  ? 'bg-destructive/10 text-destructive'
                   : alert.type === 'pending'
-                  ? 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400'
+                  ? 'bg-warning/10 text-warning'
                   : alert.type === 'attempt'
-                  ? 'bg-blue-500/10 text-blue-700 dark:text-blue-400'
-                  : 'bg-blue-500/10 text-blue-700 dark:text-blue-400'
+                  ? 'bg-info/10 text-info'
+                  : 'bg-info/10 text-info'
               }`}
             >
               {alert.type === 'behind' && (
@@ -149,7 +149,7 @@ export function MySpaceAlertsPanel({ userId, isViewingOther = false, session }: 
               {alert.type === 'deadline' && (
                 <Calendar className="w-4 h-4 mt-0.5 shrink-0" />
               )}
-              <span>{alert.message}</span>
+              <span className="font-medium">{alert.message}</span>
             </div>
           ))}
         </div>
