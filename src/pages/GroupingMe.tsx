@@ -636,18 +636,18 @@ const GroupingMe = () => {
 
               {/* Points & Stats Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <Card className="overflow-hidden">
+                <Card className="overflow-hidden border-border/60">
                   <CardContent className="pt-4 pb-3 px-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-xs text-muted-foreground">Completed</p>
-                        <p className="text-xl font-bold tabular-nums text-emerald-600">{myAchievedPoints}</p>
+                        <p className="text-xs text-muted-foreground font-medium">Completed</p>
+                        <p className="text-xl font-bold tabular-nums text-success">{myAchievedPoints}</p>
                         <p className="text-xs text-muted-foreground tabular-nums">
                           of {myIndividualTarget?.target_points || 0} pts
                         </p>
                       </div>
-                      <div className="p-2 rounded-xl bg-emerald-500/10">
-                        <CheckCircle className="w-5 h-5 text-emerald-500" />
+                      <div className="p-2 rounded-xl bg-success/10">
+                        <CheckCircle className="w-5 h-5 text-success" />
                       </div>
                     </div>
                   </CardContent>
