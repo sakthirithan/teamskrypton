@@ -999,6 +999,50 @@ export type Database = {
         }
         Relationships: []
       }
+      skill_activity_log: {
+        Row: {
+          activity_type: string
+          created_at: string
+          description: string
+          entity_id: string | null
+          entity_type: string
+          id: string
+          metadata: Json | null
+          session_id: string
+          user_id: string
+        }
+        Insert: {
+          activity_type: string
+          created_at?: string
+          description: string
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          metadata?: Json | null
+          session_id: string
+          user_id: string
+        }
+        Update: {
+          activity_type?: string
+          created_at?: string
+          description?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          metadata?: Json | null
+          session_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skill_activity_log_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "grouping_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       skill_challenge_completions: {
         Row: {
           approved_by: string | null
@@ -1156,6 +1200,7 @@ export type Database = {
       }
       skill_flowchart_blocks: {
         Row: {
+          block_shape: string
           created_at: string
           description: string | null
           id: string
@@ -1167,6 +1212,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          block_shape?: string
           created_at?: string
           description?: string | null
           id?: string
@@ -1178,6 +1224,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          block_shape?: string
           created_at?: string
           description?: string | null
           id?: string
@@ -1353,6 +1400,7 @@ export type Database = {
           created_at: string
           id: string
           is_primary: boolean
+          is_sequential: boolean
           session_id: string
           skill_name: string
           updated_at: string
@@ -1363,6 +1411,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_primary?: boolean
+          is_sequential?: boolean
           session_id: string
           skill_name: string
           updated_at?: string
@@ -1373,6 +1422,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_primary?: boolean
+          is_sequential?: boolean
           session_id?: string
           skill_name?: string
           updated_at?: string
