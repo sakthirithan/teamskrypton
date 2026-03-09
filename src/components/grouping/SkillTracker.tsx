@@ -324,7 +324,6 @@ export function SkillTracker({ session, userId, isReadOnly = false }: SkillTrack
             <DailyStudyBoard sessionId={session.id} userId={userId} />
           </div>
         )}
-      </div>
-    </GlobalScrollLayout>
+    </div>
   );
 }
