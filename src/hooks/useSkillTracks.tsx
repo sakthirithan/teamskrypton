@@ -162,7 +162,7 @@ export function useSkillTracks(sessionId?: string, userId?: string) {
 
   // Update flowchart block
   const updateBlock = useMutation({
-    mutationFn: async (params: { id: string; skill_track_id: string; title?: string; description?: string; resource_url?: string; status?: string; sort_order?: number }) => {
+    mutationFn: async (params: { id: string; skill_track_id: string; title?: string; description?: string; resource_url?: string; status?: string; sort_order?: number; block_shape?: string }) => {
       const { id, skill_track_id, ...updates } = params;
       const { error } = await supabase
         .from('skill_flowchart_blocks')
