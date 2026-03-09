@@ -209,7 +209,7 @@ export function SkillTracker({ session, userId, isReadOnly = false }: SkillTrack
                       Primary
                     </Badge>
                   )}
-                  {!isReadOnly && (
+                  {canEdit && (
                     <div className="flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
                       <TooltipProvider>
                         <Tooltip>
