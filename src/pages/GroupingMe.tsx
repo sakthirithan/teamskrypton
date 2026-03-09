@@ -670,11 +670,11 @@ const GroupingMe = () => {
                   </CardContent>
                 </Card>
 
-                <Card className="overflow-hidden">
+                <Card className="overflow-hidden border-border/60">
                   <CardContent className="pt-4 pb-3 px-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-xs text-muted-foreground">Days Left</p>
+                        <p className="text-xs text-muted-foreground font-medium">Days Left</p>
                         <p className="text-xl font-bold tabular-nums">{daysRemaining}</p>
                         <p className="text-xs text-muted-foreground tabular-nums">of {totalDays} total</p>
                       </div>
