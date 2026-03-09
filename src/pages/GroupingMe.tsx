@@ -760,7 +760,7 @@ const GroupingMe = () => {
                           </DialogHeader>
                           <div className="space-y-4 pt-4">
                             <div className="p-3 rounded-lg bg-muted/50 text-sm">
-                              <Clock className="w-4 h-4 inline mr-2 text-yellow-500" />
+                              <Clock className="w-4 h-4 inline mr-2 text-warning" />
                               Entry starts as <strong>Pending</strong>. Mark as completed to add to targets.
                             </div>
                             
