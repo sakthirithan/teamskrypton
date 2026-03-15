@@ -72,23 +72,23 @@ const GroupingHome = () => {
           {/* Main content area */}
           <div className={`${isCaptainOrVice ? 'lg:col-span-2' : ''} space-y-3 order-1`}>
             {isLeadership ? (
-              <Tabs defaultValue="skills" className="w-full">
-                <TabsList className="grid w-full grid-cols-4 h-10 mb-3">
-                  <TabsTrigger value="skills" className="flex items-center gap-1 text-[10px] sm:text-xs px-1 sm:px-2">
+            <Tabs defaultValue="skills" className="w-full">
+                <TabsList className="grid w-full grid-cols-4 h-11 mb-3 rounded-lg bg-muted/60 p-1">
+                  <TabsTrigger value="skills" className="flex items-center gap-1.5 text-[11px] sm:text-xs rounded-md data-[state=active]:bg-card data-[state=active]:shadow-sm">
                     <BookOpen className="w-3.5 h-3.5 shrink-0" />
-                    <span className="hidden sm:inline truncate">Skills</span>
+                    <span className="hidden sm:inline">Skills</span>
                   </TabsTrigger>
-                  <TabsTrigger value="ps" className="flex items-center gap-1 text-[10px] sm:text-xs px-1 sm:px-2">
+                  <TabsTrigger value="ps" className="flex items-center gap-1.5 text-[11px] sm:text-xs rounded-md data-[state=active]:bg-card data-[state=active]:shadow-sm">
                     <ClipboardList className="w-3.5 h-3.5 shrink-0" />
-                    <span className="hidden sm:inline truncate">PS</span>
+                    <span className="hidden sm:inline">PS</span>
                   </TabsTrigger>
-                  <TabsTrigger value="reflections" className="flex items-center gap-1 text-[10px] sm:text-xs px-1 sm:px-2">
+                  <TabsTrigger value="reflections" className="flex items-center gap-1.5 text-[11px] sm:text-xs rounded-md data-[state=active]:bg-card data-[state=active]:shadow-sm">
                     <NotebookPen className="w-3.5 h-3.5 shrink-0" />
-                    <span className="hidden sm:inline truncate">Reflect</span>
+                    <span className="hidden sm:inline">Reflect</span>
                   </TabsTrigger>
-                  <TabsTrigger value="notes" className="flex items-center gap-1 text-[10px] sm:text-xs px-1 sm:px-2">
+                  <TabsTrigger value="notes" className="flex items-center gap-1.5 text-[11px] sm:text-xs rounded-md data-[state=active]:bg-card data-[state=active]:shadow-sm">
                     <MessageSquare className="w-3.5 h-3.5 shrink-0" />
-                    <span className="hidden sm:inline truncate">Notes</span>
+                    <span className="hidden sm:inline">Notes</span>
                   </TabsTrigger>
                 </TabsList>
 
@@ -154,18 +154,18 @@ const GroupingHome = () => {
             ) : (
               /* TEAM MEMBERS */
               <Tabs defaultValue="ps" className="w-full">
-                <TabsList className="grid w-full grid-cols-3 h-10 mb-3">
-                  <TabsTrigger value="ps" className="flex items-center gap-1 text-[10px] sm:text-xs px-1 sm:px-2">
+                <TabsList className="grid w-full grid-cols-3 h-11 mb-3 rounded-lg bg-muted/60 p-1">
+                  <TabsTrigger value="ps" className="flex items-center gap-1.5 text-[11px] sm:text-xs rounded-md data-[state=active]:bg-card data-[state=active]:shadow-sm">
                     <ClipboardList className="w-3.5 h-3.5 shrink-0" />
-                    <span className="hidden sm:inline truncate">PS</span>
+                    <span className="hidden sm:inline">PS</span>
                   </TabsTrigger>
-                  <TabsTrigger value="reflections" className="flex items-center gap-1 text-[10px] sm:text-xs px-1 sm:px-2">
+                  <TabsTrigger value="reflections" className="flex items-center gap-1.5 text-[11px] sm:text-xs rounded-md data-[state=active]:bg-card data-[state=active]:shadow-sm">
                     <NotebookPen className="w-3.5 h-3.5 shrink-0" />
-                    <span className="hidden sm:inline truncate">Reflect</span>
+                    <span className="hidden sm:inline">Reflect</span>
                   </TabsTrigger>
-                  <TabsTrigger value="notes" className="flex items-center gap-1 text-[10px] sm:text-xs px-1 sm:px-2">
+                  <TabsTrigger value="notes" className="flex items-center gap-1.5 text-[11px] sm:text-xs rounded-md data-[state=active]:bg-card data-[state=active]:shadow-sm">
                     <MessageSquare className="w-3.5 h-3.5 shrink-0" />
-                    <span className="hidden sm:inline truncate">Notes</span>
+                    <span className="hidden sm:inline">Notes</span>
                   </TabsTrigger>
                 </TabsList>
 
