@@ -529,48 +529,41 @@ const GroupingMe = () => {
       <main className="container mx-auto px-3 sm:px-6 py-4 sm:py-6 safe-area-bottom page-enter">
         <div className="space-y-3 sm:space-y-4">
           {/* Profile Header */}
-          <Card className="overflow-hidden border-0 shadow-md">
-            <div className="h-1.5 bg-gradient-to-r from-primary via-primary/80 to-info" />
-            <CardContent className="p-4 sm:p-5">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shrink-0 shadow-lg shadow-primary/20">
-                  <User className="w-6 h-6 text-primary-foreground" />
+          <div className="flex items-center justify-between gap-3 px-1">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                <User className="w-5 h-5 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-base font-semibold tracking-tight truncate">{displayProfile?.full_name || 'Loading...'}</h2>
+                  {displayRole && (
+                    <span className="text-[11px] font-medium text-primary bg-primary/8 px-2 py-0.5 rounded-md">
+                      {ROLE_LABELS[displayRole as KryptonRole] || displayRole}
+                    </span>
+                  )}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-lg font-bold tracking-tight truncate">{displayProfile?.full_name || 'Loading...'}</h2>
-                    {isViewingOther && !isTL && (
-                      <Badge variant="outline" className="flex items-center gap-1 text-[10px] h-5 bg-muted/50">
-                        <Eye className="w-3 h-3" />
-                        Read-Only
-                      </Badge>
-                    )}
-                    {isViewingOther && isTL && (
-                      <Badge variant="default" className="flex items-center gap-1 text-[10px] h-5 shadow-sm">
-                        <Edit2 className="w-3 h-3" />
-                        Full Access
-                      </Badge>
-                    )}
-                    {isSessionClosed && (
-                      <Badge variant="secondary" className="flex items-center gap-1 text-[10px] h-5">
-                        <Lock className="w-3 h-3" />
-                        Closed
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    {displayRole && (
-                      <Badge variant="outline" className="flex items-center gap-1 text-[10px] h-5 bg-primary/5 text-primary border-primary/20">
-                        <Shield className="w-3 h-3" />
-                        {ROLE_LABELS[displayRole as KryptonRole] || displayRole}
-                      </Badge>
-                    )}
-                    {viewingUserId && <MemberSkillsBadges userId={viewingUserId} />}
-                  </div>
+                <div className="flex items-center gap-2 mt-0.5">
+                  {viewingUserId && <MemberSkillsBadges userId={viewingUserId} />}
+                  {isViewingOther && !isTL && (
+                    <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                      <Eye className="w-3 h-3" /> View Only
+                    </span>
+                  )}
+                  {isViewingOther && isTL && (
+                    <span className="text-[10px] text-primary flex items-center gap-1">
+                      <Edit2 className="w-3 h-3" /> Full Access
+                    </span>
+                  )}
+                  {isSessionClosed && (
+                    <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                      <Lock className="w-3 h-3" /> Closed
+                    </span>
+                  )}
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Read-Only Mode Indicator */}
           {isReadOnlyMode && (
