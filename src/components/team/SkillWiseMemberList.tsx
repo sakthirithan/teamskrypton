@@ -70,7 +70,10 @@ export function SkillWiseMemberList() {
       if (!profile) return;
       const key = `${skill.skill_name}__${skill.skill_type}`;
       if (!groups.has(key)) groups.set(key, { type: skill.skill_type, domain: skill.domain, members: [] });
-      groups.get(key)!.members.push({ userId: skill.user_id, name: profile.full_name, department: profile.department });
+      const existing = groups.get(key)!;
+      if (!existing.members.some(m => m.userId === skill.user_id)) {
+        existing.members.push({ userId: skill.user_id, name: profile.full_name, department: profile.department });
+      }
     });
 
     return Array.from(groups.entries())
