@@ -586,21 +586,21 @@ const GroupingMe = () => {
 
           {!viewingSession ? null : (
             <>
-              {/* Main Tabs - Skills | PS Entries | Manage */}
+              {/* Main Tabs */}
               <Tabs defaultValue="skills" className="w-full">
-                <TabsList className={`w-full grid ${isLeadership ? 'grid-cols-3' : 'grid-cols-2'} h-12`}>
-                  <TabsTrigger value="skills" className="text-xs sm:text-sm gap-1.5">
-                    <Target className="w-4 h-4" />
-                    Skill Tracker
+                <TabsList className={`w-full grid ${isLeadership ? 'grid-cols-3' : 'grid-cols-2'} h-11 rounded-lg bg-muted/60 p-1`}>
+                  <TabsTrigger value="skills" className="text-xs sm:text-sm gap-1.5 rounded-md data-[state=active]:bg-card data-[state=active]:shadow-sm">
+                    <Target className="w-3.5 h-3.5" />
+                    Skills
                   </TabsTrigger>
-                  <TabsTrigger value="ps-entries" className="text-xs sm:text-sm gap-1.5">
-                    <ClipboardList className="w-4 h-4" />
+                  <TabsTrigger value="ps-entries" className="text-xs sm:text-sm gap-1.5 rounded-md data-[state=active]:bg-card data-[state=active]:shadow-sm">
+                    <ClipboardList className="w-3.5 h-3.5" />
                     PS Entries
                   </TabsTrigger>
                   {isLeadership && (
-                    <TabsTrigger value="feed-reports" className="text-xs sm:text-sm gap-1.5">
-                      <TrendingUp className="w-4 h-4" />
-                      Feed & Reports
+                    <TabsTrigger value="feed-reports" className="text-xs sm:text-sm gap-1.5 rounded-md data-[state=active]:bg-card data-[state=active]:shadow-sm">
+                      <TrendingUp className="w-3.5 h-3.5" />
+                      Reports
                     </TabsTrigger>
                   )}
                 </TabsList>
