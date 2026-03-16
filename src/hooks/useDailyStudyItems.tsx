@@ -11,9 +11,16 @@ export interface DailyStudyItem {
   title: string;
   url: string | null;
   is_completed: boolean;
+  is_pinned: boolean;
+  category: string;
+  notes: string | null;
   created_at: string;
   expires_at: string;
 }
+
+const CATEGORIES = ['general', 'documentation', 'video', 'article', 'course', 'project', 'practice'] as const;
+export type StudyCategory = typeof CATEGORIES[number];
+export const STUDY_CATEGORIES = CATEGORIES;
 
 export function useDailyStudyItems(sessionId?: string) {
   const { user } = useAuth();
@@ -38,7 +45,7 @@ export function useDailyStudyItems(sessionId?: string) {
   });
 
   const addItem = useMutation({
-    mutationFn: async (params: { item_type: 'link' | 'todo'; title: string; url?: string }) => {
+    mutationFn: async (params: { item_type: 'link' | 'todo'; title: string; url?: string; category?: string; notes?: string }) => {
       if (!sessionId || !user) throw new Error('Missing session or user');
       const { error } = await supabase.from('daily_study_items').insert({
         user_id: user.id,
@@ -46,7 +53,9 @@ export function useDailyStudyItems(sessionId?: string) {
         item_type: params.item_type,
         title: params.title,
         url: params.url || null,
-      });
+        category: params.category || 'general',
+        notes: params.notes || null,
+      } as any);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -60,8 +69,33 @@ export function useDailyStudyItems(sessionId?: string) {
     mutationFn: async (params: { id: string; is_completed: boolean }) => {
       const { error } = await supabase
         .from('daily_study_items')
-        .update({ is_completed: params.is_completed })
+        .update({ is_completed: params.is_completed } as any)
         .eq('id', params.id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: key }),
+    onError: (e: Error) => toast({ variant: 'destructive', title: 'Error', description: e.message }),
+  });
+
+  const togglePin = useMutation({
+    mutationFn: async (params: { id: string; is_pinned: boolean }) => {
+      const { error } = await supabase
+        .from('daily_study_items')
+        .update({ is_pinned: params.is_pinned } as any)
+        .eq('id', params.id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: key }),
+    onError: (e: Error) => toast({ variant: 'destructive', title: 'Error', description: e.message }),
+  });
+
+  const updateItem = useMutation({
+    mutationFn: async (params: { id: string; title?: string; notes?: string; category?: string }) => {
+      const { id, ...updates } = params;
+      const { error } = await supabase
+        .from('daily_study_items')
+        .update(updates as any)
+        .eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: key }),
@@ -81,8 +115,15 @@ export function useDailyStudyItems(sessionId?: string) {
   });
 
   const items = query.data || [];
-  const links = items.filter(i => i.item_type === 'link');
-  const todos = items.filter(i => i.item_type === 'todo');
+  
+  // Sort: pinned first, then by created_at desc
+  const sortedItems = [...items].sort((a, b) => {
+    if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
+  
+  const links = sortedItems.filter(i => i.item_type === 'link');
+  const todos = sortedItems.filter(i => i.item_type === 'todo');
 
-  return { items, links, todos, isLoading: query.isLoading, addItem, toggleComplete, removeItem };
+  return { items: sortedItems, links, todos, isLoading: query.isLoading, addItem, toggleComplete, togglePin, updateItem, removeItem };
 }
