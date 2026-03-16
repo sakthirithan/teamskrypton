@@ -101,33 +101,42 @@ export type Database = {
       }
       daily_study_items: {
         Row: {
+          category: string | null
           created_at: string
           expires_at: string
           id: string
           is_completed: boolean
+          is_pinned: boolean
           item_type: string
+          notes: string | null
           session_id: string
           title: string
           url: string | null
           user_id: string
         }
         Insert: {
+          category?: string | null
           created_at?: string
           expires_at?: string
           id?: string
           is_completed?: boolean
+          is_pinned?: boolean
           item_type?: string
+          notes?: string | null
           session_id: string
           title: string
           url?: string | null
           user_id: string
         }
         Update: {
+          category?: string | null
           created_at?: string
           expires_at?: string
           id?: string
           is_completed?: boolean
+          is_pinned?: boolean
           item_type?: string
+          notes?: string | null
           session_id?: string
           title?: string
           url?: string | null
