@@ -131,10 +131,6 @@ export function DailyStudyBoard({ sessionId, userId, isReadOnly = false }: Daily
                         <span className="text-[10px] text-muted-foreground truncate max-w-[200px]">
                           {link.url}
                         </span>
-                        <Badge variant="outline" className="text-[9px] gap-0.5 text-muted-foreground">
-                          <Clock className="w-2 h-2" />
-                          {formatDistanceToNow(new Date(link.expires_at), { addSuffix: false })} left
-                        </Badge>
                       </div>
                     </div>
                     <a
