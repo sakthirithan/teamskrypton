@@ -25,19 +25,16 @@ export function useDailyStudyItems(sessionId?: string) {
     queryKey: key,
     queryFn: async () => {
       if (!sessionId || !user) return [];
-      const now = new Date().toISOString();
       const { data, error } = await supabase
         .from('daily_study_items')
         .select('*')
         .eq('session_id', sessionId)
         .eq('user_id', user.id)
-        .gt('expires_at', now)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return (data || []) as DailyStudyItem[];
     },
     enabled: !!sessionId && !!user,
-    refetchInterval: 60_000, // refetch every minute to filter expired
   });
 
   const addItem = useMutation({
