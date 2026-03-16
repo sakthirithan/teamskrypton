@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Plus, ExternalLink, Edit2, Trash2, CheckCircle, Circle, ArrowDown, Loader2, Link2, Github, Globe, Lock, Square, Diamond, Hexagon, Pentagon, Triangle, Octagon } from 'lucide-react';
+import { Plus, ExternalLink, Edit2, Trash2, CheckCircle, Circle, Loader2, Link2, Github, Globe, Lock } from 'lucide-react';
 import { useSkillTracks, FlowchartBlock } from '@/hooks/useSkillTracks';
 import { useSkillDevLinks, SkillDevLink } from '@/hooks/useSkillDevLinks';
 import { SkillReflectionPanel } from '@/components/grouping/SkillReflectionPanel';
@@ -24,10 +24,10 @@ interface LearningFlowchartProps {
   onFlowchartUpdate?: () => void;
 }
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof CheckCircle }> = {
-  not_started: { label: 'Not Started', color: 'bg-muted text-muted-foreground', icon: Circle },
-  in_progress: { label: 'In Progress', color: 'bg-info/10 text-info border-info/20', icon: Loader2 },
-  completed: { label: 'Completed', color: 'bg-success/10 text-success border-success/20', icon: CheckCircle },
+const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof CheckCircle; bg: string; border: string }> = {
+  not_started: { label: 'Not Started', color: 'text-muted-foreground', icon: Circle, bg: 'bg-muted/50', border: 'border-border' },
+  in_progress: { label: 'In Progress', color: 'text-info', icon: Loader2, bg: 'bg-info/5', border: 'border-info/30' },
+  completed: { label: 'Completed', color: 'text-success', icon: CheckCircle, bg: 'bg-success/5', border: 'border-success/30' },
 };
 
 const LINK_TYPE_CONFIG: Record<string, { label: string; icon: typeof Github }> = {
@@ -37,17 +37,17 @@ const LINK_TYPE_CONFIG: Record<string, { label: string; icon: typeof Github }> =
 };
 
 const BLOCK_SHAPES = [
-  { value: 'rectangle', label: 'Rectangle', icon: '▬', description: 'Standard rectangular block' },
-  { value: 'diamond', label: 'Diamond', icon: '◆', description: 'Decision or milestone marker' },
-  { value: 'hexagon', label: 'Hexagon', icon: '⬡', description: 'Process or action step' },
-  { value: 'rounded', label: 'Rounded', icon: '▢', description: 'Soft rectangular block' },
-  { value: 'pill', label: 'Pill', icon: '⬭', description: 'Fully rounded capsule' },
-  { value: 'octagon', label: 'Octagon', icon: '⯃', description: 'Stop or warning marker' },
+  { value: 'rectangle', label: 'Rectangle', icon: '▬', description: 'Standard block' },
+  { value: 'diamond', label: 'Diamond', icon: '◆', description: 'Decision point' },
+  { value: 'hexagon', label: 'Hexagon', icon: '⬡', description: 'Process step' },
+  { value: 'rounded', label: 'Rounded', icon: '▢', description: 'Soft block' },
+  { value: 'pill', label: 'Pill', icon: '⬭', description: 'Capsule' },
+  { value: 'octagon', label: 'Octagon', icon: '⯃', description: 'Stop marker' },
 ] as const;
 
 const getShapeClasses = (shape: string) => {
   switch (shape) {
-    case 'diamond': return 'rounded-none rotate-0 [clip-path:polygon(50%_0%,100%_50%,50%_100%,0%_50%)]';
+    case 'diamond': return 'rounded-none [clip-path:polygon(50%_0%,100%_50%,50%_100%,0%_50%)]';
     case 'hexagon': return '[clip-path:polygon(25%_0%,75%_0%,100%_50%,75%_100%,25%_100%,0%_50%)]';
     case 'rounded': return 'rounded-2xl';
     case 'pill': return 'rounded-full';
@@ -72,7 +72,6 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
   const [form, setForm] = useState({ title: '', description: '', resource_url: '', block_shape: 'rectangle' });
   const [linkForm, setLinkForm] = useState({ title: '', url: '', link_type: 'github' });
 
-  // Merge steps + links into a single chronological timeline
   const timeline: TimelineItem[] = useMemo(() => {
     const items: TimelineItem[] = [
       ...blocks.map(b => ({ kind: 'step' as const, data: b, created_at: b.created_at })),
@@ -82,13 +81,11 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
     return items;
   }, [blocks, links]);
 
-  // Sequential enforcement: determine which blocks are locked
   const isBlockLocked = (block: FlowchartBlock): boolean => {
     if (!isSequential) return false;
     const sortedBlocks = [...blocks].sort((a, b) => a.sort_order - b.sort_order);
     const idx = sortedBlocks.findIndex(b => b.id === block.id);
-    if (idx <= 0) return false; // First block is always unlocked
-    // Check if all previous blocks are completed
+    if (idx <= 0) return false;
     for (let i = 0; i < idx; i++) {
       if (sortedBlocks[i].status !== 'completed') return true;
     }
@@ -99,12 +96,8 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
     if (!user) return;
     try {
       await supabase.from('skill_activity_log').insert({
-        user_id: user.id,
-        session_id: sessionId,
-        activity_type: activityType,
-        entity_type: 'flowchart_block',
-        entity_id: entityId,
-        description,
+        user_id: user.id, session_id: sessionId, activity_type: activityType,
+        entity_type: 'flowchart_block', entity_id: entityId, description,
       });
     } catch { /* silent */ }
   };
@@ -112,45 +105,32 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
   const handleAdd = async () => {
     if (!form.title.trim()) return;
     const result = await createBlock.mutateAsync({
-      skill_track_id: trackId,
-      title: form.title.trim(),
-      description: form.description || undefined,
-      resource_url: form.resource_url || undefined,
-      sort_order: blocks.length,
-      block_shape: form.block_shape,
+      skill_track_id: trackId, title: form.title.trim(),
+      description: form.description || undefined, resource_url: form.resource_url || undefined,
+      sort_order: blocks.length, block_shape: form.block_shape,
     });
     await logActivity('step_added', `Added learning step: ${form.title.trim()}`, result?.id);
     setForm({ title: '', description: '', resource_url: '', block_shape: 'rectangle' });
-    setIsAddOpen(false);
-    onFlowchartUpdate?.();
+    setIsAddOpen(false); onFlowchartUpdate?.();
   };
 
   const handleUpdate = async () => {
     if (!editingBlock || !form.title.trim()) return;
     await updateBlock.mutateAsync({
-      id: editingBlock.id,
-      skill_track_id: trackId,
-      title: form.title.trim(),
-      description: form.description || undefined,
-      resource_url: form.resource_url || undefined,
+      id: editingBlock.id, skill_track_id: trackId, title: form.title.trim(),
+      description: form.description || undefined, resource_url: form.resource_url || undefined,
       block_shape: form.block_shape,
     });
     await logActivity('step_updated', `Updated step: ${form.title.trim()}`, editingBlock.id);
-    setEditingBlock(null);
-    setForm({ title: '', description: '', resource_url: '', block_shape: 'rectangle' });
+    setEditingBlock(null); setForm({ title: '', description: '', resource_url: '', block_shape: 'rectangle' });
     onFlowchartUpdate?.();
   };
 
   const handleAddLink = async () => {
     if (!linkForm.title.trim() || !linkForm.url.trim()) return;
-    await addLink.mutateAsync({
-      title: linkForm.title.trim(),
-      url: linkForm.url.trim(),
-      link_type: linkForm.link_type,
-    });
+    await addLink.mutateAsync({ title: linkForm.title.trim(), url: linkForm.url.trim(), link_type: linkForm.link_type });
     await logActivity('link_added', `Added dev link: ${linkForm.title.trim()}`);
-    setLinkForm({ title: '', url: '', link_type: 'github' });
-    setIsAddLinkOpen(false);
+    setLinkForm({ title: '', url: '', link_type: 'github' }); setIsAddLinkOpen(false);
   };
 
   const handleStatusToggle = async (block: FlowchartBlock) => {
@@ -158,160 +138,142 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
     const order = ['not_started', 'in_progress', 'completed'];
     const nextIdx = (order.indexOf(block.status) + 1) % order.length;
     const newStatus = order[nextIdx];
-    await updateBlock.mutateAsync({
-      id: block.id,
-      skill_track_id: trackId,
-      status: newStatus,
-    });
+    await updateBlock.mutateAsync({ id: block.id, skill_track_id: trackId, status: newStatus });
     await logActivity('status_changed', `${block.title}: ${STATUS_CONFIG[block.status].label} → ${STATUS_CONFIG[newStatus].label}`, block.id);
     onFlowchartUpdate?.();
   };
 
   const openEdit = (block: FlowchartBlock) => {
     setEditingBlock(block);
-    setForm({
-      title: block.title,
-      description: block.description || '',
-      resource_url: block.resource_url || '',
-      block_shape: block.block_shape || 'rectangle',
-    });
+    setForm({ title: block.title, description: block.description || '', resource_url: block.resource_url || '', block_shape: block.block_shape || 'rectangle' });
   };
 
-  if (isLoading) {
-    return <div className="py-8 text-center text-sm text-muted-foreground">Loading flowchart...</div>;
-  }
+  if (isLoading) return <div className="py-6 text-center text-xs text-muted-foreground">Loading...</div>;
 
   const completedCount = blocks.filter(b => b.status === 'completed').length;
+  const inProgressCount = blocks.filter(b => b.status === 'in_progress').length;
   const progress = blocks.length > 0 ? Math.round((completedCount / blocks.length) * 100) : 0;
 
   return (
     <TooltipProvider>
-      <div className="space-y-4">
-        {/* Minimal Progress Bar */}
+      <div className="space-y-3">
+        {/* Progress Header */}
         {blocks.length > 0 && (
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-              <div
-                className="h-full rounded-full bg-primary transition-all duration-500"
-                style={{ width: `${progress}%` }}
-              />
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+              <div className="h-full rounded-full bg-gradient-to-r from-primary to-primary/70 transition-all duration-700 ease-out" style={{ width: `${progress}%` }} />
             </div>
-            <span className="text-xs font-medium text-muted-foreground tabular-nums whitespace-nowrap">
-              {completedCount}/{blocks.length}
-            </span>
-            {isSequential && (
-              <Lock className="w-3.5 h-3.5 text-muted-foreground/60" />
-            )}
+            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground tabular-nums">
+              <span className="font-medium">{progress}%</span>
+              <span>·</span>
+              <span>{completedCount}/{blocks.length}</span>
+              {isSequential && <Lock className="w-3 h-3 text-muted-foreground/50" />}
+            </div>
           </div>
         )}
 
-        {/* Minimal Timeline */}
-        <div className="space-y-2">
+        {/* Flowchart Timeline */}
+        <div className="relative">
           {timeline.length === 0 && (
-            <div className="text-center py-8 border border-dashed border-border/60 rounded-lg">
-              <p className="text-sm text-muted-foreground">No learning steps yet</p>
+            <div className="text-center py-6 border border-dashed border-border/60 rounded-lg animate-in fade-in-0 duration-300">
+              <p className="text-xs text-muted-foreground">No learning steps yet</p>
             </div>
           )}
 
-          {timeline.map((item, idx) => (
-            <div key={item.kind === 'step' ? `s-${item.data.id}` : `l-${item.data.id}`}>
-              {item.kind === 'step' ? (
-                <StepBlock
-                  block={item.data}
-                  isReadOnly={isReadOnly}
-                  isLocked={isBlockLocked(item.data)}
-                  isSequential={isSequential}
-                  onStatusToggle={handleStatusToggle}
-                  onEdit={openEdit}
-                  onDelete={(id) => deleteBlock.mutate({ id, skill_track_id: trackId })}
-                />
-              ) : (
-                <LinkBlock
-                  link={item.data}
-                  isReadOnly={isReadOnly}
-                  onDelete={(id) => removeLink.mutate(id)}
-                />
-              )}
+          {timeline.length > 0 && (
+            <div className="relative pl-6">
+              {/* Vertical connector line */}
+              <div className="absolute left-[11px] top-3 bottom-3 w-0.5 bg-gradient-to-b from-primary/30 via-border to-border/30 rounded-full" />
+
+              <div className="space-y-0">
+                {timeline.map((item, idx) => {
+                  const isStep = item.kind === 'step';
+                  const isLast = idx === timeline.length - 1;
+
+                  return (
+                    <div key={isStep ? `s-${item.data.id}` : `l-${item.data.id}`} className="relative animate-in fade-in-0 slide-in-from-left-2 duration-300" style={{ animationDelay: `${idx * 50}ms` }}>
+                      {/* Node dot on the vertical line */}
+                      <div className={`absolute -left-6 top-3 w-[9px] h-[9px] rounded-full border-2 z-10 transition-colors duration-300 ${
+                        isStep
+                          ? item.data.status === 'completed' ? 'bg-success border-success' :
+                            item.data.status === 'in_progress' ? 'bg-info border-info' :
+                            'bg-background border-border'
+                          : 'bg-primary/70 border-primary'
+                      }`} />
+
+                      {/* Arrow connector for steps */}
+                      {isStep && !isLast && (
+                        <div className="absolute -left-[17px] top-[22px] w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[5px] border-t-border/50" />
+                      )}
+
+                      <div className="pb-2">
+                        {isStep ? (
+                          <FlowchartStepBlock
+                            block={item.data as FlowchartBlock}
+                            isReadOnly={isReadOnly}
+                            isLocked={isBlockLocked(item.data as FlowchartBlock)}
+                            onStatusToggle={handleStatusToggle}
+                            onEdit={openEdit}
+                            onDelete={(id) => deleteBlock.mutate({ id, skill_track_id: trackId })}
+                          />
+                        ) : (
+                          <FlowchartLinkBlock
+                            link={item.data as SkillDevLink}
+                            isReadOnly={isReadOnly}
+                            onDelete={(id) => removeLink.mutate(id)}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          ))}
+          )}
         </div>
 
-        {/* Minimal Action Buttons */}
+        {/* Action Buttons */}
         {!isReadOnly && (
-          <div className="flex gap-2 pt-2">
+          <div className="flex gap-1.5 pt-1">
             <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="flex-1 h-9 gap-1.5 text-xs">
-                  <Plus className="w-3.5 h-3.5" />
-                  Add Step
+                <Button variant="outline" size="sm" className="flex-1 h-8 gap-1 text-[11px]">
+                  <Plus className="w-3 h-3" /> Add Step
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>Add Learning Step</DialogTitle>
-                </DialogHeader>
+              <DialogContent className="max-w-lg">
+                <DialogHeader><DialogTitle className="text-sm">Add Learning Step</DialogTitle></DialogHeader>
                 <GlobalScrollLayout maxHeight="70vh">
-                  <div className="space-y-6 pt-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-3">
-                        <Label className="text-base font-medium">Step Name *</Label>
-                        <Input
-                          value={form.title}
-                          onChange={e => setForm({ ...form, title: e.target.value })}
-                          placeholder="e.g., Setup Environment, Learn Basics"
-                          className="text-sm"
-                        />
+                  <div className="space-y-4 pt-2">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Step Name *</Label>
+                        <Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="e.g., Setup Environment" className="text-xs h-8" />
                       </div>
-                      <div className="space-y-3">
-                        <Label className="text-base font-medium">Resource / Study Link</Label>
-                        <Input
-                          value={form.resource_url}
-                          onChange={e => setForm({ ...form, resource_url: e.target.value })}
-                          placeholder="https://..."
-                          className="text-sm"
-                        />
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Resource Link</Label>
+                        <Input value={form.resource_url} onChange={e => setForm({ ...form, resource_url: e.target.value })} placeholder="https://..." className="text-xs h-8" />
                       </div>
                     </div>
-                    <div className="space-y-3">
-                      <Label className="text-base font-medium">Description</Label>
-                      <Input
-                        value={form.description}
-                        onChange={e => setForm({ ...form, description: e.target.value })}
-                        placeholder="Brief description of this step"
-                        className="text-sm"
-                      />
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Description</Label>
+                      <Input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Brief description" className="text-xs h-8" />
                     </div>
-                    <div className="space-y-3">
-                      <Label className="text-base font-medium">Block Shape</Label>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Shape</Label>
+                      <div className="grid grid-cols-3 gap-2">
                         {BLOCK_SHAPES.map(shape => (
-                          <Tooltip key={shape.value}>
-                            <TooltipTrigger asChild>
-                              <button
-                                type="button"
-                                onClick={() => setForm({ ...form, block_shape: shape.value })}
-                                className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 text-sm transition-all ${
-                                  form.block_shape === shape.value
-                                    ? 'border-primary bg-primary/10 text-primary font-medium shadow-md'
-                                    : 'border-border hover:border-primary/40 text-muted-foreground hover:bg-card/50'
-                                }`}
-                              >
-                                <span className="text-2xl">{shape.icon}</span>
-                                <span className="text-xs font-medium">{shape.label}</span>
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p className="text-xs">{shape.description}</p>
-                            </TooltipContent>
-                          </Tooltip>
+                          <button key={shape.value} type="button" onClick={() => setForm({ ...form, block_shape: shape.value })}
+                            className={`flex flex-col items-center gap-1 p-2.5 rounded-lg border-2 text-xs transition-all ${
+                              form.block_shape === shape.value ? 'border-primary bg-primary/10 text-primary font-medium' : 'border-border hover:border-primary/40 text-muted-foreground'
+                            }`}>
+                            <span className="text-lg">{shape.icon}</span>
+                            <span className="text-[10px]">{shape.label}</span>
+                          </button>
                         ))}
                       </div>
                     </div>
-                    <Button 
-                      onClick={handleAdd} 
-                      className="w-full h-11" 
-                      disabled={!form.title.trim() || createBlock.isPending}
-                    >
+                    <Button onClick={handleAdd} className="w-full h-8 text-xs" disabled={!form.title.trim() || createBlock.isPending}>
                       {createBlock.isPending ? 'Adding...' : 'Add Step'}
                     </Button>
                   </div>
@@ -321,57 +283,34 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
 
             <Dialog open={isAddLinkOpen} onOpenChange={setIsAddLinkOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="flex-1 h-9 gap-1.5 text-xs">
-                  <Link2 className="w-3.5 h-3.5" />
-                  Add Link
+                <Button variant="outline" size="sm" className="flex-1 h-8 gap-1 text-[11px]">
+                  <Link2 className="w-3 h-3" /> Add Link
                 </Button>
               </DialogTrigger>
               <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Add Development Link</DialogTitle>
-                </DialogHeader>
+                <DialogHeader><DialogTitle className="text-sm">Add Development Link</DialogTitle></DialogHeader>
                 <GlobalScrollLayout maxHeight="70vh">
-                  <div className="space-y-5 pt-4">
-                    <div className="space-y-3">
-                      <Label className="text-base font-medium">Link Title *</Label>
-                      <Input
-                        value={linkForm.title}
-                        onChange={e => setLinkForm({ ...linkForm, title: e.target.value })}
-                        placeholder="e.g., My React Project, Portfolio Site"
-                      />
+                  <div className="space-y-4 pt-2">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Title *</Label>
+                      <Input value={linkForm.title} onChange={e => setLinkForm({ ...linkForm, title: e.target.value })} placeholder="e.g., Portfolio Site" className="text-xs h-8" />
                     </div>
-                    <div className="space-y-3">
-                      <Label className="text-base font-medium">URL *</Label>
-                      <Input
-                        value={linkForm.url}
-                        onChange={e => setLinkForm({ ...linkForm, url: e.target.value })}
-                        placeholder="https://github.com/user/repo"
-                      />
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">URL *</Label>
+                      <Input value={linkForm.url} onChange={e => setLinkForm({ ...linkForm, url: e.target.value })} placeholder="https://github.com/..." className="text-xs h-8" />
                     </div>
-                    <div className="space-y-3">
-                      <Label className="text-base font-medium">Link Type</Label>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Type</Label>
                       <Select value={linkForm.link_type} onValueChange={v => setLinkForm({ ...linkForm, link_type: v })}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="github">
-                            <span className="flex items-center gap-2"><Github className="w-4 h-4" /> GitHub</span>
-                          </SelectItem>
-                          <SelectItem value="website">
-                            <span className="flex items-center gap-2"><Globe className="w-4 h-4" /> Website</span>
-                          </SelectItem>
-                          <SelectItem value="other">
-                            <span className="flex items-center gap-2"><Link2 className="w-4 h-4" /> Other</span>
-                          </SelectItem>
+                          <SelectItem value="github"><span className="flex items-center gap-1.5"><Github className="w-3.5 h-3.5" /> GitHub</span></SelectItem>
+                          <SelectItem value="website"><span className="flex items-center gap-1.5"><Globe className="w-3.5 h-3.5" /> Website</span></SelectItem>
+                          <SelectItem value="other"><span className="flex items-center gap-1.5"><Link2 className="w-3.5 h-3.5" /> Other</span></SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
-                    <Button
-                      onClick={handleAddLink}
-                      className="w-full h-11"
-                      disabled={!linkForm.title.trim() || !linkForm.url.trim() || addLink.isPending}
-                    >
+                    <Button onClick={handleAddLink} className="w-full h-8 text-xs" disabled={!linkForm.title.trim() || !linkForm.url.trim() || addLink.isPending}>
                       {addLink.isPending ? 'Adding...' : 'Add Link'}
                     </Button>
                   </div>
@@ -381,68 +320,41 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
           </div>
         )}
 
-        {/* Enhanced Edit Dialog */}
+        {/* Edit Dialog */}
         <Dialog open={!!editingBlock} onOpenChange={open => { if (!open) setEditingBlock(null); }}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Edit Learning Step</DialogTitle>
-            </DialogHeader>
+          <DialogContent className="max-w-lg">
+            <DialogHeader><DialogTitle className="text-sm">Edit Learning Step</DialogTitle></DialogHeader>
             <GlobalScrollLayout maxHeight="70vh">
-              <div className="space-y-6 pt-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-3">
-                    <Label className="text-base font-medium">Step Name *</Label>
-                    <Input 
-                      value={form.title} 
-                      onChange={e => setForm({ ...form, title: e.target.value })} 
-                    />
+              <div className="space-y-4 pt-2">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Step Name *</Label>
+                    <Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="text-xs h-8" />
                   </div>
-                  <div className="space-y-3">
-                    <Label className="text-base font-medium">Resource / Study Link</Label>
-                    <Input 
-                      value={form.resource_url} 
-                      onChange={e => setForm({ ...form, resource_url: e.target.value })} 
-                    />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Resource Link</Label>
+                    <Input value={form.resource_url} onChange={e => setForm({ ...form, resource_url: e.target.value })} className="text-xs h-8" />
                   </div>
                 </div>
-                <div className="space-y-3">
-                  <Label className="text-base font-medium">Description</Label>
-                  <Input 
-                    value={form.description} 
-                    onChange={e => setForm({ ...form, description: e.target.value })} 
-                  />
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Description</Label>
+                  <Input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="text-xs h-8" />
                 </div>
-                <div className="space-y-3">
-                  <Label className="text-base font-medium">Block Shape</Label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Shape</Label>
+                  <div className="grid grid-cols-3 gap-2">
                     {BLOCK_SHAPES.map(shape => (
-                      <Tooltip key={shape.value}>
-                        <TooltipTrigger asChild>
-                          <button
-                            type="button"
-                            onClick={() => setForm({ ...form, block_shape: shape.value })}
-                            className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 text-sm transition-all ${
-                              form.block_shape === shape.value
-                                ? 'border-primary bg-primary/10 text-primary font-medium shadow-md'
-                                : 'border-border hover:border-primary/40 text-muted-foreground hover:bg-card/50'
-                            }`}
-                          >
-                            <span className="text-2xl">{shape.icon}</span>
-                            <span className="text-xs font-medium">{shape.label}</span>
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="text-xs">{shape.description}</p>
-                        </TooltipContent>
-                      </Tooltip>
+                      <button key={shape.value} type="button" onClick={() => setForm({ ...form, block_shape: shape.value })}
+                        className={`flex flex-col items-center gap-1 p-2.5 rounded-lg border-2 text-xs transition-all ${
+                          form.block_shape === shape.value ? 'border-primary bg-primary/10 text-primary font-medium' : 'border-border hover:border-primary/40 text-muted-foreground'
+                        }`}>
+                        <span className="text-lg">{shape.icon}</span>
+                        <span className="text-[10px]">{shape.label}</span>
+                      </button>
                     ))}
                   </div>
                 </div>
-                <Button 
-                  onClick={handleUpdate} 
-                  className="w-full h-11" 
-                  disabled={!form.title.trim() || updateBlock.isPending}
-                >
+                <Button onClick={handleUpdate} className="w-full h-8 text-xs" disabled={!form.title.trim() || updateBlock.isPending}>
                   {updateBlock.isPending ? 'Saving...' : 'Save Changes'}
                 </Button>
               </div>
@@ -450,104 +362,82 @@ export function LearningFlowchart({ trackId, sessionId, userId, isReadOnly = fal
           </DialogContent>
         </Dialog>
 
-        {/* Weekly Reflections */}
+        {/* Reflections */}
         <SkillReflectionPanel trackId={trackId} isReadOnly={isReadOnly} />
       </div>
     </TooltipProvider>
   );
 }
 
-/** Minimal Step Block Component */
-function StepBlock({ block, isReadOnly, isLocked, isSequential, onStatusToggle, onEdit, onDelete }: {
+/** Flowchart Step Block */
+function FlowchartStepBlock({ block, isReadOnly, isLocked, onStatusToggle, onEdit, onDelete }: {
   block: FlowchartBlock;
   isReadOnly: boolean;
   isLocked: boolean;
-  isSequential: boolean;
   onStatusToggle: (b: FlowchartBlock) => void;
   onEdit: (b: FlowchartBlock) => void;
   onDelete: (id: string) => void;
 }) {
   const config = STATUS_CONFIG[block.status] || STATUS_CONFIG.not_started;
   const StatusIcon = config.icon;
+  const shapeClass = getShapeClasses(block.block_shape || 'rectangle');
 
   return (
-    <div className={`group flex items-start gap-3 p-3 rounded-lg border transition-all ${
-      isLocked ? 'opacity-50 bg-muted/30 border-border/50' :
-      block.status === 'completed' ? 'bg-success/5 border-success/30' :
-      block.status === 'in_progress' ? 'bg-info/5 border-info/30' :
-      'bg-card border-border hover:border-primary/40'
+    <div className={`group flex items-start gap-2.5 p-2.5 rounded-lg border transition-all duration-200 ${
+      isLocked ? 'opacity-40 bg-muted/30 border-border/50' :
+      `${config.bg} ${config.border}`
     }`}>
-      {/* Status Toggle */}
+      {/* Status indicator with shape */}
       {isLocked ? (
-        <Lock className="w-5 h-5 text-muted-foreground/50 mt-0.5 shrink-0" />
+        <Lock className="w-4 h-4 text-muted-foreground/50 mt-0.5 shrink-0" />
       ) : !isReadOnly ? (
-        <button 
-          onClick={() => onStatusToggle(block)} 
-          className="mt-0.5 shrink-0 hover:scale-110 transition-transform"
-        >
-          <StatusIcon className={`w-5 h-5 ${
-            block.status === 'completed' ? 'text-success' :
-            block.status === 'in_progress' ? 'text-info animate-spin' :
-            'text-muted-foreground/60 hover:text-primary'
-          }`} />
+        <button onClick={() => onStatusToggle(block)} className="mt-0.5 shrink-0 hover:scale-110 transition-transform">
+          <div className={`w-5 h-5 flex items-center justify-center ${shapeClass} ${config.bg} border ${config.border}`}>
+            <StatusIcon className={`w-3 h-3 ${config.color} ${block.status === 'in_progress' ? 'animate-spin' : ''}`} />
+          </div>
         </button>
       ) : (
-        <StatusIcon className={`w-5 h-5 mt-0.5 shrink-0 ${
-          block.status === 'completed' ? 'text-success' :
-          block.status === 'in_progress' ? 'text-info' :
-          'text-muted-foreground/60'
-        }`} />
+        <div className={`w-5 h-5 flex items-center justify-center mt-0.5 shrink-0 ${shapeClass} ${config.bg} border ${config.border}`}>
+          <StatusIcon className={`w-3 h-3 ${config.color}`} />
+        </div>
       )}
 
       {/* Content */}
       <div className="flex-1 min-w-0">
-        <p className={`text-sm font-medium leading-tight ${isLocked ? 'text-muted-foreground' : ''}`}>
-          {block.title}
-        </p>
-        {block.description && (
-          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-            {block.description}
-          </p>
-        )}
+        <p className={`text-xs font-medium leading-tight ${isLocked ? 'text-muted-foreground' : ''}`}>{block.title}</p>
+        {block.description && <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">{block.description}</p>}
         {block.resource_url && !isLocked && (
-          <a 
-            href={block.resource_url} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-1"
-          >
-            <ExternalLink className="w-3 h-3" /> Resource
+          <a href={block.resource_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-[10px] text-primary hover:underline mt-0.5">
+            <ExternalLink className="w-2.5 h-2.5" /> Resource
           </a>
         )}
       </div>
 
-      {/* Actions - visible on hover */}
+      {/* Status badge */}
+      <Badge variant="outline" className={`text-[9px] px-1.5 py-0 h-4 shrink-0 ${config.color} border-current/20`}>
+        {config.label}
+      </Badge>
+
+      {/* Actions */}
       {!isReadOnly && !isLocked && (
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onEdit(block)}>
-            <Edit2 className="w-3.5 h-3.5" />
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onEdit(block)}>
+            <Edit2 className="w-3 h-3" />
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive/70 hover:text-destructive">
-                <Trash2 className="w-3.5 h-3.5" />
+              <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive/70 hover:text-destructive">
+                <Trash2 className="w-3 h-3" />
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete Step</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Delete "{block.title}"? This cannot be undone.
-                </AlertDialogDescription>
+                <AlertDialogDescription>Delete "{block.title}"? This cannot be undone.</AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  onClick={() => onDelete(block.id)}
-                >
-                  Delete
-                </AlertDialogAction>
+                <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => onDelete(block.id)}>Delete</AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
@@ -557,8 +447,8 @@ function StepBlock({ block, isReadOnly, isLocked, isSequential, onStatusToggle, 
   );
 }
 
-/** Minimal Link Block Component */
-function LinkBlock({ link, isReadOnly, onDelete }: {
+/** Flowchart Link Block */
+function FlowchartLinkBlock({ link, isReadOnly, onDelete }: {
   link: SkillDevLink;
   isReadOnly: boolean;
   onDelete: (id: string) => void;
@@ -567,44 +457,31 @@ function LinkBlock({ link, isReadOnly, onDelete }: {
   const LinkIcon = typeConfig.icon;
 
   return (
-    <div className="group flex items-center gap-3 p-3 rounded-lg border border-primary/20 bg-primary/5 transition-all hover:border-primary/40">
-      <div className="shrink-0 w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
-        <LinkIcon className="w-4 h-4 text-primary" />
+    <div className="group flex items-center gap-2.5 p-2 rounded-lg border border-primary/20 bg-primary/5 transition-all duration-200 hover:border-primary/40">
+      <div className="shrink-0 w-6 h-6 rounded-md bg-primary/15 flex items-center justify-center">
+        <LinkIcon className="w-3 h-3 text-primary" />
       </div>
       <div className="flex-1 min-w-0">
-        <a 
-          href={link.url} 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="text-sm font-medium text-primary hover:underline truncate block"
-        >
+        <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-primary hover:underline truncate block">
           {link.title}
         </a>
-        <span className="text-xs text-muted-foreground">{typeConfig.label}</span>
+        <span className="text-[10px] text-muted-foreground">{typeConfig.label}</span>
       </div>
-
       {!isReadOnly && (
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive/70 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-              <Trash2 className="w-3.5 h-3.5" />
+            <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive/70 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+              <Trash2 className="w-3 h-3" />
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Delete Link</AlertDialogTitle>
-              <AlertDialogDescription>
-                Delete "{link.title}"? This cannot be undone.
-              </AlertDialogDescription>
+              <AlertDialogDescription>Delete "{link.title}"?</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                onClick={() => onDelete(link.id)}
-              >
-                Delete
-              </AlertDialogAction>
+              <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => onDelete(link.id)}>Delete</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
