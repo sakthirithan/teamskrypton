@@ -7,7 +7,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Plus, ExternalLink, Trash2, Link2, ListTodo, Sparkles } from 'lucide-react';
 import { useDailyStudyItems } from '@/hooks/useDailyStudyItems';
-import { useDailyStudyItems } from '@/hooks/useDailyStudyItems';
 
 interface DailyStudyBoardProps {
   sessionId: string;
