@@ -48,13 +48,9 @@ export function DailyStudyBoard({ sessionId, userId, isReadOnly = false }: Daily
             <div>
               <CardTitle className="text-base flex items-center gap-2">
                 Daily Study Board
-                <Badge variant="outline" className="text-[10px] gap-0.5 bg-[hsl(var(--warning))]/10 text-[hsl(var(--warning))] border-[hsl(var(--warning))]/20">
-                  <Clock className="w-2.5 h-2.5" />
-                  24h Auto-Expire
-                </Badge>
               </CardTitle>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Save study links & to-do items — they auto-delete after 24 hours
+                Save study links & to-do items for your sessions
               </p>
             </div>
           </div>
