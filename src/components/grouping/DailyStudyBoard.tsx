@@ -220,10 +220,6 @@ export function DailyStudyBoard({ sessionId, userId, isReadOnly = false }: Daily
                       <span className={`text-sm ${todo.is_completed ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
                         {todo.title}
                       </span>
-                      <Badge variant="outline" className="text-[9px] gap-0.5 text-muted-foreground ml-2">
-                        <Clock className="w-2 h-2" />
-                        {formatDistanceToNow(new Date(todo.expires_at), { addSuffix: false })} left
-                      </Badge>
                     </div>
                     {!isReadOnly && (
                       <AlertDialog>
