@@ -157,26 +157,26 @@ Deno.serve(async (req) => {
       .single();
 
 // ---------Remove this manual User creation ---------
-    // if (!existingProfile) {
-    //   console.log("Creating profile...");
-    //   const { error: profileError } = await adminClient
-    //     .from("profiles")
-    //     .insert({
-    //       user_id: userId,
-    //       full_name: request.full_name,
-    //       email: request.email,
-    //       department: request.department,
-    //       current_status: "idle",
-    //       is_test: false,
-    //     });
+    if (!existingProfile) {
+      console.log("Creating profile...");
+      const { error: profileError } = await adminClient
+        .from("profiles")
+        .insert({
+          user_id: userId,
+          full_name: request.full_name,
+          email: request.email,
+          department: request.department,
+          current_status: "idle",
+          is_test: false,
+        });
 
-    // if (profileError) {
-    //     console.error("Profile creation error:", profileError);
-    //     // Don't fail - profile might be created by trigger
-    //   }
-    // } else {
-    //   console.log("Profile already exists");
-    // }
+    if (profileError) {
+        console.error("Profile creation error:", profileError);
+        // Don't fail - profile might be created by trigger
+      }
+    } else {
+      console.log("Profile already exists");
+    }
 
     // Check if role exists
     const { data: existingRole } = await adminClient
@@ -187,22 +187,22 @@ Deno.serve(async (req) => {
 
 // ---------Remove this manual User creation ---------
 
-    // if (!existingRole) {
-    //   console.log("Assigning role...");
-    //   const { error: roleInsertError } = await adminClient
-    //     .from("user_roles")
-    //     .insert({
-    //       user_id: userId,
-    //       role: request.requested_role,
-    //     });
+    if (!existingRole) {
+      console.log("Assigning role...");
+      const { error: roleInsertError } = await adminClient
+        .from("user_roles")
+        .insert({
+          user_id: userId,
+          role: request.requested_role,
+        });
 
-    //   if (roleInsertError) {
-    //     console.error("Role assignment error:", roleInsertError);
-    //     // Don't fail - role might be created by trigger
-    //   }
-    // } else {
-    //   console.log("Role already assigned");
-    // }
+      if (roleInsertError) {
+        console.error("Role assignment error:", roleInsertError);
+        // Don't fail - role might be created by trigger
+      }
+    } else {
+      console.log("Role already assigned");
+    }
 
     // Update registration request status
     console.log("Updating request status to approved...");
