@@ -16,6 +16,8 @@ function getSkillTypeColor(type: SkillType): string {
     case 'primary': return 'bg-primary/10 text-primary border-primary/20';
     case 'secondary': return 'bg-[hsl(var(--success))]/10 text-[hsl(var(--success))] border-[hsl(var(--success))]/20';
     case 'specialization': return 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20';
+    default:
+    return 'bg-gray-100 text-gray-600 border-gray-200';
   }
 }
 
@@ -35,7 +37,8 @@ export function SkillWiseMemberList() {
   const { data: allSkills = [] } = useQuery({
     queryKey: ['all-member-skills'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('member_skills').select('*').order('skill_type').order('skill_name');
+      const { data, error } = await supabase.from('member_skills').select('*').order('skill_type', { ascending: true })
+.order('skill_name', { ascending: true });
       if (error) throw error;
       return data as MemberSkill[];
     },
