@@ -620,6 +620,11 @@ const Team = () => {
     return <PBLLayout title="Team Directory">{content}</PBLLayout>;
   }
 
+  if (isGroupingMode) {
+    const { GroupingLayout } = require('@/components/grouping/GroupingLayout');
+    return <GroupingLayout title="Team Directory">{content}</GroupingLayout>;
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Header />

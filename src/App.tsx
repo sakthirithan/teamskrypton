@@ -64,6 +64,7 @@ const App = () => (
               <Route path="/grouping/reflections" element={<GroupingReflections />} />
               <Route path="/grouping/notes" element={<GroupingNotes />} />
               <Route path="/grouping/sessions" element={<GroupingSessions />} />
+              <Route path="/grouping/habits" element={<GroupingHabits />} />
               {/* PBL Mode Routes */}
               <Route path="/pbl/dashboard" element={<PBLDashboard />} />
               <Route path="/pbl/projects" element={<PBLProjects />} />

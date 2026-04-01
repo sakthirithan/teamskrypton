@@ -53,6 +53,10 @@ export function GroupingSidebar() {
     { title: 'Notes', url: '/grouping/notes', icon: MessageSquare },
   ];
 
+  const trackingItems = [
+    { title: 'Habits', url: '/grouping/habits', icon: Calendar },
+  ];
+
   const managementItems = [
     ...(isCaptainOrVice
       ? [{ title: 'Sessions', url: '/grouping/sessions', icon: Calendar }]
