@@ -622,7 +622,6 @@ const Team = () => {
   }
 
   if (isGroupingMode) {
-    const { GroupingLayout } = require('@/components/grouping/GroupingLayout');
     return <GroupingLayout title="Team Directory">{content}</GroupingLayout>;
   }
 
