@@ -14,6 +14,11 @@ import MemberProfile from "./pages/MemberProfile";
 import MemberPublicProfile from "./pages/MemberPublicProfile";
 import GroupingHome from "./pages/GroupingHome";
 import GroupingMe from "./pages/GroupingMe";
+import GroupingSkills from "./pages/GroupingSkills";
+import GroupingPS from "./pages/GroupingPS";
+import GroupingReflections from "./pages/GroupingReflections";
+import GroupingNotes from "./pages/GroupingNotes";
+import GroupingSessions from "./pages/GroupingSessions";
 import PBLDashboard from "./pages/PBLDashboard";
 import PBLProjects from "./pages/PBLProjects";
 import PBLAnalytics from "./pages/PBLAnalytics";
@@ -53,6 +58,11 @@ const App = () => (
               {/* Grouping Mode Routes */}
               <Route path="/grouping/home" element={<GroupingHome />} />
               <Route path="/grouping/me" element={<GroupingMe />} />
+              <Route path="/grouping/skills" element={<GroupingSkills />} />
+              <Route path="/grouping/ps" element={<GroupingPS />} />
+              <Route path="/grouping/reflections" element={<GroupingReflections />} />
+              <Route path="/grouping/notes" element={<GroupingNotes />} />
+              <Route path="/grouping/sessions" element={<GroupingSessions />} />
               {/* PBL Mode Routes */}
               <Route path="/pbl/dashboard" element={<PBLDashboard />} />
               <Route path="/pbl/projects" element={<PBLProjects />} />
