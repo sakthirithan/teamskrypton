@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAppMode } from '@/hooks/useAppMode';
 import { Header } from '@/components/layout/Header';
 import { PBLLayout } from '@/components/pbl/PBLLayout';
+import { GroupingLayout } from '@/components/grouping/GroupingLayout';
 import { KryptonIdCard } from '@/components/team/KryptonIdCard';
 import { SkillWiseMemberList } from '@/components/team/SkillWiseMemberList';
 import { Button } from '@/components/ui/button';
@@ -618,6 +619,10 @@ const Team = () => {
 
   if (isPBL) {
     return <PBLLayout title="Team Directory">{content}</PBLLayout>;
+  }
+
+  if (isGroupingMode) {
+    return <GroupingLayout title="Team Directory">{content}</GroupingLayout>;
   }
 
   return (

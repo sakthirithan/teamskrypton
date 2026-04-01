@@ -19,6 +19,7 @@ import GroupingPS from "./pages/GroupingPS";
 import GroupingReflections from "./pages/GroupingReflections";
 import GroupingNotes from "./pages/GroupingNotes";
 import GroupingSessions from "./pages/GroupingSessions";
+import GroupingHabits from "./pages/GroupingHabits";
 import PBLDashboard from "./pages/PBLDashboard";
 import PBLProjects from "./pages/PBLProjects";
 import PBLAnalytics from "./pages/PBLAnalytics";
@@ -63,6 +64,7 @@ const App = () => (
               <Route path="/grouping/reflections" element={<GroupingReflections />} />
               <Route path="/grouping/notes" element={<GroupingNotes />} />
               <Route path="/grouping/sessions" element={<GroupingSessions />} />
+              <Route path="/grouping/habits" element={<GroupingHabits />} />
               {/* PBL Mode Routes */}
               <Route path="/pbl/dashboard" element={<PBLDashboard />} />
               <Route path="/pbl/projects" element={<PBLProjects />} />
