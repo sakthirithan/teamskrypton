@@ -19,6 +19,7 @@ import GroupingPS from "./pages/GroupingPS";
 import GroupingReflections from "./pages/GroupingReflections";
 import GroupingNotes from "./pages/GroupingNotes";
 import GroupingSessions from "./pages/GroupingSessions";
+import GroupingHabits from "./pages/GroupingHabits";
 import PBLDashboard from "./pages/PBLDashboard";
 import PBLProjects from "./pages/PBLProjects";
 import PBLAnalytics from "./pages/PBLAnalytics";
