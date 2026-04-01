@@ -11,6 +11,7 @@ import {
   Users,
   ChevronLeft,
   Compass,
+  Repeat,
 } from 'lucide-react';
 import {
   Sidebar,
