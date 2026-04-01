@@ -523,10 +523,9 @@ const GroupingMe = () => {
 
 
   return (
+    <GroupingLayout title="My Space">
     <TooltipProvider>
-    <div className="min-h-screen bg-background">
-      <Header />
-      <main className="container mx-auto px-3 sm:px-6 py-4 sm:py-6 safe-area-bottom page-enter">
+      <div>
         <div className="space-y-3 sm:space-y-4">
           {/* Profile Header */}
           <div className="flex items-center justify-between gap-3 px-1">
