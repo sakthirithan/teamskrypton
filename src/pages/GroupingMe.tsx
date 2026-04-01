@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, memo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
-import { Header } from '@/components/layout/Header';
+import { GroupingLayout } from '@/components/grouping/GroupingLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -523,10 +523,9 @@ const GroupingMe = () => {
 
 
   return (
+    <GroupingLayout title="My Space">
     <TooltipProvider>
-    <div className="min-h-screen bg-background">
-      <Header />
-      <main className="container mx-auto px-3 sm:px-6 py-4 sm:py-6 safe-area-bottom page-enter">
+      <div>
         <div className="space-y-3 sm:space-y-4">
           {/* Profile Header */}
           <div className="flex items-center justify-between gap-3 px-1">
@@ -1204,9 +1203,9 @@ const GroupingMe = () => {
             </div>
           </DialogContent>
         </Dialog>
-      </main>
-    </div>
+      </div>
     </TooltipProvider>
+    </GroupingLayout>
   );
 };
 
