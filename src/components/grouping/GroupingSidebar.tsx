@@ -55,7 +55,7 @@ export function GroupingSidebar() {
   ];
 
   const trackingItems = [
-    { title: 'Habits', url: '/grouping/habits', icon: Calendar },
+    { title: 'Habits', url: '/grouping/habits', icon: Repeat },
   ];
 
   const managementItems = [
