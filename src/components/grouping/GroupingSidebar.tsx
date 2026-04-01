@@ -142,7 +142,29 @@ export function GroupingSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Management */}
+        {/* Tracking */}
+        <SidebarGroup>
+          <SidebarGroupLabel className={collapsed ? 'sr-only' : ''}>Tracking</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {trackingItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={isActive(item.url)}>
+                    <NavLink
+                      to={item.url}
+                      className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-sidebar-accent"
+                      activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                    >
+                      <item.icon className="h-4 w-4 shrink-0" />
+                      {!collapsed && <span>{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
         {managementItems.length > 0 && (
           <SidebarGroup>
             <SidebarGroupLabel className={collapsed ? 'sr-only' : ''}>Management</SidebarGroupLabel>
