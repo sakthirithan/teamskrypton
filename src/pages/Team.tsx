@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAppMode } from '@/hooks/useAppMode';
 import { Header } from '@/components/layout/Header';
 import { PBLLayout } from '@/components/pbl/PBLLayout';
+import { GroupingLayout } from '@/components/grouping/GroupingLayout';
 import { KryptonIdCard } from '@/components/team/KryptonIdCard';
 import { SkillWiseMemberList } from '@/components/team/SkillWiseMemberList';
 import { Button } from '@/components/ui/button';
