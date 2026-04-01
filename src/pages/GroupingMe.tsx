@@ -1203,9 +1203,9 @@ const GroupingMe = () => {
             </div>
           </DialogContent>
         </Dialog>
-      </main>
-    </div>
+      </div>
     </TooltipProvider>
+    </GroupingLayout>
   );
 };
 
