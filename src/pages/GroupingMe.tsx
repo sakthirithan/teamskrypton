@@ -684,12 +684,18 @@ const GroupingMe = () => {
             <div className="space-y-3">
 
               {/* Balance Points Input */}
-              <BalancePointsCard
-                target={myIndividualTarget}
-                viewingUserId={viewingUserId}
-                achievedPoints={myAchievedPoints}
-                isReadOnly={isReadOnlyMode}
-              />
+              {myIndividualTarget ? (
+                <BalancePointsCard
+                  target={myIndividualTarget}
+                  viewingUserId={viewingUserId}
+                  achievedPoints={myAchievedPoints}
+                  isReadOnly={isReadOnlyMode}
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No target set for this session
+                </p>
+              )}
 
               {/* Points & Stats Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

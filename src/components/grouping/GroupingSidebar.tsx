@@ -94,22 +94,33 @@ export function GroupingSidebar() {
     setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 
-  const isActive = (path: string, tabParam?: string) => {
+  const isActive = (url: string, tabParam?: string) => {
+  const currentPath = location.pathname;
+  const currentTab = searchParams.get('tab');
+
+  // ✅ Case 1: My Space items (with tab)
+  if (url.startsWith('/grouping/me')) {
     if (tabParam) {
-      return location.pathname === '/grouping/me' && searchParams.get('tab') === tabParam;
+      return currentPath === '/grouping/me' && currentTab === tabParam;
     }
-    return location.pathname === path || location.pathname.startsWith(path + '/');
+
+    // Overview (no tab)
+    return currentPath === '/grouping/me' && !currentTab;
+  }
+
+  // ✅ Case 2: Normal sidebar items
+  return currentPath === url || currentPath.startsWith(url + '/');
   };
 
   // My Space sub-items (appear under My Space heading)
   const mySpaceItems: NavItem[] = [
     { title: 'Overview', url: '/grouping/me', icon: Compass },
-    { title: 'Skills', url: '/grouping/me?tab=skills', icon: Target, tabParam: 'skills' },
     { title: 'PS Entries', url: '/grouping/me?tab=ps-entries', icon: ClipboardList, tabParam: 'ps-entries' },
+    { title: 'Skill Developement', url: '/grouping/me?tab=skills', icon: Target, tabParam: 'skills' },
     ...(isLeadership
       ? [{ title: 'Reports', url: '/grouping/me?tab=feed-reports', icon: TrendingUp, tabParam: 'feed-reports' }]
       : []),
-    { title: 'Skill Development', url: '/grouping/me?tab=skill-dev', icon: GraduationCap, tabParam: 'skill-dev' },
+    { title: 'Study Board', url: '/grouping/me?tab=skill-dev', icon: GraduationCap, tabParam: 'skill-dev' },
   ];
 
   const workspaceItems: NavItem[] = [
@@ -132,13 +143,21 @@ export function GroupingSidebar() {
     { title: 'Team', url: '/team', icon: Users },
   ];
 
-  const renderNavItem = (item: NavItem) => (
+  const renderNavItem = (item: NavItem) => {
+  const active = isActive(item.url, item.tabParam);
+
+  return (
     <SidebarMenuItem key={item.title}>
-      <SidebarMenuButton asChild isActive={isActive(item.url.split('?')[0], item.tabParam)}>
+      <SidebarMenuButton asChild>
         <NavLink
           to={item.url}
-          className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-sidebar-accent"
-          activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+          className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors
+            ${
+              active
+                ? 'bg-primary text-white font-medium'
+                : 'hover:bg-sidebar-accent'
+            }
+          `}
         >
           <item.icon className="h-4 w-4 shrink-0" />
           {!collapsed && <span>{item.title}</span>}
@@ -146,6 +165,7 @@ export function GroupingSidebar() {
       </SidebarMenuButton>
     </SidebarMenuItem>
   );
+  };
 
   const renderCollapsibleSection = (
     id: string,
@@ -157,7 +177,7 @@ export function GroupingSidebar() {
 
     const isPinned = pinned.includes(id);
     const isOpen = openSections[id] || isPinned;
-    const hasActiveItem = items.some((item) => isActive(item.url.split('?')[0], item.tabParam));
+    const hasActiveItem = items.some((item) => isActive(item.url, item.tabParam));
 
     // On mobile with collapsed sections: show only heading, arrow expands
     // If pinned: always show items

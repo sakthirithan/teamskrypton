@@ -73,8 +73,9 @@ export function ProductivityInsights({
     const completionRate = totalEntries > 0 ? (completedEntries.length / totalEntries) * 100 : 0;
 
     // Projected finish
-    const projectedTotal = dailyAvg * totalDays;
-    const willHitTarget = projectedTotal >= targetPoints;
+    const projectedTotal = dailyAvg * 7; // Projecting weekly to smooth out daily fluctuations
+
+    const willHitTarget = targetPoints > 0 && projectedTotal >= targetPoints;
 
     return {
       dailyAvg: Math.round(dailyAvg * 10) / 10,
@@ -172,7 +173,9 @@ export function ProductivityInsights({
               Projected
             </div>
             <p className="text-lg font-bold tabular-nums">{insights.projectedTotal}</p>
-            <p className="text-xs text-muted-foreground">total pts at this pace</p>
+            <p className="text-xs text-muted-foreground">You can earn {insights.projectedTotal} points within 7
+              days at your current pace
+            </p>
           </div>
         </div>
       </CardContent>

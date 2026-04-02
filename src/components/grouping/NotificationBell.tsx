@@ -10,6 +10,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useGroupingNotifications } from '@/hooks/useGroupingNotifications';
 import { formatDistanceToNow } from 'date-fns';
+import { SendNotificationDialog } from './SendNotificationDialog';
 
 export function NotificationBell() {
   const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useGroupingNotifications();
@@ -49,6 +50,17 @@ export function NotificationBell() {
               Mark all read
             </Button>
           )}
+          <SendNotificationDialog
+            trigger={
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs"
+              >
+                <Send className="w-3 h-3" />
+              </Button>
+            }
+          />
         </div>
         <ScrollArea className="max-h-80">
           {notifications.length === 0 ? (

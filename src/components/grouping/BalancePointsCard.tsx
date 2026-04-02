@@ -23,7 +23,7 @@ export function BalancePointsCard({ target, viewingUserId, achievedPoints, isRea
   const [newBalance, setNewBalance] = useState(balancePoints);
   const [saving, setSaving] = useState(false);
 
-  const totalPoints = balancePoints + achievedPoints;
+  const totalPoints = balancePoints + (balancePoints > 0 ? achievedPoints : 0);
 
   const handleSave = async () => {
     if (!target?.id) return;
@@ -63,7 +63,7 @@ export function BalancePointsCard({ target, viewingUserId, achievedPoints, isRea
               <span className="text-xs text-muted-foreground">total pts</span>
             </div>
             <p className="text-xs text-muted-foreground">
-              Balance: {balancePoints} + Earned: {achievedPoints}
+              Balance: {balancePoints} + Earned: {balancePoints > 0 ? achievedPoints : 0}
             </p>
           </div>
           {!isReadOnly && (
