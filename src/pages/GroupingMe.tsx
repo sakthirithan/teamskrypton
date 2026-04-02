@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, memo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { GroupingLayout } from '@/components/grouping/GroupingLayout';
-import { GroupingLayout } from '@/components/grouping/GroupingLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
