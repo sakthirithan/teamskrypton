@@ -45,6 +45,8 @@ import { SkillActivityFeed } from '@/components/grouping/SkillActivityFeed';
 import { TeamAnalyticsReport } from '@/components/grouping/TeamAnalyticsReport';
 import { MemberSkillsBadges } from '@/components/grouping/MemberSkillsBadges';
 import { SkillAssignmentPanel } from '@/components/grouping/SkillAssignmentPanel';
+import { DailyStudyBoard } from '@/components/grouping/DailyStudyBoard';
+import { useGroupingNotifications } from '@/hooks/useGroupingNotifications';
 import { ROLE_LABELS, KryptonRole } from '@/lib/constants';
 import { 
   calculateSessionDays, 
