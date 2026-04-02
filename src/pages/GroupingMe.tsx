@@ -681,37 +681,15 @@ const GroupingMe = () => {
           )}
 
           {activeTab === 'ps-entries' && viewingSession && (
-            <>
-              {/* PS Entries content - kept exactly as before */}
-              <Tabs defaultValue="ps-entries" className="w-full">
-                <TabsContent value="ps-entries" className="mt-0 space-y-3" forceMount>
-                    <SkillAssignmentPanel
-                      userId={viewingUserId}
-                      userName={displayProfile?.full_name || 'Member'}
-                      isSelfMode={!isViewingOther}
-                    />
-                  )}
+            <div className="space-y-3">
 
-                  {/* Alerts inside tab */}
-                  {(!isViewingOther || isTL) && (
-                    <MySpaceAlertsPanel 
-                      userId={viewingUserId} 
-                      isViewingOther={isViewingOther && !isTL}
-                      session={viewingSession}
-                    />
-                  )}
-
-                  {viewingUserId && (
-                    <SkillTracker
-                      session={viewingSession}
-                      userId={viewingUserId}
-                      isReadOnly={isReadOnlyMode}
-                    />
-                  )}
-                </TabsContent>
-
-                {/* PS Entries Tab */}
-                <TabsContent value="ps-entries" className="mt-3 space-y-3">
+              {/* Balance Points Input */}
+              <BalancePointsCard
+                target={myIndividualTarget}
+                viewingUserId={viewingUserId}
+                achievedPoints={myAchievedPoints}
+                isReadOnly={isReadOnlyMode}
+              />
 
               {/* Points & Stats Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -791,7 +769,7 @@ const GroupingMe = () => {
                 groupAchievedPoints={groupAchievedPoints}
               />
 
-              {/* Productivity Insights - NEW */}
+              {/* Productivity Insights */}
               <ProductivityInsights
                 entries={entries}
                 session={viewingSession}
@@ -799,7 +777,7 @@ const GroupingMe = () => {
                 achievedPoints={myAchievedPoints}
               />
 
-              {/* Quick Entry Widget - NEW */}
+              {/* Quick Entry Widget */}
               {canAddEntry && viewingSession && viewingUserId && (
                 <QuickEntryWidget session={viewingSession} userId={viewingUserId} />
               )}
@@ -863,11 +841,6 @@ const GroupingMe = () => {
                                   </option>
                                 ))}
                               </select>
-                              {sessions.find(s => s.id === selectedEntrySessionId)?.status === 'closed' && (
-                                <p className="text-xs text-destructive">
-                                  This session is closed and read-only. Select an active session.
-                                </p>
-                              )}
                             </div>
                             
                             <div className="grid grid-cols-2 gap-4">
@@ -920,11 +893,7 @@ const GroupingMe = () => {
                             <Button 
                               onClick={handleAddEntry} 
                               className="w-full"
-                              disabled={
-                                createEntry.isPending || 
-                                !entryForm.skill_name ||
-                                (selectedEntrySessionId && sessions.find(s => s.id === selectedEntrySessionId)?.status === 'closed')
-                              }
+                              disabled={createEntry.isPending || !entryForm.skill_name}
                             >
                               {createEntry.isPending ? 'Adding...' : 'Add Entry (Pending)'}
                             </Button>
@@ -1012,18 +981,6 @@ const GroupingMe = () => {
                         />
                       </div>
                     </div>
-                    
-                    {/* Active filter badge */}
-                    {filterMode === 'single' && filterDate && (
-                      <Badge variant="secondary">
-                        {format(new Date(filterDate), 'dd-MM-yyyy')}
-                      </Badge>
-                    )}
-                    {filterMode === 'range' && filterFromDate && filterToDate && (
-                      <Badge variant="secondary">
-                        {format(new Date(filterFromDate), 'dd-MM-yyyy')} → {format(new Date(filterToDate), 'dd-MM-yyyy')}
-                      </Badge>
-                    )}
                   </div>
 
                   {displayEntries.length === 0 ? (
@@ -1055,8 +1012,6 @@ const GroupingMe = () => {
                             const canAttempt = canAttemptEntry(entry);
                             const canRevert = canRevertEntry(entry);
                             const canDelete = canDeleteEntry(entry);
-                            
-                            // For completed entries, only show actions to TL/TM
                             const showActions = !isCompleted || isTL;
                             
                             return (
@@ -1096,14 +1051,13 @@ const GroupingMe = () => {
                                 <TableCell>
                                   {showActions ? (
                                     <div className="flex items-center gap-1">
-                                      {/* Mark Completed */}
                                       {canComplete && (
                                         <Tooltip>
                                           <TooltipTrigger asChild>
                                             <Button
                                               size="icon"
                                               variant="ghost"
-                                            className="h-7 w-7 text-success hover:text-success hover:bg-success/10"
+                                              className="h-7 w-7 text-success hover:text-success hover:bg-success/10"
                                               onClick={() => handleCompleteEntry(entry.id)}
                                             >
                                               <Check className="w-4 h-4" />
@@ -1112,42 +1066,36 @@ const GroupingMe = () => {
                                           <TooltipContent>Mark as Completed</TooltipContent>
                                         </Tooltip>
                                       )}
-
-                                      {/* Mark as Attempt */}
                                       {canAttempt && (
                                         <Tooltip>
                                           <TooltipTrigger asChild>
                                             <Button
                                               size="icon"
                                               variant="ghost"
-                                            className="h-7 w-7 text-info hover:text-info hover:bg-info/10"
+                                              className="h-7 w-7 text-info hover:text-info hover:bg-info/10"
                                               onClick={() => handleAttemptEntry(entry.id)}
                                             >
                                               <Zap className="w-4 h-4" />
                                             </Button>
                                           </TooltipTrigger>
-                                          <TooltipContent>Mark as Attempt (effort, no points)</TooltipContent>
+                                          <TooltipContent>Mark as Attempt</TooltipContent>
                                         </Tooltip>
                                       )}
-
-                                      {/* Revert to Pending (TL/TM only) */}
                                       {canRevert && (
                                         <Tooltip>
                                           <TooltipTrigger asChild>
                                             <Button
                                               size="icon"
                                               variant="ghost"
-                                            className="h-7 w-7 text-warning hover:text-warning hover:bg-warning/10"
+                                              className="h-7 w-7 text-warning hover:text-warning hover:bg-warning/10"
                                               onClick={() => handleRevertEntry(entry.id)}
                                             >
                                               <RotateCcw className="w-3 h-3" />
                                             </Button>
                                           </TooltipTrigger>
-                                          <TooltipContent>Revert to Pending (TL/TM Only)</TooltipContent>
+                                          <TooltipContent>Revert to Pending</TooltipContent>
                                         </Tooltip>
                                       )}
-
-                                      {/* Edit Entry */}
                                       {canEditThisEntry && (
                                         <Tooltip>
                                           <TooltipTrigger asChild>
@@ -1163,15 +1111,13 @@ const GroupingMe = () => {
                                           <TooltipContent>Edit Entry</TooltipContent>
                                         </Tooltip>
                                       )}
-
-                                      {/* Delete Entry */}
                                       {canDelete && (
                                         <Tooltip>
                                           <TooltipTrigger asChild>
                                             <Button
                                               size="icon"
                                               variant="ghost"
-                                            className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                              className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
                                               onClick={() => handleDeleteEntry(entry.id)}
                                             >
                                               <Trash2 className="w-4 h-4" />
@@ -1193,7 +1139,6 @@ const GroupingMe = () => {
                     </div>
                   )}
                   
-                  {/* Summary note */}
                   {attemptCount > 0 && (
                     <p className="text-xs text-muted-foreground mt-3">
                       ⚡ {attemptCount} attempt entries ({attemptPointsSum} pts) — efforts that do NOT count toward targets
@@ -1201,18 +1146,26 @@ const GroupingMe = () => {
                   )}
                 </CardContent>
               </Card>
+            </div>
+          )}
 
-                </TabsContent>
+          {/* Feed & Reports Tab - Leadership Only */}
+          {activeTab === 'feed-reports' && isLeadership && viewingSession && (
+            <div className="space-y-4">
+              <SkillActivityFeed session={viewingSession} />
+              <TeamAnalyticsReport session={viewingSession} />
+            </div>
+          )}
 
-                {/* Feed & Reports Tab - Leadership Only */}
-                {isLeadership && (
-                  <TabsContent value="feed-reports" className="mt-3 space-y-4">
-                    <SkillActivityFeed session={viewingSession} />
-                    <TeamAnalyticsReport session={viewingSession} />
-                  </TabsContent>
-                )}
-              </Tabs>
-            </>
+          {/* Skill Development Tab - with Daily Study Board */}
+          {activeTab === 'skill-dev' && viewingSession && viewingUserId && (
+            <div className="space-y-4">
+              <DailyStudyBoard
+                session={viewingSession}
+                userId={viewingUserId}
+                isReadOnly={isReadOnlyMode}
+              />
+            </div>
           )}
         </div>
 
