@@ -634,12 +634,12 @@ const GroupingMe = () => {
                 </Card>
                 <Card className="overflow-hidden border-border/60">
                   <CardContent className="pt-4 pb-3 px-4">
-                    <p className="text-xs text-muted-foreground font-medium">Balance</p>
+                    <p className="text-xs text-muted-foreground font-medium">Current pts</p>
                     <p className="text-xl font-bold tabular-nums text-primary">
-                      {(myIndividualTarget as any)?.balance_points || 0}
+                      {myAchievedPoints + ((myIndividualTarget as any)?.balance_points || 0)}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Total: {myAchievedPoints + ((myIndividualTarget as any)?.balance_points || 0)} pts
+                      Balance: {((myIndividualTarget as any)?.balance_points || 0)} + Earned: {myAchievedPoints}
                     </p>
                   </CardContent>
                 </Card>
