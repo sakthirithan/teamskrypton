@@ -94,9 +94,12 @@ const PointsDisplayInline = memo(function PointsDisplayInline({ userId }: { user
 const GroupingMe = () => {
   const { user, profile, isLoading, isLeadership, role } = useAuth();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  
+  // Tab from URL param (sidebar navigation)
+  const activeTab = searchParams.get('tab') || 'overview';
   
   // Allow viewing another user's space (for leadership)
   const viewingUserId = searchParams.get('userId') || user?.id;
