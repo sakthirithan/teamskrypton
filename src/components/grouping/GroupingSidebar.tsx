@@ -302,18 +302,6 @@ export function GroupingSidebar() {
           'management',
           'Management',
           managementItems,
-          isLeadership && !collapsed ? (
-            <SidebarMenuItem>
-              <SendNotificationDialog
-                trigger={
-                  <SidebarMenuButton className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-sidebar-accent cursor-pointer">
-                    <Send className="h-4 w-4 shrink-0" />
-                    <span>Send Notification</span>
-                  </SidebarMenuButton>
-                }
-              />
-            </SidebarMenuItem>
-          ) : undefined
         )}
       </SidebarContent>
 
