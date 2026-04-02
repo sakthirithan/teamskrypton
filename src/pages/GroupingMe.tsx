@@ -588,31 +588,103 @@ const GroupingMe = () => {
             onSessionChange={setSelectedSessionId}
           />
 
-          {!viewingSession ? null : (
-            <>
-              {/* Main Tabs */}
-              <Tabs defaultValue="skills" className="w-full">
-                <TabsList className={`w-full grid ${isLeadership ? 'grid-cols-3' : 'grid-cols-2'} h-11 rounded-lg bg-muted/60 p-1`}>
-                  <TabsTrigger value="skills" className="text-xs sm:text-sm gap-1.5 rounded-md data-[state=active]:bg-card data-[state=active]:shadow-sm">
-                    <Target className="w-3.5 h-3.5" />
-                    Skills
-                  </TabsTrigger>
-                  <TabsTrigger value="ps-entries" className="text-xs sm:text-sm gap-1.5 rounded-md data-[state=active]:bg-card data-[state=active]:shadow-sm">
-                    <ClipboardList className="w-3.5 h-3.5" />
-                    PS Entries
-                  </TabsTrigger>
-                  {isLeadership && (
-                    <TabsTrigger value="feed-reports" className="text-xs sm:text-sm gap-1.5 rounded-md data-[state=active]:bg-card data-[state=active]:shadow-sm">
-                      <TrendingUp className="w-3.5 h-3.5" />
-                      Reports
-                    </TabsTrigger>
-                  )}
-                </TabsList>
+          {/* Content based on active tab from sidebar */}
+          {activeTab === 'overview' && (
+            <div className="space-y-4">
+              {/* Alerts */}
+              {(!isViewingOther || isTL) && (
+                <MySpaceAlertsPanel 
+                  userId={viewingUserId} 
+                  isViewingOther={isViewingOther && !isTL}
+                  session={viewingSession}
+                />
+              )}
 
-                {/* Skill Tracker Tab */}
-                <TabsContent value="skills" className="mt-3 space-y-3">
-                  {/* Skill Assignment - compact inside tab */}
-                  {viewingUserId && (
+              {/* Skill Sets as Cards */}
+              {viewingUserId && (
+                <SkillAssignmentPanel
+                  userId={viewingUserId}
+                  userName={displayProfile?.full_name || 'Member'}
+                  isSelfMode={!isViewingOther}
+                />
+              )}
+
+              {/* Session Summary */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <Card className="overflow-hidden border-border/60">
+                  <CardContent className="pt-4 pb-3 px-4">
+                    <p className="text-xs text-muted-foreground font-medium">Completed</p>
+                    <p className="text-xl font-bold tabular-nums text-success">{myAchievedPoints}</p>
+                    <p className="text-xs text-muted-foreground">of {myIndividualTarget?.target_points || 0} pts</p>
+                  </CardContent>
+                </Card>
+                <Card className="overflow-hidden border-border/60">
+                  <CardContent className="pt-4 pb-3 px-4">
+                    <p className="text-xs text-muted-foreground font-medium">Pending</p>
+                    <p className="text-xl font-bold tabular-nums text-warning">{pendingCount}</p>
+                    <p className="text-xs text-muted-foreground">{pendingPointsSum} pts waiting</p>
+                  </CardContent>
+                </Card>
+                <Card className="overflow-hidden border-border/60">
+                  <CardContent className="pt-4 pb-3 px-4">
+                    <p className="text-xs text-muted-foreground font-medium">Days Left</p>
+                    <p className="text-xl font-bold tabular-nums">{daysRemaining}</p>
+                    <p className="text-xs text-muted-foreground">of {totalDays} total</p>
+                  </CardContent>
+                </Card>
+                <Card className="overflow-hidden border-border/60">
+                  <CardContent className="pt-4 pb-3 px-4">
+                    <p className="text-xs text-muted-foreground font-medium">Balance</p>
+                    <p className="text-xl font-bold tabular-nums text-primary">
+                      {(myIndividualTarget as any)?.balance_points || 0}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Total: {myAchievedPoints + ((myIndividualTarget as any)?.balance_points || 0)} pts
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Notifications Panel */}
+              <MySpaceNotificationsPanel />
+            </div>
+          )}
+
+          {activeTab === 'skills' && viewingSession && (
+            <>
+              {/* Skill Assignment */}
+              {viewingUserId && (
+                <SkillAssignmentPanel
+                  userId={viewingUserId}
+                  userName={displayProfile?.full_name || 'Member'}
+                  isSelfMode={!isViewingOther}
+                />
+              )}
+
+              {/* Alerts */}
+              {(!isViewingOther || isTL) && (
+                <MySpaceAlertsPanel 
+                  userId={viewingUserId} 
+                  isViewingOther={isViewingOther && !isTL}
+                  session={viewingSession}
+                />
+              )}
+
+              {viewingUserId && (
+                <SkillTracker
+                  session={viewingSession}
+                  userId={viewingUserId}
+                  isReadOnly={isReadOnlyMode}
+                />
+              )}
+            </>
+          )}
+
+          {activeTab === 'ps-entries' && viewingSession && (
+            <>
+              {/* PS Entries content - kept exactly as before */}
+              <Tabs defaultValue="ps-entries" className="w-full">
+                <TabsContent value="ps-entries" className="mt-0 space-y-3" forceMount>
                     <SkillAssignmentPanel
                       userId={viewingUserId}
                       userName={displayProfile?.full_name || 'Member'}
