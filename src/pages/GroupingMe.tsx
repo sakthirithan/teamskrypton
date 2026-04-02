@@ -1161,7 +1161,7 @@ const GroupingMe = () => {
           {activeTab === 'skill-dev' && viewingSession && viewingUserId && (
             <div className="space-y-4">
               <DailyStudyBoard
-                session={viewingSession}
+                sessionId={viewingSession.id}
                 userId={viewingUserId}
                 isReadOnly={isReadOnlyMode}
               />
