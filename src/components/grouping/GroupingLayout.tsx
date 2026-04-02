@@ -75,6 +75,8 @@ export function GroupingLayout({ children, title }: GroupingLayoutProps) {
                 Grouping Mode
               </Badge>
 
+              <NotificationBell />
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="rounded-full">
