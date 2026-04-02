@@ -1,6 +1,8 @@
-import { useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/hooks/useAuth';
+import { useIsMobile } from '@/hooks/use-mobile';
 import {
   LayoutDashboard,
   BookOpen,
@@ -10,8 +12,16 @@ import {
   Calendar,
   Users,
   ChevronLeft,
+  ChevronRight,
+  ChevronDown,
   Compass,
   Repeat,
+  Target,
+  TrendingUp,
+  GraduationCap,
+  Pin,
+  PinOff,
+  Send,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -29,23 +39,80 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ROLE_LABELS } from '@/lib/constants';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { SendNotificationDialog } from './SendNotificationDialog';
+
+const PINNED_KEY = 'grouping-sidebar-pinned';
+
+function getPinnedSections(): string[] {
+  try {
+    const stored = localStorage.getItem(PINNED_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+function setPinnedSections(sections: string[]) {
+  localStorage.setItem(PINNED_KEY, JSON.stringify(sections));
+}
+
+interface NavItem {
+  title: string;
+  url: string;
+  icon: React.ComponentType<{ className?: string }>;
+  tabParam?: string;
+}
 
 export function GroupingSidebar() {
   const { state, toggleSidebar } = useSidebar();
   const collapsed = state === 'collapsed';
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { profile, role, isLeadership, isCaptainOrVice } = useAuth();
+  const isMobile = useIsMobile();
 
-  const isActive = (path: string) => {
+  const [pinned, setPinned] = useState<string[]>(getPinnedSections);
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    myspace: true,
+    workspace: true,
+    tracking: true,
+    management: true,
+  });
+
+  useEffect(() => {
+    setPinnedSections(pinned);
+  }, [pinned]);
+
+  const togglePin = (section: string) => {
+    setPinned((prev) =>
+      prev.includes(section) ? prev.filter((s) => s !== section) : [...prev, section]
+    );
+  };
+
+  const toggleSection = (section: string) => {
+    setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  const isActive = (path: string, tabParam?: string) => {
+    if (tabParam) {
+      return location.pathname === '/grouping/me' && searchParams.get('tab') === tabParam;
+    }
     return location.pathname === path || location.pathname.startsWith(path + '/');
   };
 
-  const mainNavItems = [
-    { title: 'Dashboard', url: '/grouping/home', icon: LayoutDashboard },
-    { title: 'My Space', url: '/grouping/me', icon: Compass },
+  // My Space sub-items (appear under My Space heading)
+  const mySpaceItems: NavItem[] = [
+    { title: 'Overview', url: '/grouping/me', icon: Compass },
+    { title: 'Skills', url: '/grouping/me?tab=skills', icon: Target, tabParam: 'skills' },
+    { title: 'PS Entries', url: '/grouping/me?tab=ps-entries', icon: ClipboardList, tabParam: 'ps-entries' },
+    ...(isLeadership
+      ? [{ title: 'Reports', url: '/grouping/me?tab=feed-reports', icon: TrendingUp, tabParam: 'feed-reports' }]
+      : []),
+    { title: 'Skill Development', url: '/grouping/me?tab=skill-dev', icon: GraduationCap, tabParam: 'skill-dev' },
   ];
 
-  const workspaceItems = [
+  const workspaceItems: NavItem[] = [
     ...(isLeadership
       ? [{ title: 'Team Skills', url: '/grouping/skills', icon: BookOpen }]
       : []),
@@ -54,19 +121,104 @@ export function GroupingSidebar() {
     { title: 'Notes', url: '/grouping/notes', icon: MessageSquare },
   ];
 
-  const trackingItems = [
+  const trackingItems: NavItem[] = [
     { title: 'Habits', url: '/grouping/habits', icon: Repeat },
   ];
 
-  const managementItems = [
+  const managementItems: NavItem[] = [
     ...(isCaptainOrVice
       ? [{ title: 'Sessions', url: '/grouping/sessions', icon: Calendar }]
       : []),
     { title: 'Team', url: '/team', icon: Users },
   ];
 
+  const renderNavItem = (item: NavItem) => (
+    <SidebarMenuItem key={item.title}>
+      <SidebarMenuButton asChild isActive={isActive(item.url.split('?')[0], item.tabParam)}>
+        <NavLink
+          to={item.url}
+          className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-sidebar-accent"
+          activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+        >
+          <item.icon className="h-4 w-4 shrink-0" />
+          {!collapsed && <span>{item.title}</span>}
+        </NavLink>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+
+  const renderCollapsibleSection = (
+    id: string,
+    label: string,
+    items: NavItem[],
+    extra?: React.ReactNode
+  ) => {
+    if (items.length === 0 && !extra) return null;
+
+    const isPinned = pinned.includes(id);
+    const isOpen = openSections[id] || isPinned;
+    const hasActiveItem = items.some((item) => isActive(item.url.split('?')[0], item.tabParam));
+
+    // On mobile with collapsed sections: show only heading, arrow expands
+    // If pinned: always show items
+    return (
+      <SidebarGroup key={id}>
+        {collapsed ? (
+          <>
+            <SidebarGroupLabel className="sr-only">{label}</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>{items.map(renderNavItem)}</SidebarMenu>
+            </SidebarGroupContent>
+          </>
+        ) : (
+          <Collapsible open={isOpen} onOpenChange={() => toggleSection(id)}>
+            <div className="flex items-center justify-between px-2 group">
+              <CollapsibleTrigger className="flex items-center gap-1 flex-1 py-1">
+                <ChevronRight
+                  className={`h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ${
+                    isOpen ? 'rotate-90' : ''
+                  }`}
+                />
+                <span className={`text-xs font-semibold uppercase tracking-wider ${
+                  hasActiveItem ? 'text-primary' : 'text-muted-foreground'
+                }`}>
+                  {label}
+                </span>
+              </CollapsibleTrigger>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity ${
+                  isPinned ? '!opacity-100' : ''
+                }`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  togglePin(id);
+                }}
+              >
+                {isPinned ? (
+                  <PinOff className="h-3 w-3 text-primary" />
+                ) : (
+                  <Pin className="h-3 w-3 text-muted-foreground" />
+                )}
+              </Button>
+            </div>
+            <CollapsibleContent>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {items.map(renderNavItem)}
+                  {extra}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
+      </SidebarGroup>
+    );
+  };
+
   return (
-    <Sidebar collapsible="icon" className="border-r border-sidebar-border">
+    <Sidebar collapsible={isMobile ? 'offcanvas' : 'icon'} className="border-r border-sidebar-border">
       <SidebarHeader className="p-3">
         {!collapsed ? (
           <div className="flex items-center justify-between">
@@ -96,97 +248,52 @@ export function GroupingSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        {/* Main */}
+        {/* Dashboard - always visible */}
         <SidebarGroup>
-          <SidebarGroupLabel className={collapsed ? 'sr-only' : ''}>Main</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {mainNavItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={isActive(item.url)}>
-                    <NavLink
-                      to={item.url}
-                      className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-sidebar-accent"
-                      activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                    >
-                      <item.icon className="h-4 w-4 shrink-0" />
-                      {!collapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isActive('/grouping/home')}>
+                  <NavLink
+                    to="/grouping/home"
+                    className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-sidebar-accent"
+                    activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                  >
+                    <LayoutDashboard className="h-4 w-4 shrink-0" />
+                    {!collapsed && <span>Dashboard</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* My Space - Collapsible with sub-items */}
+        {renderCollapsibleSection('myspace', 'My Space', mySpaceItems)}
 
         {/* Workspace */}
-        <SidebarGroup>
-          <SidebarGroupLabel className={collapsed ? 'sr-only' : ''}>Workspace</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {workspaceItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={isActive(item.url)}>
-                    <NavLink
-                      to={item.url}
-                      className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-sidebar-accent"
-                      activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                    >
-                      <item.icon className="h-4 w-4 shrink-0" />
-                      {!collapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {renderCollapsibleSection('workspace', 'Workspace', workspaceItems)}
 
         {/* Tracking */}
-        <SidebarGroup>
-          <SidebarGroupLabel className={collapsed ? 'sr-only' : ''}>Tracking</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {trackingItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={isActive(item.url)}>
-                    <NavLink
-                      to={item.url}
-                      className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-sidebar-accent"
-                      activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                    >
-                      <item.icon className="h-4 w-4 shrink-0" />
-                      {!collapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {renderCollapsibleSection('tracking', 'Tracking', trackingItems)}
 
-        {managementItems.length > 0 && (
-          <SidebarGroup>
-            <SidebarGroupLabel className={collapsed ? 'sr-only' : ''}>Management</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {managementItems.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild isActive={isActive(item.url)}>
-                      <NavLink
-                        to={item.url}
-                        className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-sidebar-accent"
-                        activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                      >
-                        <item.icon className="h-4 w-4 shrink-0" />
-                        {!collapsed && <span>{item.title}</span>}
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
+        {/* Management */}
+        {renderCollapsibleSection(
+          'management',
+          'Management',
+          managementItems,
+          isLeadership && !collapsed ? (
+            <SidebarMenuItem>
+              <SendNotificationDialog
+                trigger={
+                  <SidebarMenuButton className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-sidebar-accent cursor-pointer">
+                    <Send className="h-4 w-4 shrink-0" />
+                    <span>Send Notification</span>
+                  </SidebarMenuButton>
+                }
+              />
+            </SidebarMenuItem>
+          ) : undefined
         )}
       </SidebarContent>
 

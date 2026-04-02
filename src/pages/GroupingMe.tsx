@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, memo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
 import { GroupingLayout } from '@/components/grouping/GroupingLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,6 +44,9 @@ import { SkillActivityFeed } from '@/components/grouping/SkillActivityFeed';
 import { TeamAnalyticsReport } from '@/components/grouping/TeamAnalyticsReport';
 import { MemberSkillsBadges } from '@/components/grouping/MemberSkillsBadges';
 import { SkillAssignmentPanel } from '@/components/grouping/SkillAssignmentPanel';
+import { DailyStudyBoard } from '@/components/grouping/DailyStudyBoard';
+import { BalancePointsCard } from '@/components/grouping/BalancePointsCard';
+import { MySpaceNotificationsPanel } from '@/components/grouping/MySpaceNotificationsPanel';
 import { ROLE_LABELS, KryptonRole } from '@/lib/constants';
 import { 
   calculateSessionDays, 
@@ -92,9 +94,12 @@ const PointsDisplayInline = memo(function PointsDisplayInline({ userId }: { user
 const GroupingMe = () => {
   const { user, profile, isLoading, isLeadership, role } = useAuth();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  
+  // Tab from URL param (sidebar navigation)
+  const activeTab = searchParams.get('tab') || 'overview';
   
   // Allow viewing another user's space (for leadership)
   const viewingUserId = searchParams.get('userId') || user?.id;
@@ -583,58 +588,108 @@ const GroupingMe = () => {
             onSessionChange={setSelectedSessionId}
           />
 
-          {!viewingSession ? null : (
+          {/* Content based on active tab from sidebar */}
+          {activeTab === 'overview' && (
+            <div className="space-y-4">
+              {/* Alerts */}
+              {(!isViewingOther || isTL) && (
+                <MySpaceAlertsPanel 
+                  userId={viewingUserId} 
+                  isViewingOther={isViewingOther && !isTL}
+                  session={viewingSession}
+                />
+              )}
+
+              {/* Skill Sets as Cards */}
+              {viewingUserId && (
+                <SkillAssignmentPanel
+                  userId={viewingUserId}
+                  userName={displayProfile?.full_name || 'Member'}
+                  isSelfMode={!isViewingOther}
+                />
+              )}
+
+              {/* Session Summary */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <Card className="overflow-hidden border-border/60">
+                  <CardContent className="pt-4 pb-3 px-4">
+                    <p className="text-xs text-muted-foreground font-medium">Completed</p>
+                    <p className="text-xl font-bold tabular-nums text-success">{myAchievedPoints}</p>
+                    <p className="text-xs text-muted-foreground">of {myIndividualTarget?.target_points || 0} pts</p>
+                  </CardContent>
+                </Card>
+                <Card className="overflow-hidden border-border/60">
+                  <CardContent className="pt-4 pb-3 px-4">
+                    <p className="text-xs text-muted-foreground font-medium">Pending</p>
+                    <p className="text-xl font-bold tabular-nums text-warning">{pendingCount}</p>
+                    <p className="text-xs text-muted-foreground">{pendingPointsSum} pts waiting</p>
+                  </CardContent>
+                </Card>
+                <Card className="overflow-hidden border-border/60">
+                  <CardContent className="pt-4 pb-3 px-4">
+                    <p className="text-xs text-muted-foreground font-medium">Days Left</p>
+                    <p className="text-xl font-bold tabular-nums">{daysRemaining}</p>
+                    <p className="text-xs text-muted-foreground">of {totalDays} total</p>
+                  </CardContent>
+                </Card>
+                <Card className="overflow-hidden border-border/60">
+                  <CardContent className="pt-4 pb-3 px-4">
+                    <p className="text-xs text-muted-foreground font-medium">Balance</p>
+                    <p className="text-xl font-bold tabular-nums text-primary">
+                      {(myIndividualTarget as any)?.balance_points || 0}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Total: {myAchievedPoints + ((myIndividualTarget as any)?.balance_points || 0)} pts
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Notifications Panel */}
+              <MySpaceNotificationsPanel />
+            </div>
+          )}
+
+          {activeTab === 'skills' && viewingSession && (
             <>
-              {/* Main Tabs */}
-              <Tabs defaultValue="skills" className="w-full">
-                <TabsList className={`w-full grid ${isLeadership ? 'grid-cols-3' : 'grid-cols-2'} h-11 rounded-lg bg-muted/60 p-1`}>
-                  <TabsTrigger value="skills" className="text-xs sm:text-sm gap-1.5 rounded-md data-[state=active]:bg-card data-[state=active]:shadow-sm">
-                    <Target className="w-3.5 h-3.5" />
-                    Skills
-                  </TabsTrigger>
-                  <TabsTrigger value="ps-entries" className="text-xs sm:text-sm gap-1.5 rounded-md data-[state=active]:bg-card data-[state=active]:shadow-sm">
-                    <ClipboardList className="w-3.5 h-3.5" />
-                    PS Entries
-                  </TabsTrigger>
-                  {isLeadership && (
-                    <TabsTrigger value="feed-reports" className="text-xs sm:text-sm gap-1.5 rounded-md data-[state=active]:bg-card data-[state=active]:shadow-sm">
-                      <TrendingUp className="w-3.5 h-3.5" />
-                      Reports
-                    </TabsTrigger>
-                  )}
-                </TabsList>
+              {/* Skill Assignment */}
+              {viewingUserId && (
+                <SkillAssignmentPanel
+                  userId={viewingUserId}
+                  userName={displayProfile?.full_name || 'Member'}
+                  isSelfMode={!isViewingOther}
+                />
+              )}
 
-                {/* Skill Tracker Tab */}
-                <TabsContent value="skills" className="mt-3 space-y-3">
-                  {/* Skill Assignment - compact inside tab */}
-                  {viewingUserId && (
-                    <SkillAssignmentPanel
-                      userId={viewingUserId}
-                      userName={displayProfile?.full_name || 'Member'}
-                      isSelfMode={!isViewingOther}
-                    />
-                  )}
+              {/* Alerts */}
+              {(!isViewingOther || isTL) && (
+                <MySpaceAlertsPanel 
+                  userId={viewingUserId} 
+                  isViewingOther={isViewingOther && !isTL}
+                  session={viewingSession}
+                />
+              )}
 
-                  {/* Alerts inside tab */}
-                  {(!isViewingOther || isTL) && (
-                    <MySpaceAlertsPanel 
-                      userId={viewingUserId} 
-                      isViewingOther={isViewingOther && !isTL}
-                      session={viewingSession}
-                    />
-                  )}
+              {viewingUserId && (
+                <SkillTracker
+                  session={viewingSession}
+                  userId={viewingUserId}
+                  isReadOnly={isReadOnlyMode}
+                />
+              )}
+            </>
+          )}
 
-                  {viewingUserId && (
-                    <SkillTracker
-                      session={viewingSession}
-                      userId={viewingUserId}
-                      isReadOnly={isReadOnlyMode}
-                    />
-                  )}
-                </TabsContent>
+          {activeTab === 'ps-entries' && viewingSession && (
+            <div className="space-y-3">
 
-                {/* PS Entries Tab */}
-                <TabsContent value="ps-entries" className="mt-3 space-y-3">
+              {/* Balance Points Input */}
+              <BalancePointsCard
+                target={myIndividualTarget}
+                viewingUserId={viewingUserId}
+                achievedPoints={myAchievedPoints}
+                isReadOnly={isReadOnlyMode}
+              />
 
               {/* Points & Stats Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -714,7 +769,7 @@ const GroupingMe = () => {
                 groupAchievedPoints={groupAchievedPoints}
               />
 
-              {/* Productivity Insights - NEW */}
+              {/* Productivity Insights */}
               <ProductivityInsights
                 entries={entries}
                 session={viewingSession}
@@ -722,7 +777,7 @@ const GroupingMe = () => {
                 achievedPoints={myAchievedPoints}
               />
 
-              {/* Quick Entry Widget - NEW */}
+              {/* Quick Entry Widget */}
               {canAddEntry && viewingSession && viewingUserId && (
                 <QuickEntryWidget session={viewingSession} userId={viewingUserId} />
               )}
@@ -786,11 +841,6 @@ const GroupingMe = () => {
                                   </option>
                                 ))}
                               </select>
-                              {sessions.find(s => s.id === selectedEntrySessionId)?.status === 'closed' && (
-                                <p className="text-xs text-destructive">
-                                  This session is closed and read-only. Select an active session.
-                                </p>
-                              )}
                             </div>
                             
                             <div className="grid grid-cols-2 gap-4">
@@ -843,11 +893,7 @@ const GroupingMe = () => {
                             <Button 
                               onClick={handleAddEntry} 
                               className="w-full"
-                              disabled={
-                                createEntry.isPending || 
-                                !entryForm.skill_name ||
-                                (selectedEntrySessionId && sessions.find(s => s.id === selectedEntrySessionId)?.status === 'closed')
-                              }
+                              disabled={createEntry.isPending || !entryForm.skill_name}
                             >
                               {createEntry.isPending ? 'Adding...' : 'Add Entry (Pending)'}
                             </Button>
@@ -935,18 +981,6 @@ const GroupingMe = () => {
                         />
                       </div>
                     </div>
-                    
-                    {/* Active filter badge */}
-                    {filterMode === 'single' && filterDate && (
-                      <Badge variant="secondary">
-                        {format(new Date(filterDate), 'dd-MM-yyyy')}
-                      </Badge>
-                    )}
-                    {filterMode === 'range' && filterFromDate && filterToDate && (
-                      <Badge variant="secondary">
-                        {format(new Date(filterFromDate), 'dd-MM-yyyy')} → {format(new Date(filterToDate), 'dd-MM-yyyy')}
-                      </Badge>
-                    )}
                   </div>
 
                   {displayEntries.length === 0 ? (
@@ -978,8 +1012,6 @@ const GroupingMe = () => {
                             const canAttempt = canAttemptEntry(entry);
                             const canRevert = canRevertEntry(entry);
                             const canDelete = canDeleteEntry(entry);
-                            
-                            // For completed entries, only show actions to TL/TM
                             const showActions = !isCompleted || isTL;
                             
                             return (
@@ -1019,14 +1051,13 @@ const GroupingMe = () => {
                                 <TableCell>
                                   {showActions ? (
                                     <div className="flex items-center gap-1">
-                                      {/* Mark Completed */}
                                       {canComplete && (
                                         <Tooltip>
                                           <TooltipTrigger asChild>
                                             <Button
                                               size="icon"
                                               variant="ghost"
-                                            className="h-7 w-7 text-success hover:text-success hover:bg-success/10"
+                                              className="h-7 w-7 text-success hover:text-success hover:bg-success/10"
                                               onClick={() => handleCompleteEntry(entry.id)}
                                             >
                                               <Check className="w-4 h-4" />
@@ -1035,42 +1066,36 @@ const GroupingMe = () => {
                                           <TooltipContent>Mark as Completed</TooltipContent>
                                         </Tooltip>
                                       )}
-
-                                      {/* Mark as Attempt */}
                                       {canAttempt && (
                                         <Tooltip>
                                           <TooltipTrigger asChild>
                                             <Button
                                               size="icon"
                                               variant="ghost"
-                                            className="h-7 w-7 text-info hover:text-info hover:bg-info/10"
+                                              className="h-7 w-7 text-info hover:text-info hover:bg-info/10"
                                               onClick={() => handleAttemptEntry(entry.id)}
                                             >
                                               <Zap className="w-4 h-4" />
                                             </Button>
                                           </TooltipTrigger>
-                                          <TooltipContent>Mark as Attempt (effort, no points)</TooltipContent>
+                                          <TooltipContent>Mark as Attempt</TooltipContent>
                                         </Tooltip>
                                       )}
-
-                                      {/* Revert to Pending (TL/TM only) */}
                                       {canRevert && (
                                         <Tooltip>
                                           <TooltipTrigger asChild>
                                             <Button
                                               size="icon"
                                               variant="ghost"
-                                            className="h-7 w-7 text-warning hover:text-warning hover:bg-warning/10"
+                                              className="h-7 w-7 text-warning hover:text-warning hover:bg-warning/10"
                                               onClick={() => handleRevertEntry(entry.id)}
                                             >
                                               <RotateCcw className="w-3 h-3" />
                                             </Button>
                                           </TooltipTrigger>
-                                          <TooltipContent>Revert to Pending (TL/TM Only)</TooltipContent>
+                                          <TooltipContent>Revert to Pending</TooltipContent>
                                         </Tooltip>
                                       )}
-
-                                      {/* Edit Entry */}
                                       {canEditThisEntry && (
                                         <Tooltip>
                                           <TooltipTrigger asChild>
@@ -1086,15 +1111,13 @@ const GroupingMe = () => {
                                           <TooltipContent>Edit Entry</TooltipContent>
                                         </Tooltip>
                                       )}
-
-                                      {/* Delete Entry */}
                                       {canDelete && (
                                         <Tooltip>
                                           <TooltipTrigger asChild>
                                             <Button
                                               size="icon"
                                               variant="ghost"
-                                            className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                              className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
                                               onClick={() => handleDeleteEntry(entry.id)}
                                             >
                                               <Trash2 className="w-4 h-4" />
@@ -1116,7 +1139,6 @@ const GroupingMe = () => {
                     </div>
                   )}
                   
-                  {/* Summary note */}
                   {attemptCount > 0 && (
                     <p className="text-xs text-muted-foreground mt-3">
                       ⚡ {attemptCount} attempt entries ({attemptPointsSum} pts) — efforts that do NOT count toward targets
@@ -1124,18 +1146,26 @@ const GroupingMe = () => {
                   )}
                 </CardContent>
               </Card>
+            </div>
+          )}
 
-                </TabsContent>
+          {/* Feed & Reports Tab - Leadership Only */}
+          {activeTab === 'feed-reports' && isLeadership && viewingSession && (
+            <div className="space-y-4">
+              <SkillActivityFeed session={viewingSession} />
+              <TeamAnalyticsReport session={viewingSession} />
+            </div>
+          )}
 
-                {/* Feed & Reports Tab - Leadership Only */}
-                {isLeadership && (
-                  <TabsContent value="feed-reports" className="mt-3 space-y-4">
-                    <SkillActivityFeed session={viewingSession} />
-                    <TeamAnalyticsReport session={viewingSession} />
-                  </TabsContent>
-                )}
-              </Tabs>
-            </>
+          {/* Skill Development Tab - with Daily Study Board */}
+          {activeTab === 'skill-dev' && viewingSession && viewingUserId && (
+            <div className="space-y-4">
+              <DailyStudyBoard
+                sessionId={viewingSession.id}
+                userId={viewingUserId}
+                isReadOnly={isReadOnlyMode}
+              />
+            </div>
           )}
         </div>
 

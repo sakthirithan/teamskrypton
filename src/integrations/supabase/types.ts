@@ -317,6 +317,50 @@ export type Database = {
           },
         ]
       }
+      grouping_notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string | null
+          recipient_id: string
+          sender_id: string
+          session_id: string | null
+          title: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string | null
+          recipient_id: string
+          sender_id: string
+          session_id?: string | null
+          title: string
+          type?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string | null
+          recipient_id?: string
+          sender_id?: string
+          session_id?: string | null
+          title?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grouping_notifications_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "grouping_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       grouping_sessions: {
         Row: {
           created_at: string
@@ -359,6 +403,7 @@ export type Database = {
       grouping_targets: {
         Row: {
           achieved_points: number
+          balance_points: number
           created_at: string
           created_by: string
           editable: boolean
@@ -373,6 +418,7 @@ export type Database = {
         }
         Insert: {
           achieved_points?: number
+          balance_points?: number
           created_at?: string
           created_by: string
           editable?: boolean
@@ -387,6 +433,7 @@ export type Database = {
         }
         Update: {
           achieved_points?: number
+          balance_points?: number
           created_at?: string
           created_by?: string
           editable?: boolean

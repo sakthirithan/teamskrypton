@@ -15,6 +15,7 @@ import { UserCog, Coins, RefreshCw, LogOut, User } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { UserListPanel } from '@/components/admin/UserListPanel';
 import { PointsManagementPanel } from '@/components/admin/PointsManagementPanel';
+import { NotificationBell } from '@/components/grouping/NotificationBell';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -73,6 +74,8 @@ export function GroupingLayout({ children, title }: GroupingLayoutProps) {
               <Badge variant="outline" className="hidden sm:flex items-center gap-1 text-xs">
                 Grouping Mode
               </Badge>
+
+              <NotificationBell />
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
