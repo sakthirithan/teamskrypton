@@ -66,15 +66,14 @@ export function SkillAchievements({ sessionId, userId }: SkillAchievementsProps)
 
   const ctx: AchievementCtx = useMemo(() => ({
     totalTracks: tracks.length,
-    completedSteps: 0, // Will be computed from flowchart blocks
+    completedSteps: 0,
     totalSteps: 0,
     xp: level?.xp || 0,
     level: level?.level || 1,
     streak: streak?.current_streak || 0,
     longestStreak: streak?.longest_streak || 0,
-    reflections: reflections?.length || 0,
     totalLinks: 0,
-  }), [tracks, streak, level, reflections]);
+  }), [tracks, streak, level]);
 
   const earned = ACHIEVEMENTS.filter(a => a.check(ctx));
   const locked = ACHIEVEMENTS.filter(a => !a.check(ctx));
