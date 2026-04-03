@@ -4,7 +4,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useSkillTracks } from '@/hooks/useSkillTracks';
 import { useSkillStreaks } from '@/hooks/useSkillStreaks';
 import { useSkillLevels } from '@/hooks/useSkillLevels';
-import { useSkillReflections } from '@/hooks/useSkillReflections';
 
 interface AchievementDef {
   id: string;
