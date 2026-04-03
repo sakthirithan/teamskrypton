@@ -51,7 +51,7 @@ const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'level_10', name: 'Grandmaster', icon: '👑', description: 'Reach Level 10 (Max)', check: c => c.level >= 10, tier: 'platinum' },
   { id: 'xp_1000', name: 'XP Hunter', icon: '⚡', description: 'Earn 1,000 XP', check: c => c.xp >= 1000, tier: 'silver' },
   { id: 'xp_5000', name: 'Legend', icon: '🏆', description: 'Earn 5,000 XP', check: c => c.xp >= 5000, tier: 'platinum' },
-  { id: 'reflection', name: 'Reflective', icon: '💭', description: 'Write your first reflection', check: c => c.reflections >= 1, tier: 'bronze' },
+  { id: 'reflection', name: 'Reflective', icon: '💭', description: 'Reach Level 3', check: c => c.level >= 3, tier: 'bronze' },
 ];
 
 interface SkillAchievementsProps {
