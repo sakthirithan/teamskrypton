@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { PBLSidebar } from './PBLSidebar';
+import { NotificationBell } from '@/components/grouping/NotificationBell';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppMode } from '@/hooks/useAppMode';
 import { Header } from '@/components/layout/Header';
@@ -76,6 +77,8 @@ export function PBLLayout({ children, title }: PBLLayoutProps) {
               <Badge variant="outline" className="hidden sm:flex items-center gap-1 text-xs">
                 PBL Mode
               </Badge>
+
+              <NotificationBell />
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

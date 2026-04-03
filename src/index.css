@@ -9,30 +9,30 @@
 @layer base {
   :root {
     /* Background — Soft slate canvas */
-    --background: 210 20% 98%;
-    --foreground: 222 47% 11%;
+    --background: 0 0% 100%;
+    --foreground: 240 10% 4%;
 
     /* Cards — Crisp white */
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 240 10% 4%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 240 10% 4%;
 
-    /* Primary — Zoho Professional Blue */
-    --primary: 217 91% 50%;
-    --primary-foreground: 0 0% 100%;
+    /* Primary — Premium Indigo */
+    --primary: 250 85% 55%;
+    --primary-foreground: 210 40% 98%;
 
     /* Secondary — Neutral slate */
-    --secondary: 210 16% 95%;
-    --secondary-foreground: 215 19% 35%;
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 6% 10%;
 
     /* Muted */
     --muted: 210 16% 95%;
     --muted-foreground: 215 14% 50%;
 
     /* Accent */
-    --accent: 217 91% 50%;
+    --accent: 270 85% 60%;
     --accent-foreground: 0 0% 100%;
 
     /* Destructive */
@@ -55,22 +55,22 @@
     --radius: 0.5rem;
 
     /* Role colors */
-    --role-captain: 217 91% 50%;
-    --role-vice-captain: 221 83% 53%;
-    --role-strategist: 199 89% 48%;
-    --role-manager: 38 92% 50%;
-    --role-member: 215 16% 47%;
+    --role-captain: 250 85% 55%;
+    --role-vice-captain: 270 85% 60%;
+    --role-strategist: 310 80% 55%;
+    --role-manager: 35 92% 55%;
+    --role-member: 240 5% 50%;
 
     /* Status */
-    --status-idle: 215 14% 45%;
-    --status-working: 217 91% 55%;
+    --status-idle: 240 5% 50%;
+    --status-working: 250 85% 55%;
     --status-completed: 142 71% 45%;
-    --status-pending: 38 92% 50%;
+    --status-pending: 35 92% 55%;
 
     /* Project status */
-    --project-planning: 215 14% 50%;
-    --project-active: 217 91% 50%;
-    --project-on-hold: 38 92% 50%;
+    --project-planning: 240 5% 50%;
+    --project-active: 250 85% 55%;
+    --project-on-hold: 35 92% 55%;
     --project-completed: 142 71% 45%;
 
     /* Priority */
@@ -81,8 +81,8 @@
 
     /* Sidebar */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 215 19% 35%;
-    --sidebar-primary: 217 91% 50%;
+    --sidebar-foreground: 240 10% 4%;
+    --sidebar-primary: 250 85% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 210 16% 96%;
     --sidebar-accent-foreground: 222 47% 11%;
@@ -90,8 +90,8 @@
     --sidebar-ring: 217 91% 50%;
 
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(217 91% 50%), hsl(217 91% 40%));
-    --gradient-accent: linear-gradient(135deg, hsl(217 91% 50%), hsl(199 89% 48%));
+    --gradient-primary: linear-gradient(135deg, hsl(250 85% 55%), hsl(270 85% 55%));
+    --gradient-accent: linear-gradient(135deg, hsl(270 85% 55%), hsl(310 80% 55%));
     --gradient-success: linear-gradient(135deg, hsl(142 71% 45%), hsl(158 64% 42%));
 
     /* Shadows */
@@ -103,42 +103,42 @@
   }
 
   .dark {
-    --background: 222 47% 6%;
-    --foreground: 213 31% 91%;
+    --background: 240 10% 4%;
+    --foreground: 0 0% 98%;
 
-    --card: 222 47% 8%;
-    --card-foreground: 213 31% 91%;
+    --card: 240 8% 6%;
+    --card-foreground: 0 0% 98%;
 
-    --popover: 222 47% 8%;
-    --popover-foreground: 213 31% 91%;
+    --popover: 240 8% 6%;
+    --popover-foreground: 0 0% 98%;
 
-    --primary: 217 91% 60%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 250 85% 65%;
+    --primary-foreground: 210 40% 98%;
 
-    --secondary: 222 30% 14%;
-    --secondary-foreground: 215 20% 65%;
+    --secondary: 240 6% 12%;
+    --secondary-foreground: 240 5% 85%;
 
-    --muted: 222 30% 14%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 240 6% 12%;
+    --muted-foreground: 240 5% 65%;
 
-    --accent: 217 91% 60%;
+    --accent: 270 85% 65%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 63% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 222 30% 18%;
-    --input: 222 30% 18%;
-    --ring: 217 91% 60%;
+    --border: 240 6% 16%;
+    --input: 240 6% 16%;
+    --ring: 250 85% 65%;
 
-    --sidebar-background: 222 47% 6%;
-    --sidebar-foreground: 213 31% 91%;
-    --sidebar-primary: 217 91% 60%;
+    --sidebar-background: 240 10% 4%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 250 85% 65%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 30% 14%;
-    --sidebar-accent-foreground: 213 31% 91%;
-    --sidebar-border: 222 30% 18%;
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-accent: 240 6% 12%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 240 6% 16%;
+    --sidebar-ring: 250 85% 65%;
 
     --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.25), 0 1px 2px rgba(0, 0, 0, 0.2);
@@ -224,7 +224,7 @@
 
   /* Glass Effect */
   .glass-card {
-    @apply bg-card/80 backdrop-blur-md border border-border/50 rounded-lg;
+    @apply bg-background/60 backdrop-blur-xl border border-border/40 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)];
   }
 
   /* Gradient text */
