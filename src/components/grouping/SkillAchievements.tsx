@@ -63,7 +63,6 @@ export function SkillAchievements({ sessionId, userId }: SkillAchievementsProps)
   const { tracks } = useSkillTracks(sessionId, userId);
   const { streak } = useSkillStreaks(sessionId, userId);
   const { level } = useSkillLevels(sessionId, userId);
-  const { reflections } = useSkillReflections();
 
   const ctx: AchievementCtx = useMemo(() => ({
     totalTracks: tracks.length,
