@@ -40,6 +40,7 @@ import { ProductivityInsights } from '@/components/grouping/ProductivityInsights
 import { QuickEntryWidget } from '@/components/grouping/QuickEntryWidget';
 import { PointsDisplay } from '@/components/points/PointsDisplay';
 import { SkillTracker } from '@/components/grouping/SkillTracker';
+import { SkillQuestDashboard } from '@/components/grouping/SkillQuestDashboard';
 import { SkillActivityFeed } from '@/components/grouping/SkillActivityFeed';
 import { TeamAnalyticsReport } from '@/components/grouping/TeamAnalyticsReport';
 import { MemberSkillsBadges } from '@/components/grouping/MemberSkillsBadges';
