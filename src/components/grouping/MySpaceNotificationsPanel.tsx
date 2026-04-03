@@ -62,7 +62,7 @@ export function MySpaceNotificationsPanel() {
               <div className="flex-1 min-w-0">
                 <p className={`text-sm leading-tight ${!n.is_read ? 'font-medium' : ''}`}>{n.title}</p>
                 {n.message && (
-                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.message}</p>
+                  <LinkifyText text={n.message} className="text-xs text-muted-foreground mt-0.5 line-clamp-2" />
                 )}
                 <p className="text-[10px] text-muted-foreground/60 mt-1">
                   {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}

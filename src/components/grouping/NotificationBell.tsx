@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Bell, Check, CheckCheck, Trash2, AlertTriangle, Info, Send } from 'lucide-react';
+import { LinkifyText } from '@/components/ui/linkify-text';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
