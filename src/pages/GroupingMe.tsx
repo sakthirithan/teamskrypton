@@ -672,7 +672,7 @@ const GroupingMe = () => {
               )}
 
               {viewingUserId && (
-                <SkillTracker
+                <SkillQuestDashboard
                   session={viewingSession}
                   userId={viewingUserId}
                   isReadOnly={isReadOnlyMode}
