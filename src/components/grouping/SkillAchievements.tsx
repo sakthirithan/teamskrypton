@@ -22,7 +22,6 @@ interface AchievementCtx {
   level: number;
   streak: number;
   longestStreak: number;
-  reflections: number;
   totalLinks: number;
 }
 
