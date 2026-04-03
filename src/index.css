@@ -418,3 +418,19 @@
   background: hsl(var(--primary) / 0.15);
   color: hsl(var(--foreground));
 }
+
+/* Gaming shimmer animation */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+/* Neon pulse for gaming elements */
+@keyframes neon-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.neon-pulse {
+  animation: neon-pulse 2s ease-in-out infinite;
+}
