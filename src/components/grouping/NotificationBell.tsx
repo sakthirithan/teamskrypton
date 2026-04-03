@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Bell, Check, CheckCheck, Trash2, AlertTriangle, Info, Send } from 'lucide-react';
+import { LinkifyText } from '@/components/ui/linkify-text';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -93,7 +94,7 @@ export function NotificationBell() {
                       {n.title}
                     </p>
                     {n.message && (
-                      <p className="text-[13px] text-muted-foreground mt-1 line-clamp-2 leading-relaxed">{n.message}</p>
+                      <LinkifyText text={n.message} className="text-[13px] text-muted-foreground mt-1 line-clamp-2 leading-relaxed" />
                     )}
                     <p className="text-[10px] text-muted-foreground/50 mt-1.5 font-medium uppercase tracking-wider">
                       {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
