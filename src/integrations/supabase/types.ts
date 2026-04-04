@@ -99,6 +99,35 @@ export type Database = {
           },
         ]
       }
+      challenge_assignments: {
+        Row: {
+          assigned_at: string
+          challenge_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          challenge_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string
+          challenge_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_assignments_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "skill_challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       daily_study_items: {
         Row: {
           category: string | null
@@ -145,6 +174,92 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "daily_study_items_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "grouping_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      global_todo_completions: {
+        Row: {
+          completed_at: string
+          id: string
+          todo_id: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string
+          id?: string
+          todo_id: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string
+          id?: string
+          todo_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "global_todo_completions_todo_id_fkey"
+            columns: ["todo_id"]
+            isOneToOne: false
+            referencedRelation: "global_todos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      global_todos: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          is_global: boolean
+          mode: string
+          parent_id: string | null
+          session_id: string | null
+          sort_order: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          is_global?: boolean
+          mode?: string
+          parent_id?: string | null
+          session_id?: string | null
+          sort_order?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          is_global?: boolean
+          mode?: string
+          parent_id?: string | null
+          session_id?: string | null
+          sort_order?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "global_todos_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "global_todos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "global_todos_session_id_fkey"
             columns: ["session_id"]
             isOneToOne: false
             referencedRelation: "grouping_sessions"
