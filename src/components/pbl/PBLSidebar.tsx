@@ -9,6 +9,8 @@ import {
   ChevronLeft,
   FileText,
   Bell,
+  ListChecks,
+  User,
 } from 'lucide-react';
 import {
   Sidebar,
