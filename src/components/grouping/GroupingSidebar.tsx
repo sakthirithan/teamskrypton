@@ -22,6 +22,7 @@ import {
   Pin,
   PinOff,
   Send,
+  ListChecks,
 } from 'lucide-react';
 import {
   Sidebar,
