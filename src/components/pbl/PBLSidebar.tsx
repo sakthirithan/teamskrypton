@@ -31,8 +31,10 @@ import { ROLE_LABELS } from '@/lib/constants';
 
 const mainNavItems = [
   { title: 'Dashboard', url: '/pbl/dashboard', icon: LayoutDashboard },
+  { title: 'My Space', url: '/pbl/my-space', icon: User },
   { title: 'Projects', url: '/pbl/projects', icon: FolderKanban },
   { title: 'Documentation', url: '/pbl/docs', icon: FileText },
+  { title: 'To-Do List', url: '/pbl/todos', icon: ListChecks },
   { title: 'Notifications', url: '/pbl/notifications', icon: Bell },
   { title: 'Analytics', url: '/pbl/analytics', icon: BarChart3 },
   { title: 'Team', url: '/team', icon: Users },
