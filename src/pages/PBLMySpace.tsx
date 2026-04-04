@@ -2,13 +2,9 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { PBLLayout } from '@/components/pbl/PBLLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Progress } from '@/components/ui/progress';
+import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FolderKanban, ListChecks, FileText, BarChart3, User } from 'lucide-react';
-import { useProjects } from '@/hooks/useProjects';
+import { FolderKanban, ListChecks, BarChart3, User, Bell } from 'lucide-react';
 import { MemberProjectsPanel } from '@/components/pbl/MemberProjectsPanel';
 import { NotificationsPanel } from '@/components/pbl/NotificationsPanel';
 
@@ -24,8 +20,7 @@ const PBLMySpace = () => {
 
   return (
     <PBLLayout title="My Space">
-      <div className="space-y-6">
-        {/* Profile header */}
+      <div className="space-y-6 max-w-5xl mx-auto">
         <Card>
           <CardContent className="p-4 flex items-center gap-4">
             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
@@ -39,27 +34,19 @@ const PBLMySpace = () => {
         </Card>
 
         <Tabs defaultValue="projects" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="projects" className="text-xs gap-1">
               <FolderKanban className="w-3.5 h-3.5" />
               My Projects
             </TabsTrigger>
-            <TabsTrigger value="tasks" className="text-xs gap-1">
-              <ListChecks className="w-3.5 h-3.5" />
-              My Tasks
-            </TabsTrigger>
             <TabsTrigger value="notifications" className="text-xs gap-1">
-              <BarChart3 className="w-3.5 h-3.5" />
+              <Bell className="w-3.5 h-3.5" />
               Notifications
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="projects" className="mt-4">
-            <MemberProjectsPanel userId={user.id} />
-          </TabsContent>
-
-          <TabsContent value="tasks" className="mt-4">
-            <MemberProjectsPanel userId={user.id} />
+            <MemberProjectsPanel memberId={user.id} memberName={profile?.full_name || 'User'} />
           </TabsContent>
 
           <TabsContent value="notifications" className="mt-4">

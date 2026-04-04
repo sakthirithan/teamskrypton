@@ -7,13 +7,12 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
-  ListChecks, Plus, Trash2, ChevronRight, ChevronDown, Users, CheckCircle2
+  ListChecks, Plus, Trash2, ChevronRight, ChevronDown, CheckCircle2
 } from 'lucide-react';
 import { useGlobalTodos } from '@/hooks/useGlobalTodos';
 import { useAuth } from '@/hooks/useAuth';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface GlobalTodoPanelProps {
   mode?: string;
@@ -34,7 +33,13 @@ export function GlobalTodoPanel({ mode }: GlobalTodoPanelProps) {
 
   const handleCreate = async () => {
     if (!title.trim()) return;
-    await createTodo.mutateAsync({ title, description, mode: todoMode, is_global: isGlobal, parent_id: parentId || undefined });
+    await createTodo.mutateAsync({
+      title,
+      description,
+      mode: todoMode,
+      is_global: isGlobal,
+      parent_id: parentId && parentId !== 'none' ? parentId : undefined,
+    });
     setTitle('');
     setDescription('');
     setParentId('');
@@ -44,7 +49,11 @@ export function GlobalTodoPanel({ mode }: GlobalTodoPanelProps) {
   const toggleExpand = (id: string) => {
     setExpandedTodos(prev => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
   };
@@ -106,7 +115,6 @@ export function GlobalTodoPanel({ mode }: GlobalTodoPanelProps) {
           )}
         </div>
 
-        {/* Uncompleted users popover */}
         {showUncompleted === todo.id && (
           <div className="ml-8 mb-2 p-2 rounded-md bg-muted/40 border">
             <p className="text-[10px] font-medium mb-1">Not completed:</p>
@@ -123,7 +131,6 @@ export function GlobalTodoPanel({ mode }: GlobalTodoPanelProps) {
           </div>
         )}
 
-        {/* Subtasks */}
         {hasSubtasks && expanded && (
           <div className="mt-1">
             {subtasks.map(st => renderTodo(st, true))}
@@ -176,7 +183,7 @@ export function GlobalTodoPanel({ mode }: GlobalTodoPanelProps) {
                       <Select value={isGlobal ? 'global' : 'personal'} onValueChange={v => setIsGlobal(v === 'global')}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="global">Global (All Members)</SelectItem>
+                          <SelectItem value="global">Global (All)</SelectItem>
                           <SelectItem value="personal">Personal</SelectItem>
                         </SelectContent>
                       </Select>
@@ -184,9 +191,9 @@ export function GlobalTodoPanel({ mode }: GlobalTodoPanelProps) {
                   </div>
                   {parentTodos.length > 0 && (
                     <Select value={parentId} onValueChange={setParentId}>
-                      <SelectTrigger><SelectValue placeholder="Parent task (optional - for subtask)" /></SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder="Parent (optional - subtask)" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">No parent (top-level)</SelectItem>
+                        <SelectItem value="none">No parent</SelectItem>
                         {parentTodos.filter(t => t.is_global || t.created_by === user?.id).map(t => (
                           <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>
                         ))}

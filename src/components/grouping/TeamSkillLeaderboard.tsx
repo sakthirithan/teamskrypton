@@ -1,8 +1,7 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Trophy, Crown, Medal, Flame, Zap } from 'lucide-react';
-import { useSkillLevels, LEVEL_NAMES, LEVEL_COLORS, getXpProgress } from '@/hooks/useSkillLevels';
+import { Trophy, Crown, Medal } from 'lucide-react';
+import { useSkillLevels, LEVEL_NAMES, LEVEL_COLORS } from '@/hooks/useSkillLevels';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
@@ -43,22 +42,20 @@ export function TeamSkillLeaderboard({ sessionId, limit = 10 }: TeamSkillLeaderb
 
   const getRankIcon = (rank: number) => {
     switch (rank) {
-      case 1: return <Crown className="w-4 h-4 text-amber-500" />;
-      case 2: return <Medal className="w-4 h-4 text-slate-400" />;
-      case 3: return <Medal className="w-4 h-4 text-amber-700" />;
+      case 1: return <Crown className="w-4 h-4 text-[hsl(var(--warning))]" />;
+      case 2: return <Medal className="w-4 h-4 text-muted-foreground" />;
+      case 3: return <Medal className="w-4 h-4 text-[hsl(var(--warning))]" />;
       default: return <span className="text-[10px] font-bold text-muted-foreground w-4 text-center">{rank}</span>;
     }
   };
 
   return (
     <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm flex items-center gap-2">
-          <Trophy className="w-4 h-4 text-amber-500" />
-          Skill Leaderboard
-        </CardTitle>
-      </CardHeader>
       <CardContent className="p-0">
+        <div className="px-4 py-3 border-b flex items-center gap-2">
+          <Trophy className="w-4 h-4 text-[hsl(var(--warning))]" />
+          <span className="text-sm font-semibold">Skill Leaderboard</span>
+        </div>
         <div className="divide-y">
           {ranked.map(m => (
             <div
