@@ -22,6 +22,7 @@ import {
   Pin,
   PinOff,
   Send,
+  ListChecks,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -134,6 +135,7 @@ export function GroupingSidebar() {
 
   const trackingItems: NavItem[] = [
     { title: 'Habits', url: '/grouping/habits', icon: Repeat },
+    { title: 'To-Do List', url: '/grouping/todos', icon: ListChecks },
   ];
 
   const managementItems: NavItem[] = [
