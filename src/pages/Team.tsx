@@ -595,12 +595,6 @@ const Team = () => {
     </>
   );
 
-  // Get active session for leaderboard
-  const activeSession = useMemo(() => {
-    // We'll fetch it inline
-    return null;
-  }, []);
-
   const { data: activeSessions } = useQuery({
     queryKey: ['active-session-team'],
     queryFn: async () => {
