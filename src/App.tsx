@@ -68,13 +68,16 @@ const App = () => (
               <Route path="/grouping/notes" element={<GroupingNotes />} />
               <Route path="/grouping/sessions" element={<GroupingSessions />} />
               <Route path="/grouping/habits" element={<GroupingHabits />} />
+              <Route path="/grouping/todos" element={<GroupingTodos />} />
               {/* PBL Mode Routes */}
               <Route path="/pbl/dashboard" element={<PBLDashboard />} />
+              <Route path="/pbl/my-space" element={<PBLMySpace />} />
               <Route path="/pbl/projects" element={<PBLProjects />} />
               <Route path="/pbl/projects/:projectId" element={<ProjectDetail />} />
               <Route path="/pbl/analytics" element={<PBLAnalytics />} />
               <Route path="/pbl/docs" element={<PBLDocumentation />} />
               <Route path="/pbl/notifications" element={<PBLNotifications />} />
+              <Route path="/pbl/todos" element={<PBLTodos />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
