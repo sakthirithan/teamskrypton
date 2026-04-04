@@ -20,12 +20,15 @@ import GroupingReflections from "./pages/GroupingReflections";
 import GroupingNotes from "./pages/GroupingNotes";
 import GroupingSessions from "./pages/GroupingSessions";
 import GroupingHabits from "./pages/GroupingHabits";
+import GroupingTodos from "./pages/GroupingTodos";
 import PBLDashboard from "./pages/PBLDashboard";
 import PBLProjects from "./pages/PBLProjects";
 import PBLAnalytics from "./pages/PBLAnalytics";
 import ProjectDetail from "./pages/ProjectDetail";
 import PBLDocumentation from "./pages/PBLDocumentation";
 import PBLNotifications from "./pages/PBLNotifications";
+import PBLMySpace from "./pages/PBLMySpace";
+import PBLTodos from "./pages/PBLTodos";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
