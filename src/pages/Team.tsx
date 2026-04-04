@@ -595,6 +595,26 @@ const Team = () => {
     </>
   );
 
+  // Get active session for leaderboard
+  const activeSession = useMemo(() => {
+    // We'll fetch it inline
+    return null;
+  }, []);
+
+  const { data: activeSessions } = useQuery({
+    queryKey: ['active-session-team'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('grouping_sessions')
+        .select('id')
+        .eq('status', 'active')
+        .eq('is_test', false)
+        .limit(1);
+      return data?.[0]?.id || null;
+    },
+    enabled: isGroupingMode,
+  });
+
   const content = isGroupingMode ? (
     <Tabs defaultValue="directory" className="w-full">
       <TabsList className="grid w-full grid-cols-2 mb-6">
@@ -609,6 +629,11 @@ const Team = () => {
       </TabsList>
       <TabsContent value="directory" className="mt-0">
         {teamDirectoryContent}
+        {activeSessions && (
+          <div className="mt-6">
+            <TeamSkillLeaderboard sessionId={activeSessions} />
+          </div>
+        )}
       </TabsContent>
       <TabsContent value="skills" className="mt-0">
         <SkillWiseMemberList />
