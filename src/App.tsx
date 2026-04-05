@@ -70,6 +70,7 @@ const App = () => (
               <Route path="/grouping/sessions" element={<GroupingSessions />} />
               <Route path="/grouping/habits" element={<GroupingHabits />} />
               <Route path="/grouping/todos" element={<GroupingTodos />} />
+              <Route path="/grouping/leaderboard" element={<GroupingLeaderboard />} />
               {/* PBL Mode Routes */}
               <Route path="/pbl/dashboard" element={<PBLDashboard />} />
               <Route path="/pbl/my-space" element={<PBLMySpace />} />
