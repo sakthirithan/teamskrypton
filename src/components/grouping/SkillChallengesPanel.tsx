@@ -87,7 +87,7 @@ export function SkillChallengesPanel({ sessionId }: SkillChallengesPanelProps) {
 
   const handleCreate = async () => {
     if (!form.title.trim()) return;
-    const result = await createChallenge.mutateAsync(form);
+    await createChallenge.mutateAsync(form);
     
     // If specific members selected, assign them
     if (assignMode !== 'all' && selectedMembers.length > 0) {
