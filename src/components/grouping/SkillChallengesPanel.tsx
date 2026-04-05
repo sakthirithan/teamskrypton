@@ -13,7 +13,7 @@ import {
   BookOpen, Flame, Shield, Trash2, CheckCircle2, XCircle 
 } from 'lucide-react';
 import { useSkillChallenges } from '@/hooks/useSkillChallenges';
-import { useSkillLevels, XP_REWARDS, getLevelFromXp } from '@/hooks/useSkillLevels';
+import { getLevelFromXp } from '@/hooks/useSkillLevels';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
