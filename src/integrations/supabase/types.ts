@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_points: {
+        Row: {
+          awarded_by: string
+          created_at: string
+          id: string
+          points: number
+          reason: string | null
+          session_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          awarded_by: string
+          created_at?: string
+          id?: string
+          points?: number
+          reason?: string | null
+          session_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          awarded_by?: string
+          created_at?: string
+          id?: string
+          points?: number
+          reason?: string | null
+          session_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_points_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "grouping_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       approval_votes: {
         Row: {
           approval_id: string

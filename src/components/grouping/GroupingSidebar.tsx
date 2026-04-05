@@ -136,6 +136,7 @@ export function GroupingSidebar() {
   const trackingItems: NavItem[] = [
     { title: 'Habits', url: '/grouping/habits', icon: Repeat },
     { title: 'To-Do List', url: '/grouping/todos', icon: ListChecks },
+    { title: 'Leaderboard', url: '/grouping/leaderboard', icon: TrendingUp },
   ];
 
   const managementItems: NavItem[] = [

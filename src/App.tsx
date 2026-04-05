@@ -21,6 +21,7 @@ import GroupingNotes from "./pages/GroupingNotes";
 import GroupingSessions from "./pages/GroupingSessions";
 import GroupingHabits from "./pages/GroupingHabits";
 import GroupingTodos from "./pages/GroupingTodos";
+import GroupingLeaderboard from "./pages/GroupingLeaderboard";
 import PBLDashboard from "./pages/PBLDashboard";
 import PBLProjects from "./pages/PBLProjects";
 import PBLAnalytics from "./pages/PBLAnalytics";
@@ -69,6 +70,7 @@ const App = () => (
               <Route path="/grouping/sessions" element={<GroupingSessions />} />
               <Route path="/grouping/habits" element={<GroupingHabits />} />
               <Route path="/grouping/todos" element={<GroupingTodos />} />
+              <Route path="/grouping/leaderboard" element={<GroupingLeaderboard />} />
               {/* PBL Mode Routes */}
               <Route path="/pbl/dashboard" element={<PBLDashboard />} />
               <Route path="/pbl/my-space" element={<PBLMySpace />} />
