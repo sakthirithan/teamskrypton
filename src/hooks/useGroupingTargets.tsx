@@ -11,6 +11,7 @@ export interface GroupingTarget {
   user_id: string | null;
   target_points: number;
   achieved_points: number;
+  balance_points?: number;
   editable: boolean;
   notes: string | null;
   created_by: string;

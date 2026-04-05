@@ -12,6 +12,7 @@ import { Trophy, Crown, Medal, Zap, Star, Target, Plus, Flame } from 'lucide-rea
 import { useSkillLevels, LEVEL_NAMES, LEVEL_COLORS, getXpProgress } from '@/hooks/useSkillLevels';
 import { useActivityPoints } from '@/hooks/useActivityPoints';
 import { useGroupingSessions } from '@/hooks/useGroupingSessions';
+import { useGroupingTargets } from '@/hooks/useGroupingTargets';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
@@ -27,6 +28,7 @@ export function LeaderboardPanel() {
 
   const { leaderboard: xpLeaderboard } = useSkillLevels(sessionId);
   const { getLeaderboard: getActivityLeaderboard, awardPoints, activityPoints } = useActivityPoints(sessionId);
+  const { targets } = useGroupingTargets(sessionId);
 
   const { data: profiles = [] } = useQuery({
     queryKey: ['profiles-leaderboard-all'],
@@ -108,12 +110,22 @@ export function LeaderboardPanel() {
   // PS Points Rank
   const psRanked = useMemo(() => {
     const totals = new Map<string, number>();
+    
+    // Add initial balance points from grouping targets
+    targets.forEach((t) => {
+      if (t.target_scope === 'individual' && t.user_id) {
+        totals.set(t.user_id, (totals.get(t.user_id) || 0) + (t.balance_points || 0));
+      }
+    });
+
+    // Add session earned points
     psEntries.forEach((e: any) => totals.set(e.user_id, (totals.get(e.user_id) || 0) + e.reward_points));
+    
     return Array.from(totals.entries())
       .map(([uid, pts]) => ({ user_id: uid, points: pts, name: profileMap.get(uid) || 'Unknown', isMe: uid === user?.id }))
       .sort((a, b) => b.points - a.points)
       .map((e, i) => ({ ...e, rank: i + 1 }));
-  }, [psEntries, profileMap, user]);
+  }, [psEntries, targets, profileMap, user]);
 
   // Activity Rank
   const activityRanked = useMemo(() => {
