@@ -38,7 +38,7 @@ export function SkillChallengesPanel({ sessionId }: SkillChallengesPanelProps) {
   const [proofText, setProofText] = useState('');
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [assignMode, setAssignMode] = useState<'all' | 'select' | 'skill'>('all');
-  const [skillFilter, setSkillFilter] = useState('');
+  
   const [form, setForm] = useState({
     title: '',
     description: '',
