@@ -9,14 +9,14 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { 
-  Swords, Plus, Check, Clock, X, Send, Users, Zap, 
-  BookOpen, Flame, Shield, Trash2, CheckCircle2, XCircle 
+  Swords, Plus, Check, Clock, Send, Zap, 
+  BookOpen, Flame, Shield, Trash2, CheckCircle2, XCircle, Users
 } from 'lucide-react';
 import { useSkillChallenges } from '@/hooks/useSkillChallenges';
-import { useSkillLevels, XP_REWARDS } from '@/hooks/useSkillLevels';
+import { getLevelFromXp } from '@/hooks/useSkillLevels';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 
@@ -27,15 +27,18 @@ interface SkillChallengesPanelProps {
 export function SkillChallengesPanel({ sessionId }: SkillChallengesPanelProps) {
   const { user, isLeadership } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { 
-    challenges, completions, createChallenge, submitCompletion, 
+    challenges, createChallenge, submitCompletion, 
     approveCompletion, deleteChallenge, getUserCompletion, getCompletionsForChallenge 
   } = useSkillChallenges(sessionId);
-  const { awardXp } = useSkillLevels(sessionId, user?.id);
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [submitChallengeId, setSubmitChallengeId] = useState<string | null>(null);
   const [proofText, setProofText] = useState('');
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+  const [assignMode, setAssignMode] = useState<'all' | 'select' | 'skill'>('all');
+  
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -51,12 +54,75 @@ export function SkillChallengesPanel({ sessionId }: SkillChallengesPanelProps) {
     },
   });
 
+  const { data: memberSkills = [] } = useQuery({
+    queryKey: ['member-skills-for-challenges'],
+    queryFn: async () => {
+      const { data } = await supabase.from('member_skills').select('user_id, skill_name');
+      return data || [];
+    },
+  });
+
+  const { data: userRoles = [] } = useQuery({
+    queryKey: ['user-roles-for-challenges'],
+    queryFn: async () => {
+      const { data } = await supabase.from('user_roles').select('user_id, role');
+      return data || [];
+    },
+  });
+
   const profileMap = new Map(profiles.map(p => [p.user_id, p.full_name]));
+  const roleMap = new Map(userRoles.map(r => [r.user_id, r.role]));
+  const uniqueSkillNames = [...new Set(memberSkills.map(s => s.skill_name))].sort();
+
+  const toggleMember = (userId: string) => {
+    setSelectedMembers(prev => 
+      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+    );
+  };
+
+  const selectBySkill = (skillName: string) => {
+    const userIds = memberSkills.filter(s => s.skill_name === skillName).map(s => s.user_id);
+    setSelectedMembers([...new Set([...selectedMembers, ...userIds])]);
+  };
 
   const handleCreate = async () => {
     if (!form.title.trim()) return;
     await createChallenge.mutateAsync(form);
+    
+    // If specific members selected, assign them
+    if (assignMode !== 'all' && selectedMembers.length > 0) {
+      // Get the newly created challenge ID
+      const { data: latestChallenges } = await supabase
+        .from('skill_challenges' as any)
+        .select('id')
+        .eq('session_id', sessionId)
+        .eq('title', form.title)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      const challengeId = (latestChallenges as any)?.[0]?.id;
+      if (challengeId) {
+        const rows = selectedMembers.map(uid => ({ challenge_id: challengeId, user_id: uid }));
+        await supabase.from('challenge_assignments' as any).insert(rows as any);
+        
+        // Send notification to each assigned member
+        if (user) {
+          const notifications = selectedMembers.map(uid => ({
+            sender_id: user.id,
+            recipient_id: uid,
+            title: '⚔️ New Skill Challenge Assigned',
+            message: `You've been assigned: "${form.title}" (${form.xp_reward} XP)`,
+            type: 'challenge',
+            session_id: sessionId,
+          }));
+          await supabase.from('grouping_notifications').insert(notifications);
+        }
+      }
+    }
+
     setForm({ title: '', description: '', xp_reward: 50, difficulty: 'medium' });
+    setSelectedMembers([]);
+    setAssignMode('all');
     setIsCreateOpen(false);
     toast({ title: 'Challenge Created!' });
   };
@@ -69,40 +135,52 @@ export function SkillChallengesPanel({ sessionId }: SkillChallengesPanelProps) {
   };
 
   const handleApprove = async (completionId: string, challengeXp: number, completionUserId: string) => {
-    await approveCompletion.mutateAsync({ completionId, approve: true });
-    // Award XP to the completing user
-    // Note: XP is awarded to the user who completed, not the approver
-    // We use a direct insert since the awardXp hook is for current user
-    await supabase.from('skill_xp_log' as any).insert({
-      user_id: completionUserId,
-      session_id: sessionId,
-      xp_amount: challengeXp,
-      activity_type: 'challenge_medium',
-      description: 'Challenge completed',
-    } as any);
+    try {
+      await approveCompletion.mutateAsync({ completionId, approve: true });
+      
+      // Insert XP log entry for the completing user
+      const { error: logError } = await supabase.from('skill_xp_log' as any).insert({
+        user_id: completionUserId,
+        session_id: sessionId,
+        xp_amount: challengeXp,
+        activity_type: 'challenge_approved',
+        description: 'Challenge completion approved',
+        completion_id: completionId,
+      } as any);
+      if (logError) console.error('XP log insert error:', logError);
 
-    // Update their level
-    const { data: levelData } = await supabase
-      .from('skill_levels' as any)
-      .select('*')
-      .eq('session_id', sessionId)
-      .eq('user_id', completionUserId)
-      .maybeSingle();
+      // Upsert skill level for the completing user
+      const { data: levelData } = await supabase
+        .from('skill_levels' as any)
+        .select('*')
+        .eq('session_id', sessionId)
+        .eq('user_id', completionUserId)
+        .maybeSingle();
 
-    const currentXp = (levelData as any)?.xp || 0;
-    const newXp = currentXp + challengeXp;
-    const newLevel = Math.max(1, Math.min(10, Math.floor(newXp / 200) + 1));
+      const currentXp = (levelData as any)?.xp || 0;
+      const newXp = currentXp + challengeXp;
+      const newLevel = getLevelFromXp(newXp);
 
-    if (levelData) {
-      await supabase.from('skill_levels' as any)
-        .update({ xp: newXp, level: newLevel } as any)
-        .eq('id', (levelData as any).id);
-    } else {
-      await supabase.from('skill_levels' as any)
-        .insert({ user_id: completionUserId, session_id: sessionId, xp: newXp, level: newLevel } as any);
+      if (levelData) {
+        await supabase.from('skill_levels' as any)
+          .update({ xp: newXp, level: newLevel, updated_at: new Date().toISOString() } as any)
+          .eq('id', (levelData as any).id);
+      } else {
+        await supabase.from('skill_levels' as any)
+          .insert({ user_id: completionUserId, session_id: sessionId, xp: newXp, level: newLevel } as any);
+      }
+
+      // Invalidate all related caches so UI updates everywhere
+      queryClient.invalidateQueries({ queryKey: ['skill-level'] });
+      queryClient.invalidateQueries({ queryKey: ['skill-xp-log'] });
+      queryClient.invalidateQueries({ queryKey: ['skill-leaderboard'] });
+      queryClient.invalidateQueries({ queryKey: ['skill-challenge-completions'] });
+
+      toast({ title: 'Approved!', description: `+${challengeXp} XP awarded.` });
+    } catch (err: any) {
+      console.error('Approval error:', err);
+      toast({ variant: 'destructive', title: 'Error', description: err.message || 'Failed to approve' });
     }
-
-    toast({ title: 'Approved!', description: `+${challengeXp} XP awarded.` });
   };
 
   const handleReject = async (completionId: string) => {
@@ -181,8 +259,57 @@ export function SkillChallengesPanel({ sessionId }: SkillChallengesPanelProps) {
                         />
                       </div>
                     </div>
+
+                    {/* Member Assignment */}
+                    <div className="space-y-2">
+                      <Label>Assign To</Label>
+                      <Select value={assignMode} onValueChange={(v: any) => { setAssignMode(v); if (v === 'all') setSelectedMembers([]); }}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Members</SelectItem>
+                          <SelectItem value="select">Select Members</SelectItem>
+                          <SelectItem value="skill">By Skill</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {assignMode === 'skill' && (
+                      <div className="space-y-2">
+                        <Label>Select Skill to Auto-Assign</Label>
+                        <Select onValueChange={selectBySkill}>
+                          <SelectTrigger><SelectValue placeholder="Pick a skill..." /></SelectTrigger>
+                          <SelectContent>
+                            {uniqueSkillNames.map(s => (
+                              <SelectItem key={s} value={s}>{s}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {selectedMembers.length > 0 && (
+                          <p className="text-xs text-muted-foreground">{selectedMembers.length} members selected</p>
+                        )}
+                      </div>
+                    )}
+
+                    {(assignMode === 'select' || (assignMode === 'skill' && selectedMembers.length > 0)) && (
+                      <ScrollArea className="max-h-[150px] border rounded-lg p-2">
+                        <div className="space-y-1">
+                          {profiles.map(p => (
+                            <label key={p.user_id} className="flex items-center gap-2 text-xs py-1 px-2 rounded hover:bg-muted/50 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={selectedMembers.includes(p.user_id)}
+                                onChange={() => toggleMember(p.user_id)}
+                                className="rounded"
+                              />
+                              <span>{p.full_name}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    )}
+
                     <Button onClick={handleCreate} className="w-full" disabled={createChallenge.isPending || !form.title.trim()}>
-                      {createChallenge.isPending ? 'Creating...' : 'Create Challenge'}
+                      {createChallenge.isPending ? 'Creating...' : `Create Challenge${assignMode !== 'all' && selectedMembers.length > 0 ? ` (${selectedMembers.length} assigned)` : ''}`}
                     </Button>
                   </div>
                 </DialogContent>
