@@ -27,11 +27,11 @@ interface SkillChallengesPanelProps {
 export function SkillChallengesPanel({ sessionId }: SkillChallengesPanelProps) {
   const { user, isLeadership } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { 
-    challenges, completions, createChallenge, submitCompletion, 
+    challenges, createChallenge, submitCompletion, 
     approveCompletion, deleteChallenge, getUserCompletion, getCompletionsForChallenge 
   } = useSkillChallenges(sessionId);
-  const { awardXp } = useSkillLevels(sessionId, user?.id);
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [submitChallengeId, setSubmitChallengeId] = useState<string | null>(null);
