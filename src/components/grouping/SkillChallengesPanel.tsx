@@ -69,40 +69,52 @@ export function SkillChallengesPanel({ sessionId }: SkillChallengesPanelProps) {
   };
 
   const handleApprove = async (completionId: string, challengeXp: number, completionUserId: string) => {
-    await approveCompletion.mutateAsync({ completionId, approve: true });
-    // Award XP to the completing user
-    // Note: XP is awarded to the user who completed, not the approver
-    // We use a direct insert since the awardXp hook is for current user
-    await supabase.from('skill_xp_log' as any).insert({
-      user_id: completionUserId,
-      session_id: sessionId,
-      xp_amount: challengeXp,
-      activity_type: 'challenge_medium',
-      description: 'Challenge completed',
-    } as any);
+    try {
+      await approveCompletion.mutateAsync({ completionId, approve: true });
+      
+      // Insert XP log entry for the completing user
+      const { error: logError } = await supabase.from('skill_xp_log' as any).insert({
+        user_id: completionUserId,
+        session_id: sessionId,
+        xp_amount: challengeXp,
+        activity_type: 'challenge_approved',
+        description: 'Challenge completion approved',
+        completion_id: completionId,
+      } as any);
+      if (logError) console.error('XP log insert error:', logError);
 
-    // Update their level
-    const { data: levelData } = await supabase
-      .from('skill_levels' as any)
-      .select('*')
-      .eq('session_id', sessionId)
-      .eq('user_id', completionUserId)
-      .maybeSingle();
+      // Upsert skill level for the completing user
+      const { data: levelData } = await supabase
+        .from('skill_levels' as any)
+        .select('*')
+        .eq('session_id', sessionId)
+        .eq('user_id', completionUserId)
+        .maybeSingle();
 
-    const currentXp = (levelData as any)?.xp || 0;
-    const newXp = currentXp + challengeXp;
-    const newLevel = Math.max(1, Math.min(10, Math.floor(newXp / 200) + 1));
+      const currentXp = (levelData as any)?.xp || 0;
+      const newXp = currentXp + challengeXp;
+      const newLevel = getLevelFromXp(newXp);
 
-    if (levelData) {
-      await supabase.from('skill_levels' as any)
-        .update({ xp: newXp, level: newLevel } as any)
-        .eq('id', (levelData as any).id);
-    } else {
-      await supabase.from('skill_levels' as any)
-        .insert({ user_id: completionUserId, session_id: sessionId, xp: newXp, level: newLevel } as any);
+      if (levelData) {
+        await supabase.from('skill_levels' as any)
+          .update({ xp: newXp, level: newLevel, updated_at: new Date().toISOString() } as any)
+          .eq('id', (levelData as any).id);
+      } else {
+        await supabase.from('skill_levels' as any)
+          .insert({ user_id: completionUserId, session_id: sessionId, xp: newXp, level: newLevel } as any);
+      }
+
+      // Invalidate all related caches so UI updates everywhere
+      queryClient.invalidateQueries({ queryKey: ['skill-level'] });
+      queryClient.invalidateQueries({ queryKey: ['skill-xp-log'] });
+      queryClient.invalidateQueries({ queryKey: ['skill-leaderboard'] });
+      queryClient.invalidateQueries({ queryKey: ['skill-challenge-completions'] });
+
+      toast({ title: 'Approved!', description: `+${challengeXp} XP awarded.` });
+    } catch (err: any) {
+      console.error('Approval error:', err);
+      toast({ variant: 'destructive', title: 'Error', description: err.message || 'Failed to approve' });
     }
-
-    toast({ title: 'Approved!', description: `+${challengeXp} XP awarded.` });
   };
 
   const handleReject = async (completionId: string) => {
