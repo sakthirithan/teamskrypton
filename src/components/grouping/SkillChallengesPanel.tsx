@@ -259,8 +259,57 @@ export function SkillChallengesPanel({ sessionId }: SkillChallengesPanelProps) {
                         />
                       </div>
                     </div>
+
+                    {/* Member Assignment */}
+                    <div className="space-y-2">
+                      <Label>Assign To</Label>
+                      <Select value={assignMode} onValueChange={(v: any) => { setAssignMode(v); if (v === 'all') setSelectedMembers([]); }}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Members</SelectItem>
+                          <SelectItem value="select">Select Members</SelectItem>
+                          <SelectItem value="skill">By Skill</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {assignMode === 'skill' && (
+                      <div className="space-y-2">
+                        <Label>Select Skill to Auto-Assign</Label>
+                        <Select onValueChange={selectBySkill}>
+                          <SelectTrigger><SelectValue placeholder="Pick a skill..." /></SelectTrigger>
+                          <SelectContent>
+                            {uniqueSkillNames.map(s => (
+                              <SelectItem key={s} value={s}>{s}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {selectedMembers.length > 0 && (
+                          <p className="text-xs text-muted-foreground">{selectedMembers.length} members selected</p>
+                        )}
+                      </div>
+                    )}
+
+                    {(assignMode === 'select' || (assignMode === 'skill' && selectedMembers.length > 0)) && (
+                      <ScrollArea className="max-h-[150px] border rounded-lg p-2">
+                        <div className="space-y-1">
+                          {profiles.map(p => (
+                            <label key={p.user_id} className="flex items-center gap-2 text-xs py-1 px-2 rounded hover:bg-muted/50 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={selectedMembers.includes(p.user_id)}
+                                onChange={() => toggleMember(p.user_id)}
+                                className="rounded"
+                              />
+                              <span>{p.full_name}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    )}
+
                     <Button onClick={handleCreate} className="w-full" disabled={createChallenge.isPending || !form.title.trim()}>
-                      {createChallenge.isPending ? 'Creating...' : 'Create Challenge'}
+                      {createChallenge.isPending ? 'Creating...' : `Create Challenge${assignMode !== 'all' && selectedMembers.length > 0 ? ` (${selectedMembers.length} assigned)` : ''}`}
                     </Button>
                   </div>
                 </DialogContent>
