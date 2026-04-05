@@ -47,6 +47,7 @@ import { MemberSkillsBadges } from '@/components/grouping/MemberSkillsBadges';
 import { SkillAssignmentPanel } from '@/components/grouping/SkillAssignmentPanel';
 import { DailyStudyBoard } from '@/components/grouping/DailyStudyBoard';
 import { BalancePointsCard } from '@/components/grouping/BalancePointsCard';
+import { ActivityPointsCard } from '@/components/grouping/ActivityPointsCard';
 import { MySpaceNotificationsPanel } from '@/components/grouping/MySpaceNotificationsPanel';
 import { ROLE_LABELS, KryptonRole } from '@/lib/constants';
 import { 
@@ -653,14 +654,7 @@ const GroupingMe = () => {
 
           {activeTab === 'skills' && viewingSession && (
             <>
-              {/* Skill Assignment */}
-              {viewingUserId && (
-                <SkillAssignmentPanel
-                  userId={viewingUserId}
-                  userName={displayProfile?.full_name || 'Member'}
-                  isSelfMode={!isViewingOther}
-                />
-              )}
+              {/* Skill Assignment Removed per user request */}
 
               {/* Alerts */}
               {(!isViewingOther || isTL) && (
@@ -684,19 +678,27 @@ const GroupingMe = () => {
           {activeTab === 'ps-entries' && viewingSession && (
             <div className="space-y-3">
 
-              {/* Balance Points Input */}
-              {myIndividualTarget ? (
-                <BalancePointsCard
-                  target={myIndividualTarget}
+              {/* Balance & Activity Points Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {myIndividualTarget ? (
+                  <BalancePointsCard
+                    target={myIndividualTarget}
+                    viewingUserId={viewingUserId}
+                    achievedPoints={myAchievedPoints}
+                    isReadOnly={isReadOnlyMode}
+                  />
+                ) : (
+                  <Card className="border-primary/20 bg-primary/5 flex items-center justify-center p-4">
+                    <p className="text-sm text-muted-foreground">No balance target set for this session</p>
+                  </Card>
+                )}
+                
+                <ActivityPointsCard 
                   viewingUserId={viewingUserId}
-                  achievedPoints={myAchievedPoints}
+                  sessionId={viewingSession.id}
                   isReadOnly={isReadOnlyMode}
                 />
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No target set for this session
-                </p>
-              )}
+              </div>
 
               {/* Points & Stats Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

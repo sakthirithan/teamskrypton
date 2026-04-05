@@ -207,24 +207,26 @@ export function SkillWiseMemberList() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="px-4 pb-3 pt-2.5">
-                  <div className="flex flex-wrap gap-2">
-                    {group.members.map(m => (
-                      <button
-                        key={m.userId}
-                        onClick={() => handleMemberClick(m.userId)}
-                        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-secondary/40 hover:bg-primary/5 border border-transparent hover:border-primary/20 transition-all duration-200 text-left group"
-                      >
-                        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary/15 to-primary/5 flex items-center justify-center shrink-0 ring-1 ring-primary/10">
-                          <User className="w-3.5 h-3.5 text-primary" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-medium leading-tight group-hover:text-primary transition-colors">{m.name}</p>
-                          <p className="text-[10px] text-muted-foreground">{m.department}</p>
-                        </div>
-                        <ChevronRight className="w-3 h-3 text-muted-foreground/30 group-hover:text-primary/50 transition-colors ml-1" />
-                      </button>
-                    ))}
-                  </div>
+                  <ScrollArea className="max-h-[160px] w-full pr-3">
+                    <div className="flex flex-wrap gap-2">
+                      {group.members.map(m => (
+                        <button
+                          key={m.userId}
+                          onClick={() => handleMemberClick(m.userId)}
+                          className="flex items-center gap-2 px-3 py-2 rounded-xl bg-secondary/40 hover:bg-primary/5 border border-transparent hover:border-primary/20 transition-all duration-200 text-left group"
+                        >
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary/15 to-primary/5 flex items-center justify-center shrink-0 ring-1 ring-primary/10">
+                            <User className="w-3.5 h-3.5 text-primary" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium leading-tight group-hover:text-primary transition-colors">{m.name}</p>
+                            <p className="text-[10px] text-muted-foreground">{m.department}</p>
+                          </div>
+                          <ChevronRight className="w-3 h-3 text-muted-foreground/30 group-hover:text-primary/50 transition-colors ml-1" />
+                        </button>
+                      ))}
+                    </div>
+                  </ScrollArea>
                 </CardContent>
               </Card>
             ))}

@@ -76,6 +76,7 @@ export function GroupingSidebar() {
   const [pinned, setPinned] = useState<string[]>(getPinnedSections);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     myspace: true,
+    psportal: true,
     workspace: true,
     tracking: true,
     management: true,
@@ -116,7 +117,6 @@ export function GroupingSidebar() {
   // My Space sub-items (appear under My Space heading)
   const mySpaceItems: NavItem[] = [
     { title: 'Overview', url: '/grouping/me', icon: Compass },
-    { title: 'PS Entries', url: '/grouping/me?tab=ps-entries', icon: ClipboardList, tabParam: 'ps-entries' },
     { title: 'Skill Developement', url: '/grouping/me?tab=skills', icon: Target, tabParam: 'skills' },
     ...(isLeadership
       ? [{ title: 'Reports', url: '/grouping/me?tab=feed-reports', icon: TrendingUp, tabParam: 'feed-reports' }]
@@ -124,11 +124,15 @@ export function GroupingSidebar() {
     { title: 'Study Board', url: '/grouping/me?tab=skill-dev', icon: GraduationCap, tabParam: 'skill-dev' },
   ];
 
+  const psPortalItems: NavItem[] = [
+    { title: 'PS Entries', url: '/grouping/me?tab=ps-entries', icon: ClipboardList, tabParam: 'ps-entries' },
+    { title: 'PS Tracking', url: '/grouping/ps', icon: ClipboardList },
+  ];
+
   const workspaceItems: NavItem[] = [
     ...(isLeadership
       ? [{ title: 'Team Skills', url: '/grouping/skills', icon: BookOpen }]
       : []),
-    { title: 'PS Tracking', url: '/grouping/ps', icon: ClipboardList },
     { title: 'Reflections', url: '/grouping/reflections', icon: NotebookPen },
     { title: 'Notes', url: '/grouping/notes', icon: MessageSquare },
   ];
@@ -136,7 +140,6 @@ export function GroupingSidebar() {
   const trackingItems: NavItem[] = [
     { title: 'Habits', url: '/grouping/habits', icon: Repeat },
     { title: 'To-Do List', url: '/grouping/todos', icon: ListChecks },
-    { title: 'Leaderboard', url: '/grouping/leaderboard', icon: TrendingUp },
   ];
 
   const managementItems: NavItem[] = [
@@ -287,6 +290,18 @@ export function GroupingSidebar() {
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isActive('/grouping/leaderboard')}>
+                  <NavLink
+                    to="/grouping/leaderboard"
+                    className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-sidebar-accent"
+                    activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                  >
+                    <TrendingUp className="h-4 w-4 shrink-0" />
+                    {!collapsed && <span>Leaderboard</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -294,11 +309,14 @@ export function GroupingSidebar() {
         {/* My Space - Collapsible with sub-items */}
         {renderCollapsibleSection('myspace', 'My Space', mySpaceItems)}
 
-        {/* Workspace */}
-        {renderCollapsibleSection('workspace', 'Workspace', workspaceItems)}
+        {/* PS Portal */}
+        {renderCollapsibleSection('psportal', 'PS Portal', psPortalItems)}
 
         {/* Tracking */}
         {renderCollapsibleSection('tracking', 'Tracking', trackingItems)}
+
+        {/* Workspace */}
+        {renderCollapsibleSection('workspace', 'Workspace', workspaceItems)}
 
         {/* Management */}
         {renderCollapsibleSection(

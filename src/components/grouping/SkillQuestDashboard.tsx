@@ -9,7 +9,6 @@ import { SkillChallengesPanel } from './SkillChallengesPanel';
 import { SkillLeaderboard } from './SkillLeaderboard';
 import { SkillLevelBadge } from './SkillLevelBadge';
 import { SkillTracker } from './SkillTracker';
-import { DailyStudyBoard } from './DailyStudyBoard';
 import { GroupingSession } from '@/hooks/useGroupingSessions';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -55,7 +54,6 @@ export function SkillQuestDashboard({ session, userId, isReadOnly = false }: Ski
 
         <TabsContent value="skills" className="mt-3 space-y-4">
           <SkillTracker session={session} userId={userId} isReadOnly={isReadOnly} />
-          <DailyStudyBoard sessionId={session.id} userId={userId} />
         </TabsContent>
 
         <TabsContent value="quests" className="mt-3">
