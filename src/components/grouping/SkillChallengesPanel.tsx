@@ -13,10 +13,10 @@ import {
   BookOpen, Flame, Shield, Trash2, CheckCircle2, XCircle 
 } from 'lucide-react';
 import { useSkillChallenges } from '@/hooks/useSkillChallenges';
-import { useSkillLevels, XP_REWARDS } from '@/hooks/useSkillLevels';
+import { useSkillLevels, XP_REWARDS, getLevelFromXp } from '@/hooks/useSkillLevels';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 
