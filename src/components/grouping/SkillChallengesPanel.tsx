@@ -9,8 +9,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { 
-  Swords, Plus, Check, Clock, X, Send, Users, Zap, 
-  BookOpen, Flame, Shield, Trash2, CheckCircle2, XCircle 
+  Swords, Plus, Check, Clock, Send, Zap, 
+  BookOpen, Flame, Shield, Trash2, CheckCircle2, XCircle, Users
 } from 'lucide-react';
 import { useSkillChallenges } from '@/hooks/useSkillChallenges';
 import { getLevelFromXp } from '@/hooks/useSkillLevels';
