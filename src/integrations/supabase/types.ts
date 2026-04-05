@@ -1774,6 +1774,7 @@ export type Database = {
       skill_xp_log: {
         Row: {
           activity_type: string
+          completion_id: string | null
           created_at: string
           description: string | null
           id: string
@@ -1783,6 +1784,7 @@ export type Database = {
         }
         Insert: {
           activity_type: string
+          completion_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -1792,6 +1794,7 @@ export type Database = {
         }
         Update: {
           activity_type?: string
+          completion_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
