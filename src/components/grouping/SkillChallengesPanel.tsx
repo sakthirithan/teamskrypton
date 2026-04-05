@@ -36,6 +36,9 @@ export function SkillChallengesPanel({ sessionId }: SkillChallengesPanelProps) {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [submitChallengeId, setSubmitChallengeId] = useState<string | null>(null);
   const [proofText, setProofText] = useState('');
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+  const [assignMode, setAssignMode] = useState<'all' | 'select' | 'skill'>('all');
+  const [skillFilter, setSkillFilter] = useState('');
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -51,12 +54,75 @@ export function SkillChallengesPanel({ sessionId }: SkillChallengesPanelProps) {
     },
   });
 
+  const { data: memberSkills = [] } = useQuery({
+    queryKey: ['member-skills-for-challenges'],
+    queryFn: async () => {
+      const { data } = await supabase.from('member_skills').select('user_id, skill_name');
+      return data || [];
+    },
+  });
+
+  const { data: userRoles = [] } = useQuery({
+    queryKey: ['user-roles-for-challenges'],
+    queryFn: async () => {
+      const { data } = await supabase.from('user_roles').select('user_id, role');
+      return data || [];
+    },
+  });
+
   const profileMap = new Map(profiles.map(p => [p.user_id, p.full_name]));
+  const roleMap = new Map(userRoles.map(r => [r.user_id, r.role]));
+  const uniqueSkillNames = [...new Set(memberSkills.map(s => s.skill_name))].sort();
+
+  const toggleMember = (userId: string) => {
+    setSelectedMembers(prev => 
+      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+    );
+  };
+
+  const selectBySkill = (skillName: string) => {
+    const userIds = memberSkills.filter(s => s.skill_name === skillName).map(s => s.user_id);
+    setSelectedMembers([...new Set([...selectedMembers, ...userIds])]);
+  };
 
   const handleCreate = async () => {
     if (!form.title.trim()) return;
-    await createChallenge.mutateAsync(form);
+    const result = await createChallenge.mutateAsync(form);
+    
+    // If specific members selected, assign them
+    if (assignMode !== 'all' && selectedMembers.length > 0) {
+      // Get the newly created challenge ID
+      const { data: latestChallenges } = await supabase
+        .from('skill_challenges' as any)
+        .select('id')
+        .eq('session_id', sessionId)
+        .eq('title', form.title)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      const challengeId = (latestChallenges as any)?.[0]?.id;
+      if (challengeId) {
+        const rows = selectedMembers.map(uid => ({ challenge_id: challengeId, user_id: uid }));
+        await supabase.from('challenge_assignments' as any).insert(rows as any);
+        
+        // Send notification to each assigned member
+        if (user) {
+          const notifications = selectedMembers.map(uid => ({
+            sender_id: user.id,
+            recipient_id: uid,
+            title: '⚔️ New Skill Challenge Assigned',
+            message: `You've been assigned: "${form.title}" (${form.xp_reward} XP)`,
+            type: 'challenge',
+            session_id: sessionId,
+          }));
+          await supabase.from('grouping_notifications').insert(notifications);
+        }
+      }
+    }
+
     setForm({ title: '', description: '', xp_reward: 50, difficulty: 'medium' });
+    setSelectedMembers([]);
+    setAssignMode('all');
     setIsCreateOpen(false);
     toast({ title: 'Challenge Created!' });
   };
