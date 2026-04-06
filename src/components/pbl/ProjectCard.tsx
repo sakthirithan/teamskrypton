@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Calendar, Users, Flag, ArrowRight, Crown } from 'lucide-react';
 import { format } from 'date-fns';
-import { Project, ProjectTask, ProjectMember, Milestone as MilestoneType, calculateProjectHealth } from '@/hooks/useProjects';
+import { Project, ProjectTask, Milestone as MilestoneType, calculateProjectHealth } from '@/hooks/useProjects';
 
 interface ProjectCardProps {
   project: Project;
