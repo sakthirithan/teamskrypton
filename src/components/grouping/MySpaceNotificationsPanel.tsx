@@ -1,11 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Bell, AlertTriangle, Info, CheckCircle } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Bell, AlertTriangle, Info, CheckCircle, Trash2 } from 'lucide-react';
 import { LinkifyText } from '@/components/ui/linkify-text';
 import { useGroupingNotifications } from '@/hooks/useGroupingNotifications';
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
-
 export function MySpaceNotificationsPanel() {
   const { notifications, markAsRead, markAllAsRead, unreadCount } = useGroupingNotifications();
 
