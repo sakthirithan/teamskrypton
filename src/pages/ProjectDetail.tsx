@@ -27,7 +27,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar, Users, ArrowLeft, Pencil, UserPlus, X, KanbanSquare, GanttChart, MessageSquare, FileText, Briefcase } from 'lucide-react';
+import { Calendar, Users, ArrowLeft, Pencil, UserPlus, X, KanbanSquare, GanttChart, MessageSquare, FileText, Briefcase, Crown } from 'lucide-react';
 import { format } from 'date-fns';
 
 const statusLabels: Record<string, string> = {
