@@ -63,18 +63,8 @@ export function EditProjectDialog({ open, onOpenChange, project, onDeleted }: Ed
     status: project.status,
     start_date: project.start_date,
     deadline: project.deadline || '',
+    lead_id: currentLead?.user_id || '',
   });
-
-  useEffect(() => {
-    if (open) {
-      setForm({
-        name: project.name,
-        description: project.description || '',
-        priority: project.priority,
-        status: project.status,
-        start_date: project.start_date,
-        deadline: project.deadline || '',
-      });
     }
   }, [open, project]);
 
