@@ -5,9 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useCreateProject, PriorityLevel } from '@/hooks/useProjects';
+import { useCreateProject, useAddProjectMember, useAllProfiles, PriorityLevel } from '@/hooks/useProjects';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 interface CreateProjectDialogProps {
   open: boolean;
@@ -17,19 +19,39 @@ interface CreateProjectDialogProps {
 export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogProps) {
   const { user } = useAuth();
   const createProject = useCreateProject();
+  const addMember = useAddProjectMember();
+  const { data: allProfiles = [] } = useAllProfiles();
+
+  // Get leadership profiles
+  const { data: leadershipUsers = [] } = useQuery({
+    queryKey: ['leadership-users-for-project'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('user_roles')
+        .select('user_id, role')
+        .in('role', ['team_captain', 'vice_captain', 'strategist', 'team_manager']);
+      return data || [];
+    },
+  });
+
+  const leadershipProfiles = allProfiles.filter(p =>
+    leadershipUsers.some(l => l.user_id === p.user_id)
+  );
+
   const [form, setForm] = useState({
     name: '',
     description: '',
     priority: 'medium' as PriorityLevel,
     start_date: new Date().toISOString().split('T')[0],
     deadline: '',
+    lead_id: '',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !form.name) return;
+    if (!user || !form.name || !form.lead_id) return;
 
-    await createProject.mutateAsync({
+    const project = await createProject.mutateAsync({
       name: form.name,
       description: form.description || undefined,
       owner_id: user.id,
@@ -38,7 +60,25 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
       deadline: form.deadline || undefined,
     });
 
-    setForm({ name: '', description: '', priority: 'medium', start_date: new Date().toISOString().split('T')[0], deadline: '' });
+    // Add the assigned lead as a project member with 'lead' role
+    if (project?.id) {
+      await addMember.mutateAsync({
+        project_id: project.id,
+        user_id: form.lead_id,
+        role: 'lead',
+      });
+
+      // Send notification to assigned lead
+      await supabase.from('grouping_notifications').insert({
+        sender_id: user.id,
+        recipient_id: form.lead_id,
+        title: '📋 Assigned as Project Lead',
+        message: `You've been assigned as the lead for project "${form.name}". You have full management access.`,
+        type: 'assignment',
+      });
+    }
+
+    setForm({ name: '', description: '', priority: 'medium', start_date: new Date().toISOString().split('T')[0], deadline: '', lead_id: '' });
     onOpenChange(false);
   };
 
@@ -66,6 +106,20 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
               placeholder="Brief project description..."
               rows={3}
             />
+          </div>
+
+          <div>
+            <Label>Assign Project Lead *</Label>
+            <Select value={form.lead_id} onValueChange={(v) => setForm({ ...form, lead_id: v })}>
+              <SelectTrigger><SelectValue placeholder="Select a lead..." /></SelectTrigger>
+              <SelectContent>
+                {leadershipProfiles.map(p => (
+                  <SelectItem key={p.user_id} value={p.user_id}>
+                    {p.full_name} — {leadershipUsers.find(l => l.user_id === p.user_id)?.role?.replace('_', ' ')}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -104,7 +158,7 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!form.name || createProject.isPending}>
+            <Button type="submit" disabled={!form.name || !form.lead_id || createProject.isPending}>
               {createProject.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Create Project
             </Button>

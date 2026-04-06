@@ -317,7 +317,7 @@ export function useProjectTasks(projectId: string | undefined) {
         .from('project_tasks')
         .select('*')
         .eq('project_id', projectId)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: true });
       if (error) throw error;
       return (data || []) as ProjectTask[];
     },

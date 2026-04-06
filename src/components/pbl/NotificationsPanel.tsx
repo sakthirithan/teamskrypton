@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useGroupingNotifications } from '@/hooks/useGroupingNotifications';
 import { Bell, CheckCheck, Info, AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
@@ -53,7 +54,7 @@ export const NotificationsPanel = memo(function NotificationsPanel({ userId }: P
         </div>
       </CardHeader>
       <CardContent className="p-0">
-        <div className="max-h-[500px] overflow-y-auto scrollbar-thin divide-y divide-border/40">
+        <ScrollArea className="h-[500px]">
           {notifications.length === 0 ? (
             <div className="p-8 text-center flex flex-col items-center justify-center">
               <div className="w-12 h-12 rounded-full bg-muted/40 flex items-center justify-center mb-3">
@@ -93,7 +94,7 @@ export const NotificationsPanel = memo(function NotificationsPanel({ userId }: P
               );
             })
           )}
-        </div>
+        </ScrollArea>
       </CardContent>
     </Card>
   );

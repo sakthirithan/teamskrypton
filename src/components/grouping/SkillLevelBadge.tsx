@@ -113,10 +113,10 @@ export function SkillLevelBadge({ sessionId, userId, compact = false }: SkillLev
 
         {/* XP Progress Bar */}
         <div className="space-y-1">
-          <Progress value={progress} className="h-2.5" />
+          <Progress value={Math.max(0, Math.min(100, progress))} className="h-2.5" />
           <div className="flex justify-between text-[10px] text-muted-foreground tabular-nums">
-            <span>{currentThreshold} XP</span>
-            <span>{nextThreshold} XP</span>
+            <span>{currentXp - currentThreshold} / {nextThreshold - currentThreshold} XP</span>
+            <span>{Math.round(Math.max(0, Math.min(100, progress)))}%</span>
           </div>
         </div>
 

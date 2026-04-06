@@ -1,13 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Bell, AlertTriangle, Info, CheckCircle } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Bell, AlertTriangle, Info, CheckCircle, Trash2 } from 'lucide-react';
 import { LinkifyText } from '@/components/ui/linkify-text';
 import { useGroupingNotifications } from '@/hooks/useGroupingNotifications';
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
-
 export function MySpaceNotificationsPanel() {
-  const { notifications, markAsRead, markAllAsRead, unreadCount } = useGroupingNotifications();
+  const { notifications, markAsRead, markAllAsRead, deleteNotification, unreadCount } = useGroupingNotifications();
 
   if (notifications.length === 0) {
     return (
@@ -49,31 +49,43 @@ export function MySpaceNotificationsPanel() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-2 max-h-64 overflow-y-auto">
-          {notifications.slice(0, 10).map((n) => (
-            <div
-              key={n.id}
-              className={`flex items-start gap-2.5 p-2.5 rounded-lg transition-colors cursor-pointer ${
-                !n.is_read ? 'bg-primary/5 hover:bg-primary/10' : 'hover:bg-muted/50'
-              }`}
-              onClick={() => !n.is_read && markAsRead.mutate(n.id)}
-            >
-              <div className="mt-0.5 shrink-0">{getIcon(n.type)}</div>
-              <div className="flex-1 min-w-0">
-                <p className={`text-sm leading-tight ${!n.is_read ? 'font-medium' : ''}`}>{n.title}</p>
-                {n.message && (
-                  <LinkifyText text={n.message} className="text-xs text-muted-foreground mt-0.5 line-clamp-2" />
-                )}
-                <p className="text-[10px] text-muted-foreground/60 mt-1">
-                  {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
-                </p>
+        <ScrollArea className="max-h-72">
+          <div className="space-y-2 pr-1">
+            {notifications.slice(0, 20).map((n) => (
+              <div
+                key={n.id}
+                className={`flex items-start gap-2.5 p-2.5 rounded-lg transition-colors cursor-pointer group ${
+                  !n.is_read ? 'bg-primary/5 hover:bg-primary/10' : 'hover:bg-muted/50'
+                }`}
+                onClick={() => !n.is_read && markAsRead.mutate(n.id)}
+              >
+                <div className="mt-0.5 shrink-0">{getIcon(n.type)}</div>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm leading-tight ${!n.is_read ? 'font-medium' : ''}`}>{n.title}</p>
+                  {n.message && (
+                    <LinkifyText text={n.message} className="text-xs text-muted-foreground mt-0.5 line-clamp-2" />
+                  )}
+                  <p className="text-[10px] text-muted-foreground/60 mt-1">
+                    {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  {!n.is_read && (
+                    <div className="w-2 h-2 rounded-full bg-primary mt-1.5" />
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    onClick={(e) => { e.stopPropagation(); deleteNotification.mutate(n.id); }}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                </div>
               </div>
-              {!n.is_read && (
-                <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-1.5" />
-              )}
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </ScrollArea>
       </CardContent>
     </Card>
   );
