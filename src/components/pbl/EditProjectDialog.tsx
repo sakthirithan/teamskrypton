@@ -192,6 +192,23 @@ export function EditProjectDialog({ open, onOpenChange, project, onDeleted }: Ed
               </div>
             </div>
 
+            <div>
+              <Label>Project Lead</Label>
+              <Select value={form.lead_id} onValueChange={(v) => setForm({ ...form, lead_id: v })}>
+                <SelectTrigger><SelectValue placeholder="Select a lead..." /></SelectTrigger>
+                <SelectContent>
+                  {allProfiles.map(p => {
+                    const userRole = allUserRoles.find(r => r.user_id === p.user_id);
+                    return (
+                      <SelectItem key={p.user_id} value={p.user_id}>
+                        {p.full_name}{userRole ? ` — ${userRole.role.replace(/_/g, ' ')}` : ''}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+
             <DialogFooter className="flex !justify-between gap-2">
               {isCaptainOrVice && (
                 <Button

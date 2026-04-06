@@ -12,7 +12,7 @@ interface ActivityPointsCardProps {
 }
 
 export function ActivityPointsCard({ viewingUserId, sessionId, isReadOnly }: ActivityPointsCardProps) {
-  const { getUserActivityTotal, awardPoints } = useActivityPoints(sessionId);
+  const { getUserActivityTotal, awardPoints, isLeadership } = useActivityPoints(sessionId);
   const [editing, setEditing] = useState(false);
   const [pointsToAdd, setPointsToAdd] = useState<number | ''>('');
 
