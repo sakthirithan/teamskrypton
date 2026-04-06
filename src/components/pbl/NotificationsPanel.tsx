@@ -93,7 +93,7 @@ export const NotificationsPanel = memo(function NotificationsPanel({ userId }: P
               );
             })
           )}
-        </div>
+        </ScrollArea>
       </CardContent>
     </Card>
   );
