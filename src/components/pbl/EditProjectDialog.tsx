@@ -37,10 +37,24 @@ const statusLabels: Record<ProjectStatus, string> = {
 };
 
 export function EditProjectDialog({ open, onOpenChange, project, onDeleted }: EditProjectDialogProps) {
-  const { isCaptainOrVice } = useAuth();
+  const { isCaptainOrVice, user } = useAuth();
   const updateProject = useUpdateProject();
   const deleteProject = useDeleteProject();
+  const addMember = useAddProjectMember();
+  const removeMember = useRemoveProjectMember();
+  const queryClient = useQueryClient();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const { data: allProfiles = [] } = useAllProfiles();
+  const { data: members = [] } = useProjectMembers(project.id);
+  const { data: allUserRoles = [] } = useQuery({
+    queryKey: ['all-user-roles-edit'],
+    queryFn: async () => {
+      const { data } = await supabase.from('user_roles').select('user_id, role');
+      return data || [];
+    },
+  });
+
+  const currentLead = members.find(m => m.role === 'lead');
 
   const [form, setForm] = useState({
     name: project.name,
