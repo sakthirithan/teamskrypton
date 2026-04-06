@@ -22,21 +22,16 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
   const addMember = useAddProjectMember();
   const { data: allProfiles = [] } = useAllProfiles();
 
-  // Get leadership profiles
-  const { data: leadershipUsers = [] } = useQuery({
-    queryKey: ['leadership-users-for-project'],
+  // Get all user roles for display
+  const { data: allUserRoles = [] } = useQuery({
+    queryKey: ['all-user-roles-for-project'],
     queryFn: async () => {
       const { data } = await supabase
         .from('user_roles')
-        .select('user_id, role')
-        .in('role', ['team_captain', 'vice_captain', 'strategist', 'team_manager']);
+        .select('user_id, role');
       return data || [];
     },
   });
-
-  const leadershipProfiles = allProfiles.filter(p =>
-    leadershipUsers.some(l => l.user_id === p.user_id)
-  );
 
   const [form, setForm] = useState({
     name: '',
@@ -113,11 +108,14 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
             <Select value={form.lead_id} onValueChange={(v) => setForm({ ...form, lead_id: v })}>
               <SelectTrigger><SelectValue placeholder="Select a lead..." /></SelectTrigger>
               <SelectContent>
-                {leadershipProfiles.map(p => (
-                  <SelectItem key={p.user_id} value={p.user_id}>
-                    {p.full_name} — {leadershipUsers.find(l => l.user_id === p.user_id)?.role?.replace('_', ' ')}
-                  </SelectItem>
-                ))}
+                {allProfiles.map(p => {
+                  const userRole = allUserRoles.find(r => r.user_id === p.user_id);
+                  return (
+                    <SelectItem key={p.user_id} value={p.user_id}>
+                      {p.full_name}{userRole ? ` — ${userRole.role.replace(/_/g, ' ')}` : ''}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>

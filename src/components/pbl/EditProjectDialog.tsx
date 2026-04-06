@@ -5,8 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useUpdateProject, useDeleteProject, Project, PriorityLevel, ProjectStatus } from '@/hooks/useProjects';
+import { useUpdateProject, useDeleteProject, useProjectMembers, useAddProjectMember, useRemoveProjectMember, useAllProfiles, Project, PriorityLevel, ProjectStatus } from '@/hooks/useProjects';
 import { useAuth } from '@/hooks/useAuth';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Trash2 } from 'lucide-react';
 import {
   AlertDialog,
@@ -35,10 +37,24 @@ const statusLabels: Record<ProjectStatus, string> = {
 };
 
 export function EditProjectDialog({ open, onOpenChange, project, onDeleted }: EditProjectDialogProps) {
-  const { isCaptainOrVice } = useAuth();
+  const { isCaptainOrVice, user } = useAuth();
   const updateProject = useUpdateProject();
   const deleteProject = useDeleteProject();
+  const addMember = useAddProjectMember();
+  const removeMember = useRemoveProjectMember();
+  const queryClient = useQueryClient();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const { data: allProfiles = [] } = useAllProfiles();
+  const { data: members = [] } = useProjectMembers(project.id);
+  const { data: allUserRoles = [] } = useQuery({
+    queryKey: ['all-user-roles-edit'],
+    queryFn: async () => {
+      const { data } = await supabase.from('user_roles').select('user_id, role');
+      return data || [];
+    },
+  });
+
+  const currentLead = members.find(m => m.role === 'lead');
 
   const [form, setForm] = useState({
     name: project.name,
@@ -47,6 +63,7 @@ export function EditProjectDialog({ open, onOpenChange, project, onDeleted }: Ed
     status: project.status,
     start_date: project.start_date,
     deadline: project.deadline || '',
+    lead_id: currentLead?.user_id || '',
   });
 
   useEffect(() => {
@@ -58,9 +75,10 @@ export function EditProjectDialog({ open, onOpenChange, project, onDeleted }: Ed
         status: project.status,
         start_date: project.start_date,
         deadline: project.deadline || '',
+        lead_id: currentLead?.user_id || '',
       });
     }
-  }, [open, project]);
+  }, [open, project, currentLead]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,6 +93,28 @@ export function EditProjectDialog({ open, onOpenChange, project, onDeleted }: Ed
       start_date: form.start_date,
       deadline: form.deadline || null,
     });
+
+    // Handle lead change
+    if (form.lead_id && form.lead_id !== currentLead?.user_id) {
+      // Remove old lead
+      if (currentLead) {
+        await removeMember.mutateAsync({ id: currentLead.id, projectId: project.id });
+      }
+      // Add new lead
+      await addMember.mutateAsync({ project_id: project.id, user_id: form.lead_id, role: 'lead' });
+      // Notify new lead
+      if (user) {
+        await supabase.from('grouping_notifications').insert({
+          sender_id: user.id,
+          recipient_id: form.lead_id,
+          title: '📋 Assigned as Project Lead',
+          message: `You've been assigned as the lead for project "${form.name}".`,
+          type: 'assignment',
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ['project-members', project.id] });
+    }
+
     onOpenChange(false);
   };
 
@@ -150,6 +190,23 @@ export function EditProjectDialog({ open, onOpenChange, project, onDeleted }: Ed
                   onChange={(e) => setForm({ ...form, deadline: e.target.value })}
                 />
               </div>
+            </div>
+
+            <div>
+              <Label>Project Lead</Label>
+              <Select value={form.lead_id} onValueChange={(v) => setForm({ ...form, lead_id: v })}>
+                <SelectTrigger><SelectValue placeholder="Select a lead..." /></SelectTrigger>
+                <SelectContent>
+                  {allProfiles.map(p => {
+                    const userRole = allUserRoles.find(r => r.user_id === p.user_id);
+                    return (
+                      <SelectItem key={p.user_id} value={p.user_id}>
+                        {p.full_name}{userRole ? ` — ${userRole.role.replace(/_/g, ' ')}` : ''}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
             </div>
 
             <DialogFooter className="flex !justify-between gap-2">

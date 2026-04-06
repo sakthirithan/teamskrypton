@@ -27,7 +27,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar, Users, ArrowLeft, Pencil, UserPlus, X, KanbanSquare, GanttChart, MessageSquare, FileText, Briefcase } from 'lucide-react';
+import { Calendar, Users, ArrowLeft, Pencil, UserPlus, X, KanbanSquare, GanttChart, MessageSquare, FileText, Briefcase, Crown } from 'lucide-react';
 import { format } from 'date-fns';
 
 const statusLabels: Record<string, string> = {
@@ -84,6 +84,9 @@ const ProjectDetail = () => {
     return { ...m, full_name: p?.full_name || 'Unknown' };
   });
 
+  const leadMember = members.find(m => m.role === 'lead');
+  const leadProfile = leadMember ? profiles.find(p => p.user_id === leadMember.user_id) : null;
+
   const nonMembers = profiles.filter(
     p => !members.some(m => m.user_id === p.user_id)
   );
@@ -121,6 +124,12 @@ const ProjectDetail = () => {
               <p className="text-sm text-muted-foreground mt-1">{project.description}</p>
             )}
             <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground flex-wrap">
+              {leadProfile && (
+                <span className="flex items-center gap-1 text-foreground font-medium">
+                  <Crown className="w-3 h-3 text-amber-500" />
+                  Lead: {leadProfile.full_name}
+                </span>
+              )}
               {project.deadline && (
                 <span className="flex items-center gap-1">
                   <Calendar className="w-3 h-3" />

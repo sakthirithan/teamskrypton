@@ -2,7 +2,7 @@ import { memo, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Calendar, Users, Flag, ArrowRight } from 'lucide-react';
+import { Calendar, Users, Flag, ArrowRight, Crown } from 'lucide-react';
 import { format } from 'date-fns';
 import { Project, ProjectTask, Milestone as MilestoneType, calculateProjectHealth } from '@/hooks/useProjects';
 
@@ -11,6 +11,7 @@ interface ProjectCardProps {
   tasks: ProjectTask[];
   milestones: MilestoneType[];
   memberCount: number;
+  leadName?: string;
   onClick: () => void;
 }
 
@@ -34,6 +35,7 @@ export const ProjectCard = memo(function ProjectCard({
   tasks,
   milestones,
   memberCount,
+  leadName,
   onClick,
 }: ProjectCardProps) {
   const health = useMemo(
@@ -100,9 +102,17 @@ export const ProjectCard = memo(function ProjectCard({
 
         {/* Footer */}
         <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1 border-t border-border/50">
-          <div className="flex items-center gap-1">
-            <Users className="w-3 h-3" />
-            <span>{memberCount}</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1">
+              <Users className="w-3 h-3" />
+              <span>{memberCount}</span>
+            </div>
+            {leadName && (
+              <div className="flex items-center gap-1">
+                <Crown className="w-3 h-3 text-amber-500" />
+                <span className="font-medium text-foreground">{leadName}</span>
+              </div>
+            )}
           </div>
           {project.deadline && (
             <div className="flex items-center gap-1">
