@@ -7,7 +7,7 @@ import { useGroupingNotifications } from '@/hooks/useGroupingNotifications';
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
 export function MySpaceNotificationsPanel() {
-  const { notifications, markAsRead, markAllAsRead, unreadCount } = useGroupingNotifications();
+  const { notifications, markAsRead, markAllAsRead, deleteNotification, unreadCount } = useGroupingNotifications();
 
   if (notifications.length === 0) {
     return (
