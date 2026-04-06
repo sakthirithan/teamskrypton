@@ -21,6 +21,7 @@ import {
 interface ProjectStaffingPanelProps {
   projectId: string;
   members: (ProjectMember & { full_name: string; share_percentage?: number; role_label?: string })[];
+  isProjectLead?: boolean;
 }
 
 function SkillBadge({ skill }: { skill: MemberSkill }) {
@@ -36,8 +37,9 @@ function SkillBadge({ skill }: { skill: MemberSkill }) {
   );
 }
 
-export function ProjectStaffingPanel({ projectId, members }: ProjectStaffingPanelProps) {
+export function ProjectStaffingPanel({ projectId, members, isProjectLead = false }: ProjectStaffingPanelProps) {
   const { user, isCaptainOrVice } = useAuth();
+  const canManage = isCaptainOrVice || isProjectLead;
   const { data: allProfiles = [] } = useAllProfiles();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -108,7 +110,7 @@ export function ProjectStaffingPanel({ projectId, members }: ProjectStaffingPane
   });
 
   const handleSaveShares = async () => {
-    if (!isCaptainOrVice) return;
+    if (!canManage) return;
     setIsSaving(true);
     try {
       for (const member of members) {
@@ -206,7 +208,7 @@ export function ProjectStaffingPanel({ projectId, members }: ProjectStaffingPane
                     Manage roles and contribution shares for team members
                   </CardDescription>
                 </div>
-                {isCaptainOrVice && (
+                {canManage && (
                   <Button size="sm" onClick={handleSaveShares} disabled={isSaving} className="h-8 text-xs gap-1.5">
                     {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                     Save Changes
@@ -250,7 +252,7 @@ export function ProjectStaffingPanel({ projectId, members }: ProjectStaffingPane
                               <div>
                                 <p className="text-sm font-semibold">{m.full_name}</p>
                                 <div className="flex items-center gap-2 mt-0.5">
-                                  {share.role_label && !isCaptainOrVice && (
+                                  {share.role_label && !canManage && (
                                     <Badge variant="secondary" className="text-[10px] h-4">{share.role_label}</Badge>
                                   )}
                                   <span className="text-[11px] text-muted-foreground flex items-center gap-1">
@@ -281,8 +283,8 @@ export function ProjectStaffingPanel({ projectId, members }: ProjectStaffingPane
                             <Progress value={Math.min(100, workload * 20)} className="h-1.5" />
                           </div>
 
-                          {/* Edit fields for TL */}
-                          {isCaptainOrVice && (
+                          {/* Edit fields for lead or leadership */}
+                          {canManage && (
                             <div className="flex gap-2 mt-3 ml-12">
                               <Input
                                 placeholder="Role label (e.g., Frontend Lead)"

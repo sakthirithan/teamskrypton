@@ -86,6 +86,8 @@ const ProjectDetail = () => {
 
   const leadMember = members.find(m => m.role === 'lead');
   const leadProfile = leadMember ? profiles.find(p => p.user_id === leadMember.user_id) : null;
+  const isProjectLead = leadMember?.user_id === user?.id;
+  const canManage = isLeadership || isProjectLead;
 
   const nonMembers = profiles.filter(
     p => !members.some(m => m.user_id === p.user_id)
@@ -113,7 +115,7 @@ const ProjectDetail = () => {
               >
                 {health.label === 'healthy' ? '🟢' : health.label === 'risk' ? '🟡' : '🔴'} Health: {health.score}%
               </Badge>
-              {isLeadership && (
+              {canManage && (
                 <Button variant="ghost" size="sm" onClick={() => setEditOpen(true)} className="h-7 text-xs">
                   <Pencil className="w-3.5 h-3.5 mr-1" />
                   Edit
@@ -194,6 +196,7 @@ const ProjectDetail = () => {
                   tasks={tasks}
                   onMilestoneSelect={setSelectedMilestone}
                   selectedMilestoneId={selectedMilestone}
+                  isProjectLead={isProjectLead}
                 />
 
                 {/* Members */}
@@ -201,7 +204,7 @@ const ProjectDetail = () => {
                   <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-sm font-semibold">Team</CardTitle>
-                      {isLeadership && (
+                      {canManage && (
                         <Button size="sm" variant="ghost" onClick={() => setShowAddMember(!showAddMember)} className="h-7 text-xs">
                           <UserPlus className="w-3.5 h-3.5" />
                         </Button>
@@ -230,7 +233,7 @@ const ProjectDetail = () => {
                           </div>
                           <span className="text-xs">{m.full_name}</span>
                         </div>
-                        {isLeadership && (
+                        {canManage && (
                           <Button
                             variant="ghost"
                             size="icon"
@@ -257,6 +260,7 @@ const ProjectDetail = () => {
                     milestoneId={selectedMilestone}
                     tasks={milestoneTasks}
                     profiles={profiles}
+                    isProjectLead={isProjectLead}
                   />
                 ) : (
                   <div className="text-center py-16 border border-dashed border-border rounded-lg">
@@ -293,17 +297,18 @@ const ProjectDetail = () => {
                 share_percentage: (m as any).share_percentage || 0,
                 role_label: (m as any).role_label || null,
               }))}
+              isProjectLead={isProjectLead}
             />
           </TabsContent>
 
           {/* Docs Tab */}
           <TabsContent value="docs" className="mt-0">
-            <ProjectDocumentsPanel projectId={project.id} />
+            <ProjectDocumentsPanel projectId={project.id} isProjectLead={isProjectLead} />
           </TabsContent>
 
           {/* Discussion Tab */}
           <TabsContent value="discussion" className="mt-0">
-            <ProjectCommentsPanel projectId={project.id} />
+            <ProjectCommentsPanel projectId={project.id} isProjectLead={isProjectLead} />
           </TabsContent>
         </Tabs>
       </div>

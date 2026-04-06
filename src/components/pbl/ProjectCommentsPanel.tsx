@@ -12,10 +12,12 @@ import { formatDistanceToNow } from 'date-fns';
 interface Props {
   projectId: string;
   taskId?: string;
+  isProjectLead?: boolean;
 }
 
-export const ProjectCommentsPanel = memo(function ProjectCommentsPanel({ projectId, taskId }: Props) {
+export const ProjectCommentsPanel = memo(function ProjectCommentsPanel({ projectId, taskId, isProjectLead = false }: Props) {
   const { user, isLeadership } = useAuth();
+  const canManage = isLeadership || isProjectLead;
   const { data: comments = [], refetch } = useProjectComments(projectId);
   const { data: profiles = [] } = useAllProfiles();
   const createComment = useCreateComment();
@@ -88,7 +90,7 @@ export const ProjectCommentsPanel = memo(function ProjectCommentsPanel({ project
                 <Reply className="w-3 h-3 mr-1" />Reply
               </Button>
             )}
-            {(comment.user_id === user?.id || isLeadership) && (
+            {(comment.user_id === user?.id || canManage) && (
               <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 text-destructive" onClick={() => deleteComment.mutate({ id: comment.id, projectId })}>
                 <Trash2 className="w-3 h-3" />
               </Button>

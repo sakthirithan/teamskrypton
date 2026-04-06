@@ -33,6 +33,7 @@ interface MilestonePanelProps {
   tasks: ProjectTask[];
   onMilestoneSelect: (id: string) => void;
   selectedMilestoneId: string | null;
+  isProjectLead?: boolean;
 }
 
 const statusIcons: Record<MilestoneStatus, React.ReactNode> = {
@@ -55,8 +56,10 @@ export const MilestonePanel = memo(function MilestonePanel({
   tasks,
   onMilestoneSelect,
   selectedMilestoneId,
+  isProjectLead = false,
 }: MilestonePanelProps) {
   const { isLeadership } = useAuth();
+  const canManage = isLeadership || isProjectLead;
   const createMilestone = useCreateMilestone();
   const updateMilestone = useUpdateMilestone();
   const deleteMilestone = useDeleteMilestone();
@@ -96,7 +99,7 @@ export const MilestonePanel = memo(function MilestonePanel({
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-semibold">Milestones</CardTitle>
-            {isLeadership && (
+            {canManage && (
               <Button size="sm" variant="ghost" onClick={() => setShowCreate(!showCreate)} className="h-7 text-xs">
                 <Plus className="w-3.5 h-3.5 mr-1" />
                 Add
@@ -162,7 +165,7 @@ export const MilestonePanel = memo(function MilestonePanel({
                   {statusIcons[milestone.status]}
                   <span className="text-sm font-medium flex-1 truncate">{milestone.name}</span>
                   <div className="flex items-center gap-1">
-                    {isLeadership && (
+                    {canManage && (
                       <>
                         <Select
                           value={milestone.status}

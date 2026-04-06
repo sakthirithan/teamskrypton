@@ -20,6 +20,7 @@ interface TaskBoardProps {
   milestoneId: string;
   tasks: ProjectTask[];
   profiles: { user_id: string; full_name: string }[];
+  isProjectLead?: boolean;
 }
 
 const columns: { key: ProjectTaskStatus; label: string; icon: React.ReactNode }[] = [
@@ -36,7 +37,7 @@ const priorityColors: Record<PriorityLevel, string> = {
   critical: 'bg-destructive/10 text-destructive',
 };
 
-export const TaskBoard = memo(function TaskBoard({ projectId, milestoneId, tasks, profiles }: TaskBoardProps) {
+export const TaskBoard = memo(function TaskBoard({ projectId, milestoneId, tasks, profiles, isProjectLead = false }: TaskBoardProps) {
   const { user, isLeadership } = useAuth();
   const createTask = useCreateProjectTask();
   const updateTask = useUpdateProjectTask();
@@ -84,7 +85,7 @@ export const TaskBoard = memo(function TaskBoard({ projectId, milestoneId, tasks
     });
   };
 
-  const canEdit = (task: ProjectTask) => isLeadership || task.assigned_to === user?.id || task.created_by === user?.id;
+  const canEdit = (task: ProjectTask) => isLeadership || isProjectLead || task.assigned_to === user?.id || task.created_by === user?.id;
 
   return (
     <div className="space-y-4">

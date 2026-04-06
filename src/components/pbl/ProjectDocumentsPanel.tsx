@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 
 interface Props {
   projectId: string;
+  isProjectLead?: boolean;
 }
 
 const DOC_TYPES = [
@@ -21,8 +22,9 @@ const DOC_TYPES = [
   { value: 'document', label: 'Document', icon: FileText },
 ];
 
-export const ProjectDocumentsPanel = memo(function ProjectDocumentsPanel({ projectId }: Props) {
+export const ProjectDocumentsPanel = memo(function ProjectDocumentsPanel({ projectId, isProjectLead = false }: Props) {
   const { user, isLeadership } = useAuth();
+  const canManage = isLeadership || isProjectLead;
   const { data: docs = [] } = useProjectDocuments(projectId);
   const { data: profiles = [] } = useAllProfiles();
   const createDoc = useCreateDocument();
@@ -119,7 +121,7 @@ export const ProjectDocumentsPanel = memo(function ProjectDocumentsPanel({ proje
                       <span className="text-[10px] text-muted-foreground">{formatDistanceToNow(new Date(doc.created_at), { addSuffix: true })}</span>
                     </div>
                   </div>
-                  {(doc.uploaded_by === user?.id || isLeadership) && (
+                  {(doc.uploaded_by === user?.id || canManage) && (
                     <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 text-destructive" onClick={() => deleteDoc.mutate({ id: doc.id, projectId })}>
                       <Trash2 className="w-3 h-3" />
                     </Button>
