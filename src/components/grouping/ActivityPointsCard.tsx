@@ -11,15 +11,14 @@ interface ActivityPointsCardProps {
   isReadOnly: boolean;
 }
 
-export function ActivityPointsCard({ viewingUserId, sessionId, isReadOnly }: ActivityPointsCardProps) {
-  const { getUserActivityTotal, awardPoints, isLeadership } = useActivityPoints(sessionId);
+export function ActivityPointsCard({ viewingUserId, sessionId }: ActivityPointsCardProps) {
+  const { getUserActivityTotal, awardPoints } = useActivityPoints(sessionId);
   const [editing, setEditing] = useState(false);
-  const [pointsToAdd, setPointsToAdd] = useState<number | ''>('');
+  const [newTotal, setNewTotal] = useState<number>(0);
 
   if (!viewingUserId || !sessionId) return null;
 
   const totalActivityPoints = getUserActivityTotal(viewingUserId);
-  const [newTotal, setNewTotal] = useState<number>(totalActivityPoints);
 
   const handleSave = () => {
     if (newTotal === totalActivityPoints) {
@@ -57,39 +56,37 @@ export function ActivityPointsCard({ viewingUserId, sessionId, isReadOnly }: Act
             </div>
             <p className="text-xs text-muted-foreground">Earned via activities</p>
           </div>
-          {!isReadOnly && (
-            <div className="flex items-center gap-2">
-              {editing ? (
-                <>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={newTotal}
-                    onChange={(e) => setNewTotal(parseInt(e.target.value) || 0)}
-                    className="w-24 h-8 text-sm"
-                  />
-                  <Button 
-                    size="sm" 
-                    onClick={handleSave} 
-                    disabled={awardPoints.isPending} 
-                    className="h-8 bg-amber-500 hover:bg-amber-600 text-white"
-                  >
-                    <Save className="w-3 h-3 mr-1" />
-                    {awardPoints.isPending ? '...' : 'Save'}
-                  </Button>
-                </>
-              ) : (
+          <div className="flex items-center gap-2">
+            {editing ? (
+              <>
+                <Input
+                  type="number"
+                  min="0"
+                  value={newTotal}
+                  onChange={(e) => setNewTotal(parseInt(e.target.value) || 0)}
+                  className="w-24 h-8 text-sm"
+                />
                 <Button 
                   size="sm" 
-                  variant="outline" 
-                  onClick={() => { setEditing(true); setNewTotal(totalActivityPoints); }} 
-                  className="h-8 border-amber-500/30 text-amber-600 hover:bg-amber-500/10 hover:text-amber-700"
+                  onClick={handleSave} 
+                  disabled={awardPoints.isPending} 
+                  className="h-8 bg-amber-500 hover:bg-amber-600 text-white"
                 >
-                  Set Points
+                  <Save className="w-3 h-3 mr-1" />
+                  {awardPoints.isPending ? '...' : 'Save'}
                 </Button>
-              )}
-            </div>
-          )}
+              </>
+            ) : (
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={() => { setEditing(true); setNewTotal(totalActivityPoints); }} 
+                className="h-8 border-amber-500/30 text-amber-600 hover:bg-amber-500/10 hover:text-amber-700"
+              >
+                Set Points
+              </Button>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>
