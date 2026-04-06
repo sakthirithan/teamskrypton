@@ -108,11 +108,14 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
             <Select value={form.lead_id} onValueChange={(v) => setForm({ ...form, lead_id: v })}>
               <SelectTrigger><SelectValue placeholder="Select a lead..." /></SelectTrigger>
               <SelectContent>
-                {leadershipProfiles.map(p => (
-                  <SelectItem key={p.user_id} value={p.user_id}>
-                    {p.full_name} — {leadershipUsers.find(l => l.user_id === p.user_id)?.role?.replace('_', ' ')}
-                  </SelectItem>
-                ))}
+                {allProfiles.map(p => {
+                  const userRole = allUserRoles.find(r => r.user_id === p.user_id);
+                  return (
+                    <SelectItem key={p.user_id} value={p.user_id}>
+                      {p.full_name}{userRole ? ` — ${userRole.role.replace(/_/g, ' ')}` : ''}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
