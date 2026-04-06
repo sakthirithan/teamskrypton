@@ -115,16 +115,21 @@ const PBLProjects = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filtered.map(project => (
-              <ProjectCard
-                key={project.id}
-                project={project}
-                tasks={allTasks.filter(t => t.project_id === project.id)}
-                milestones={allMilestones.filter(m => m.project_id === project.id)}
-                memberCount={allMembers.filter(m => m.project_id === project.id).length}
-                onClick={() => navigate(`/pbl/projects/${project.id}`)}
-              />
-            ))}
+            {filtered.map(project => {
+              const lead = allMembers.find(m => m.project_id === project.id && m.role === 'lead');
+              const leadProfile = lead ? profiles.find(p => p.user_id === lead.user_id) : null;
+              return (
+                <ProjectCard
+                  key={project.id}
+                  project={project}
+                  tasks={allTasks.filter(t => t.project_id === project.id)}
+                  milestones={allMilestones.filter(m => m.project_id === project.id)}
+                  memberCount={allMembers.filter(m => m.project_id === project.id).length}
+                  leadName={leadProfile?.full_name}
+                  onClick={() => navigate(`/pbl/projects/${project.id}`)}
+                />
+              );
+            })}
           </div>
         )}
       </div>
