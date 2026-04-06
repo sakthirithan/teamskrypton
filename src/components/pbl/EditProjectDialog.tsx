@@ -93,6 +93,28 @@ export function EditProjectDialog({ open, onOpenChange, project, onDeleted }: Ed
       start_date: form.start_date,
       deadline: form.deadline || null,
     });
+
+    // Handle lead change
+    if (form.lead_id && form.lead_id !== currentLead?.user_id) {
+      // Remove old lead
+      if (currentLead) {
+        await removeMember.mutateAsync({ id: currentLead.id, projectId: project.id });
+      }
+      // Add new lead
+      await addMember.mutateAsync({ project_id: project.id, user_id: form.lead_id, role: 'lead' });
+      // Notify new lead
+      if (user) {
+        await supabase.from('grouping_notifications').insert({
+          sender_id: user.id,
+          recipient_id: form.lead_id,
+          title: '📋 Assigned as Project Lead',
+          message: `You've been assigned as the lead for project "${form.name}".`,
+          type: 'assignment',
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ['project-members', project.id] });
+    }
+
     onOpenChange(false);
   };
 
