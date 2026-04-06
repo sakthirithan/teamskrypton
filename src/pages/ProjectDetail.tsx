@@ -124,6 +124,12 @@ const ProjectDetail = () => {
               <p className="text-sm text-muted-foreground mt-1">{project.description}</p>
             )}
             <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground flex-wrap">
+              {leadProfile && (
+                <span className="flex items-center gap-1 text-foreground font-medium">
+                  <Crown className="w-3 h-3 text-amber-500" />
+                  Lead: {leadProfile.full_name}
+                </span>
+              )}
               {project.deadline && (
                 <span className="flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
