@@ -102,9 +102,17 @@ export const ProjectCard = memo(function ProjectCard({
 
         {/* Footer */}
         <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1 border-t border-border/50">
-          <div className="flex items-center gap-1">
-            <Users className="w-3 h-3" />
-            <span>{memberCount}</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1">
+              <Users className="w-3 h-3" />
+              <span>{memberCount}</span>
+            </div>
+            {leadName && (
+              <div className="flex items-center gap-1">
+                <Crown className="w-3 h-3 text-amber-500" />
+                <span className="font-medium text-foreground">{leadName}</span>
+              </div>
+            )}
           </div>
           {project.deadline && (
             <div className="flex items-center gap-1">
