@@ -40,7 +40,7 @@ const PBLProjects = () => {
   const { data: allMembers = [] } = useQuery({
     queryKey: ['all-project-members'],
     queryFn: async () => {
-      const { data } = await supabase.from('project_members').select('project_id, user_id');
+      const { data } = await supabase.from('project_members').select('project_id, user_id, role');
       return data || [];
     },
   });
