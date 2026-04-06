@@ -53,7 +53,7 @@ export const NotificationsPanel = memo(function NotificationsPanel({ userId }: P
         </div>
       </CardHeader>
       <CardContent className="p-0">
-        <div className="max-h-[500px] overflow-y-auto scrollbar-thin divide-y divide-border/40">
+        <ScrollArea className="h-[500px]">
           {notifications.length === 0 ? (
             <div className="p-8 text-center flex flex-col items-center justify-center">
               <div className="w-12 h-12 rounded-full bg-muted/40 flex items-center justify-center mb-3">
