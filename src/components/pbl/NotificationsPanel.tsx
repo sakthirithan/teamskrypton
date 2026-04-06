@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useGroupingNotifications } from '@/hooks/useGroupingNotifications';
 import { Bell, CheckCheck, Info, AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
