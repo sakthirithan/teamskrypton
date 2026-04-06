@@ -35,6 +35,7 @@ export const ProjectCard = memo(function ProjectCard({
   tasks,
   milestones,
   memberCount,
+  leadName,
   onClick,
 }: ProjectCardProps) {
   const health = useMemo(
