@@ -84,6 +84,9 @@ const ProjectDetail = () => {
     return { ...m, full_name: p?.full_name || 'Unknown' };
   });
 
+  const leadMember = members.find(m => m.role === 'lead');
+  const leadProfile = leadMember ? profiles.find(p => p.user_id === leadMember.user_id) : null;
+
   const nonMembers = profiles.filter(
     p => !members.some(m => m.user_id === p.user_id)
   );
