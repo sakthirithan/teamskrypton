@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { usePblProjectLead } from '@/components/grouping/LeaderboardPanel';
 import { useToast } from '@/hooks/use-toast';
 
 export interface UserPoints {
@@ -35,11 +36,12 @@ interface PointsOperationParams {
 }
 
 export function useUserPoints() {
-  const { user, role } = useAuth();
+  const { user, role, isLeadership } = useAuth();
+  const { data: isProjectLead } = usePblProjectLead(user?.id);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   
-  const isTL = role === 'team_captain';
+  const canManagePoints = isLeadership || isProjectLead;
 
   // Fetch all user points
   const { data: allPoints = [], isLoading: isLoadingPoints } = useQuery({
@@ -76,7 +78,7 @@ export function useUserPoints() {
       if (error) throw error;
       return data as PointsHistory[];
     },
-    enabled: !!user && isTL,
+    enabled: !!user && canManagePoints,
   });
 
   // Get history for a specific user
@@ -198,7 +200,7 @@ export function useUserPoints() {
     getUserHistory,
     performOperation,
     initializePoints,
-    isTL,
+    canManagePoints,
     refetchHistory,
   };
 }

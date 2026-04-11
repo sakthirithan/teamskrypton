@@ -21,6 +21,7 @@ import { ModeSelectionDialog } from '@/components/auth/ModeSelectionDialog';
 import { Badge } from '@/components/ui/badge';
 import { AppMode } from '@/lib/groupingConstants';
 import { GuestModeBadge } from '@/components/guest/GuestModeBadge';
+import { usePblProjectLead } from '@/components/grouping/LeaderboardPanel';
 
 function getRoleBadgeClass(role: KryptonRole | null): string {
   switch (role) {
@@ -40,7 +41,7 @@ function getRoleBadgeClass(role: KryptonRole | null): string {
 }
 
 export function Header() {
-  const { user, profile, role, signOut, isCaptainOrVice } = useAuth();
+  const { user, profile, role, signOut, isCaptainOrVice, isLeadership } = useAuth();
   const { isGroupingMode, clearMode, setMode } = useAppMode();
   const navigate = useNavigate();
   const location = useLocation();
@@ -52,7 +53,8 @@ export function Header() {
   const [showModeSwitch, setShowModeSwitch] = useState(false);
   const [showModeDialog, setShowModeDialog] = useState(false);
   
-  const isTL = role === 'team_captain';
+  const { data: isProjectLead } = usePblProjectLead(user?.id);
+  const canManagePoints = isLeadership || isProjectLead;
 
   // Mode-aware navigation links
   const navLinks = isGroupingMode
@@ -255,8 +257,8 @@ export function Header() {
                   </>
                 )}
                 
-                {/* Points Management - Only for TL */}
-                {isTL && (
+                {/* Points Management - Only for Leaders */}
+                {canManagePoints && (
                   <DropdownMenuItem onClick={() => setPointsOpen(true)}>
                     <Coins className="w-4 h-4 mr-2" />
                     Manage Points
@@ -349,8 +351,8 @@ export function Header() {
               </Button>
             )}
             
-            {/* Points Management for TL on mobile */}
-            {isTL && (
+            {/* Points Management for Leaders on mobile */}
+            {canManagePoints && (
               <Button
                 variant="ghost"
                 onClick={() => {
@@ -421,8 +423,8 @@ export function Header() {
         </Dialog>
       )}
 
-      {/* Points Management Dialog - TL Only */}
-      {isTL && (
+      {/* Points Management Dialog - Leaders Only */}
+      {canManagePoints && (
         <Dialog open={pointsOpen} onOpenChange={setPointsOpen}>
           <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-hidden p-3 sm:p-6">
             <DialogHeader>

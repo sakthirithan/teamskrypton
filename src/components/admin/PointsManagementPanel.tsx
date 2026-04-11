@@ -1,5 +1,5 @@
 import { useState, useMemo, memo, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -191,12 +191,13 @@ export const PointsManagementPanel = memo(function PointsManagementPanel() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
-            <Coins className="w-5 h-5" />
-            Team Points
+            <Coins className="w-5 h-5 text-amber-500" />
+            Golden Points
             <Badge variant="secondary" className="ml-2">
               {filteredUsers.length} members
             </Badge>
           </CardTitle>
+          <CardDescription>Your Golden Time you through Golden Points</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <ScrollArea className="h-[400px]">
@@ -206,7 +207,7 @@ export const PointsManagementPanel = memo(function PointsManagementPanel() {
                   <TableHead>Name</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Department</TableHead>
-                  <TableHead className="text-center">Points</TableHead>
+                  <TableHead className="text-center">Golden Points</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>

@@ -8,20 +8,40 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Trophy, Crown, Medal, Zap, Star, Target, Plus, Flame } from 'lucide-react';
+import { Trophy, Crown, Medal, Zap, Star, Target, Plus, Flame, Coins } from 'lucide-react';
 import { useSkillLevels, LEVEL_NAMES, LEVEL_COLORS, getXpProgress } from '@/hooks/useSkillLevels';
 import { useActivityPoints } from '@/hooks/useActivityPoints';
 import { useGroupingSessions } from '@/hooks/useGroupingSessions';
 import { useGroupingTargets } from '@/hooks/useGroupingTargets';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserPoints } from '@/hooks/useUserPoints';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { Progress } from '@/components/ui/progress';
 import { useNavigate } from 'react-router-dom';
 
+export function usePblProjectLead(userId?: string) {
+  return useQuery({
+    queryKey: ['user-pbl-lead', userId],
+    queryFn: async () => {
+      if (!userId) return false;
+      const { data } = await supabase
+        .from('project_members')
+        .select('project_id')
+        .eq('user_id', userId)
+        .eq('role', 'lead')
+        .limit(1);
+      return data && data.length > 0;
+    },
+    enabled: !!userId,
+  });
+}
+
 export function LeaderboardPanel() {
   const { user, isLeadership } = useAuth();
   const navigate = useNavigate();
+  const { data: isProjectLead } = usePblProjectLead(user?.id);
+  const canManagePoints = isLeadership || isProjectLead;
   const { sessions } = useGroupingSessions();
   const activeSession = sessions.find(s => s.status === 'active');
   const sessionId = activeSession?.id || '';
@@ -29,6 +49,7 @@ export function LeaderboardPanel() {
   const { leaderboard: xpLeaderboard } = useSkillLevels(sessionId);
   const { getLeaderboard: getActivityLeaderboard, awardPoints, activityPoints } = useActivityPoints(sessionId);
   const { targets } = useGroupingTargets(sessionId);
+  const { allPoints } = useUserPoints();
 
   const { data: profiles = [] } = useQuery({
     queryKey: ['profiles-leaderboard-all'],
@@ -127,6 +148,19 @@ export function LeaderboardPanel() {
       .map((e, i) => ({ ...e, rank: i + 1 }));
   }, [psEntries, targets, profileMap, user]);
 
+  // Golden Points Rank
+  const pointsRanked = useMemo(() => {
+    return allPoints
+      .map(p => ({
+        user_id: p.user_id,
+        points: p.points,
+        name: profileMap.get(p.user_id) || 'Unknown',
+        isMe: p.user_id === user?.id
+      }))
+      .sort((a, b) => b.points - a.points)
+      .map((e, i) => ({ ...e, rank: i + 1 }));
+  }, [allPoints, profileMap, user]);
+
   // Activity Rank
   const activityRanked = useMemo(() => {
     const lb = getActivityLeaderboard();
@@ -134,6 +168,12 @@ export function LeaderboardPanel() {
       ...e, rank: i + 1, name: profileMap.get(e.user_id) || 'Unknown', isMe: e.user_id === user?.id,
     }));
   }, [getActivityLeaderboard, profileMap, user]);
+
+  const activityPointsMap = useMemo(() => {
+    const map = new Map<string, number>();
+    activityRanked.forEach((e) => map.set(e.user_id, e.points));
+    return map;
+  }, [activityRanked]);
 
   // Skill-wise rank (group by skill, rank by challenge XP earned)
   const skillWiseRanked = useMemo(() => {
@@ -161,24 +201,6 @@ export function LeaderboardPanel() {
 
   const [selectedSkill, setSelectedSkill] = useState<string>('');
   const skillNames = Object.keys(skillWiseRanked);
-
-  // Award dialog state
-  const [awardOpen, setAwardOpen] = useState(false);
-  const [awardUserId, setAwardUserId] = useState('');
-  const [awardPts, setAwardPts] = useState('');
-  const [awardReason, setAwardReason] = useState('');
-
-  const handleAward = () => {
-    if (!awardUserId || !awardPts || !sessionId) return;
-    awardPoints.mutate({
-      userId: awardUserId,
-      points: parseInt(awardPts),
-      reason: awardReason,
-      sessionId,
-    }, {
-      onSuccess: () => { setAwardOpen(false); setAwardPts(''); setAwardReason(''); setAwardUserId(''); }
-    });
-  };
 
   const getRankIcon = (rank: number) => {
     switch (rank) {
@@ -231,30 +253,10 @@ export function LeaderboardPanel() {
           <Trophy className="w-5 h-5 text-amber-500" />
           Leaderboard
         </h1>
-        {isLeadership && (
-          <Dialog open={awardOpen} onOpenChange={setAwardOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="gap-1"><Plus className="w-3 h-3" /> Award Activity Points</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Award Activity Points</DialogTitle></DialogHeader>
-              <div className="space-y-3">
-                <Select value={awardUserId} onValueChange={setAwardUserId}>
-                  <SelectTrigger><SelectValue placeholder="Select member" /></SelectTrigger>
-                  <SelectContent>
-                    {profiles.map(p => (
-                      <SelectItem key={p.user_id} value={p.user_id}>{p.full_name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Input type="number" placeholder="Points" value={awardPts} onChange={e => setAwardPts(e.target.value)} />
-                <Textarea placeholder="Reason (optional)" value={awardReason} onChange={e => setAwardReason(e.target.value)} />
-                <Button onClick={handleAward} disabled={!awardUserId || !awardPts} className="w-full">
-                  Award Points
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+        {canManagePoints && (
+          <Button size="sm" className="gap-1" onClick={() => navigate('/grouping/management/points')}>
+            <Plus className="w-3 h-3" /> Point Management
+          </Button>
         )}
       </div>
 
@@ -263,10 +265,11 @@ export function LeaderboardPanel() {
       )}
 
       <Tabs defaultValue="xp" className="w-full">
-        <TabsList className="w-full grid grid-cols-4">
+        <TabsList className="w-full grid grid-cols-5">
           <TabsTrigger value="xp" className="text-xs gap-1"><Zap className="w-3 h-3" /> XP Rank</TabsTrigger>
-          <TabsTrigger value="ps" className="text-xs gap-1"><Target className="w-3 h-3" /> PS Points</TabsTrigger>
+          <TabsTrigger value="ps" className="text-xs gap-1"><Target className="w-3 h-3" /> PS</TabsTrigger>
           <TabsTrigger value="activity" className="text-xs gap-1"><Star className="w-3 h-3" /> Activity</TabsTrigger>
+          <TabsTrigger value="golden" className="text-xs gap-1"><Coins className="w-3 h-3 text-amber-500" /> Golden Points</TabsTrigger>
           <TabsTrigger value="skill" className="text-xs gap-1"><Flame className="w-3 h-3" /> Skill-wise</TabsTrigger>
         </TabsList>
 
@@ -310,9 +313,15 @@ export function LeaderboardPanel() {
                             </div>
                           </div>
                         </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-sm font-bold tabular-nums">{m.xp.toLocaleString()}</p>
-                          <p className="text-[9px] text-muted-foreground">XP</p>
+                        <div className="flex gap-4 text-right shrink-0">
+                          <div>
+                            <p className="text-sm font-bold tabular-nums text-amber-600">{activityPointsMap.get(m.user_id) || 0}</p>
+                            <p className="text-[9px] text-muted-foreground">Points</p>
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold tabular-nums text-primary">{m.xp.toLocaleString()}</p>
+                            <p className="text-[9px] text-muted-foreground">XP</p>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -337,6 +346,27 @@ export function LeaderboardPanel() {
                 <ScrollArea className="h-[450px]">
                   <div className="divide-y">
                     {psRanked.map(e => renderRankRow(e, 'Points', e.points))}
+                  </div>
+                </ScrollArea>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Golden Points Rank */}
+        <TabsContent value="golden">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Coins className="w-4 h-4 text-amber-500" /> Golden Points Leaderboard
+                <Badge variant="secondary" className="ml-auto text-xs">{pointsRanked.length}</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {pointsRanked.length === 0 ? emptyState('No golden points earned yet.') : (
+                <ScrollArea className="h-[450px]">
+                  <div className="divide-y">
+                    {pointsRanked.map(e => renderRankRow(e, 'Points', e.points))}
                   </div>
                 </ScrollArea>
               )}

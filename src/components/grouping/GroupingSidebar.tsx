@@ -42,6 +42,7 @@ import { Badge } from '@/components/ui/badge';
 import { ROLE_LABELS } from '@/lib/constants';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { SendNotificationDialog } from './SendNotificationDialog';
+import { usePblProjectLead } from './LeaderboardPanel';
 
 const PINNED_KEY = 'grouping-sidebar-pinned';
 
@@ -70,7 +71,9 @@ export function GroupingSidebar() {
   const collapsed = state === 'collapsed';
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { profile, role, isLeadership, isCaptainOrVice } = useAuth();
+  const { profile, user, role, isLeadership, isCaptainOrVice } = useAuth();
+  const { data: isProjectLead } = usePblProjectLead(user?.id);
+  const canManagePoints = isLeadership || isProjectLead;
   const isMobile = useIsMobile();
 
   const [pinned, setPinned] = useState<string[]>(getPinnedSections);
@@ -302,6 +305,20 @@ export function GroupingSidebar() {
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              {canManagePoints && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={isActive('/grouping/management/points')}>
+                    <NavLink
+                      to="/grouping/management/points"
+                      className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-sidebar-accent cursor-pointer"
+                      activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                    >
+                      <Target className="h-4 w-4 shrink-0" />
+                      {!collapsed && <span>Point Management</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
