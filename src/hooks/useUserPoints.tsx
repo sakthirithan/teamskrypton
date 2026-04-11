@@ -146,6 +146,25 @@ export function useUserPoints() {
 
       if (historyError) throw historyError;
 
+      if (historyError) throw historyError;
+
+      // Auto-notification for points addition/update
+      // We send it from system (or sender user) to the user who received points
+      if (operation !== 'subtract' && operation !== 'penalty') {
+        const title = operation === 'bonus' ? '🌟 Bonus Points Awarded!' : '✨ Golden Points Updated';
+        const operationText = operation === 'set' ? `Your points have been set to ${newPoints}.` : `You received ${value} points!`;
+        const actionText = reason ? ` Reason: ${reason}` : '';
+        
+        await supabase.from('grouping_notifications' as any).insert({
+          sender_id: user.id,
+          recipient_id: userId,
+          title: title,
+          message: `${operationText}${actionText}`,
+          type: 'points_update',
+          read_status: false
+        } as any);
+      }
+
       return { userId, newPoints, previousPoints: currentPoints };
     },
     onSuccess: (data) => {

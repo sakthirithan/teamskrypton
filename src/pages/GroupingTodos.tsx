@@ -16,7 +16,7 @@ const GroupingTodos = () => {
 
   return (
     <GroupingLayout title="To-Do List">
-      <div className="max-w-3xl mx-auto">
+      <div className="w-full h-full flex flex-col">
         <GlobalTodoPanel mode="grouping" />
       </div>
     </GroupingLayout>

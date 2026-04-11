@@ -253,7 +253,7 @@ export function GroupingSidebar() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center">
-                  <img src="..\favicon.ico" alt="Teams Krypton logo featuring TK initials on primary blue background" className="rounded-lg" />
+                  <img src="/favicon.ico" alt="Teams Krypton logo featuring TK initials on primary blue background" className="rounded-lg" />
                 </div>
               <div>
                 <h2 className="text-sm font-semibold">Teams Krypton</h2>
@@ -270,7 +270,7 @@ export function GroupingSidebar() {
               className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer"
               onClick={toggleSidebar}
             >
-              <img src="..\favicon.ico" alt="Teams Krypton logo featuring TK initials on primary blue background" className="rounded-lg " />
+              <img src="/favicon.ico" alt="Teams Krypton logo featuring TK initials on primary blue background" className="rounded-lg " />
             </div>
           </div>
         )}

@@ -30,6 +30,7 @@ export function GlobalTodoPanel({ mode }: GlobalTodoPanelProps) {
   const [expandedTodos, setExpandedTodos] = useState<Set<string>>(new Set());
   const [showUncompleted, setShowUncompleted] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>(mode || 'all');
+  const [assignedMembers, setAssignedMembers] = useState<Set<string>>(new Set());
 
   const handleCreate = async () => {
     if (!title.trim()) return;
@@ -39,11 +40,22 @@ export function GlobalTodoPanel({ mode }: GlobalTodoPanelProps) {
       mode: todoMode,
       is_global: isGlobal,
       parent_id: parentId && parentId !== 'none' ? parentId : undefined,
+      assigned_members: Array.from(assignedMembers),
     });
     setTitle('');
     setDescription('');
     setParentId('');
+    setAssignedMembers(new Set());
     setCreateOpen(false);
+  };
+
+  const toggleAssignMember = (id: string) => {
+    setAssignedMembers(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   const toggleExpand = (id: string) => {
@@ -97,6 +109,15 @@ export function GlobalTodoPanel({ mode }: GlobalTodoPanelProps) {
             </div>
             {todo.description && (
               <p className="text-xs text-muted-foreground mt-0.5">{todo.description}</p>
+            )}
+            {todo.assigned_members && todo.assigned_members.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1">
+                {todo.assigned_members.map(userId => (
+                  <Badge key={userId} variant="outline" className="text-[10px] px-1 py-0 bg-primary/5 text-primary border-primary/20">
+                    Assigned: {profiles.find(p => p.user_id === userId)?.full_name || 'Member'}
+                  </Badge>
+                ))}
+              </div>
             )}
             {todo.is_global && totalMembers > 0 && (
               <button
@@ -199,6 +220,27 @@ export function GlobalTodoPanel({ mode }: GlobalTodoPanelProps) {
                         ))}
                       </SelectContent>
                     </Select>
+                  )}
+                  {isLeadership && (
+                    <div className="border rounded-md p-2 mt-2">
+                       <p className="text-[10px] text-muted-foreground mb-2 uppercase font-semibold tracking-wider">Assign Members (Optional)</p>
+                       <ScrollArea className="h-[120px]">
+                         <div className="space-y-2 px-1">
+                           {profiles.map(p => (
+                             <div key={p.user_id} className="flex items-center space-x-2">
+                               <Checkbox 
+                                 id={`assign-${p.user_id}`} 
+                                 checked={assignedMembers.has(p.user_id)} 
+                                 onCheckedChange={() => toggleAssignMember(p.user_id)}
+                               />
+                               <label htmlFor={`assign-${p.user_id}`} className="text-xs font-medium leading-none cursor-pointer">
+                                 {p.full_name}
+                               </label>
+                             </div>
+                           ))}
+                         </div>
+                       </ScrollArea>
+                    </div>
                   )}
                   <Button onClick={handleCreate} className="w-full" disabled={createTodo.isPending || !title.trim()}>
                     {createTodo.isPending ? 'Creating...' : 'Create'}

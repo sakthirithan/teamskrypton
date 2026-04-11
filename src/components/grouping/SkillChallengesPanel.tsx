@@ -19,6 +19,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { useUserPoints } from '@/hooks/useUserPoints';
 
 interface SkillChallengesPanelProps {
   sessionId: string;
@@ -28,6 +29,7 @@ export function SkillChallengesPanel({ sessionId }: SkillChallengesPanelProps) {
   const { user, isLeadership } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { performOperation } = useUserPoints();
   const { 
     challenges, createChallenge, submitCompletion, 
     approveCompletion, deleteChallenge, getUserCompletion, getCompletionsForChallenge 
@@ -140,7 +142,7 @@ export function SkillChallengesPanel({ sessionId }: SkillChallengesPanelProps) {
     toast({ title: 'Submission Sent', description: 'Leadership will review your completion.' });
   };
 
-  const handleApprove = async (completionId: string, challengeXp: number, completionUserId: string) => {
+  const handleApprove = async (completionId: string, challengeXp: number, completionUserId: string, challengeTitle: string) => {
     try {
       await approveCompletion.mutateAsync({ completionId, approve: true });
       
@@ -182,7 +184,39 @@ export function SkillChallengesPanel({ sessionId }: SkillChallengesPanelProps) {
       queryClient.invalidateQueries({ queryKey: ['skill-leaderboard'] });
       queryClient.invalidateQueries({ queryKey: ['skill-challenge-completions'] });
 
-      toast({ title: 'Approved!', description: `+${challengeXp} XP awarded.` });
+      const goldenPoints = Math.floor(challengeXp / 10);
+      if (goldenPoints > 0) {
+        await performOperation.mutateAsync({
+          userId: completionUserId,
+          operation: 'add',
+          value: goldenPoints,
+          reason: `Skill Challenge Approved: "${challengeTitle}" (+${challengeXp} XP)`
+        });
+      }
+
+      const memberName = profiles.find(p => p.user_id === completionUserId)?.full_name || 'A team member';
+
+      const notifications = [
+        {
+          user_id: completionUserId,
+          message: `Your Skill Challenge "${challengeTitle}" was approved! (+${challengeXp} XP${goldenPoints > 0 ? `, +${goldenPoints} Golden Points` : ''})`,
+          type: 'challenge',
+          session_id: sessionId,
+        }
+      ];
+
+      if (user && user.id !== completionUserId && goldenPoints > 0) {
+        notifications.push({
+          user_id: user.id,
+          message: `You automatically awarded +${goldenPoints} Golden Points & +${challengeXp} XP to ${memberName} for "${challengeTitle}".`,
+          type: 'challenge',
+          session_id: sessionId,
+        });
+      }
+
+      await supabase.from('grouping_notifications').insert(notifications);
+
+      toast({ title: 'Approved!', description: `+${challengeXp} XP${goldenPoints > 0 ? ` & +${goldenPoints} Golden Points` : ''} awarded.` });
     } catch (err: any) {
       console.error('Approval error:', err);
       toast({ variant: 'destructive', title: 'Error', description: err.message || 'Failed to approve' });
@@ -297,7 +331,7 @@ export function SkillChallengesPanel({ sessionId }: SkillChallengesPanelProps) {
                     )}
 
                     {(assignMode === 'select' || (assignMode === 'skill' && selectedMembers.length > 0)) && (
-                      <ScrollArea className="max-h-[150px] border rounded-lg p-2">
+                      <div className="max-h-[150px] overflow-y-auto border rounded-lg p-2 custom-scrollbar">
                         <div className="space-y-1">
                           {profiles.map(p => (
                             <label key={p.user_id} className="flex items-center gap-2 text-xs py-1 px-2 rounded hover:bg-muted/50 cursor-pointer">
@@ -311,7 +345,7 @@ export function SkillChallengesPanel({ sessionId }: SkillChallengesPanelProps) {
                             </label>
                           ))}
                         </div>
-                      </ScrollArea>
+                      </div>
                     )}
 
                     <Button onClick={handleCreate} className="w-full" disabled={createChallenge.isPending || !form.title.trim()}>
@@ -434,7 +468,7 @@ export function SkillChallengesPanel({ sessionId }: SkillChallengesPanelProps) {
                                     size="icon"
                                     variant="ghost"
                                     className="h-7 w-7 text-emerald-600 hover:bg-emerald-500/15"
-                                    onClick={() => handleApprove(comp.id, challenge.xp_reward, comp.user_id)}
+                                    onClick={() => handleApprove(comp.id, challenge.xp_reward, comp.user_id, challenge.title)}
                                   >
                                     <CheckCircle2 className="w-4 h-4" />
                                   </Button>

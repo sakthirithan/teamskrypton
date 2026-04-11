@@ -7,13 +7,11 @@ import { Header } from '@/components/layout/Header';
 import { PBLLayout } from '@/components/pbl/PBLLayout';
 import { GroupingLayout } from '@/components/grouping/GroupingLayout';
 import { KryptonIdCard } from '@/components/team/KryptonIdCard';
-import { SkillWiseMemberList } from '@/components/team/SkillWiseMemberList';
-import { TeamSkillLeaderboard } from '@/components/grouping/TeamSkillLeaderboard';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { KryptonRole, TaskStatus, LEADERSHIP_ROLES, ROLE_LABELS } from '@/lib/constants';
 import { Users, Download, Search, AlertCircle, Target, FileSpreadsheet, Layers } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -596,47 +594,7 @@ const Team = () => {
     </>
   );
 
-  const { data: activeSessions } = useQuery({
-    queryKey: ['active-session-team'],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('grouping_sessions')
-        .select('id')
-        .eq('status', 'active')
-        .eq('is_test', false)
-        .limit(1);
-      return data?.[0]?.id || null;
-    },
-    enabled: isGroupingMode,
-  });
-
-  const content = isGroupingMode ? (
-    <Tabs defaultValue="directory" className="w-full">
-      <TabsList className="grid w-full grid-cols-2 mb-6">
-        <TabsTrigger value="directory" className="flex items-center gap-2">
-          <Users className="w-4 h-4" />
-          Directory
-        </TabsTrigger>
-        <TabsTrigger value="skills" className="flex items-center gap-2">
-          <Layers className="w-4 h-4" />
-          Skill Map
-        </TabsTrigger>
-      </TabsList>
-      <TabsContent value="directory" className="mt-0">
-        {teamDirectoryContent}
-        {activeSessions && (
-          <div className="mt-6">
-            <TeamSkillLeaderboard sessionId={activeSessions} />
-          </div>
-        )}
-      </TabsContent>
-      <TabsContent value="skills" className="mt-0">
-        <SkillWiseMemberList />
-      </TabsContent>
-    </Tabs>
-  ) : (
-    teamDirectoryContent
-  );
+  const content = teamDirectoryContent;
 
   if (isPBL) {
     return <PBLLayout title="Team Directory">{content}</PBLLayout>;

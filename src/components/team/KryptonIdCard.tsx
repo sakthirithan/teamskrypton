@@ -1,5 +1,5 @@
 import { User, Eye, Phone, Pencil, CheckCircle, Power, Coins, Users } from 'lucide-react';
-import { MemberSkillsBadges } from '@/components/grouping/MemberSkillsBadges';
+
 import { ROLE_LABELS, KryptonRole, TaskStatus } from '@/lib/constants';
 import { format } from 'date-fns';
 import { useState } from 'react';
@@ -55,14 +55,7 @@ function getRoleBgClass(role: KryptonRole | null): string {
   }
 }
 
-// Skill Portfolio Section for ID Card
-function SkillPortfolioSection({ userId }: { userId: string }) {
-  return (
-    <div className="pt-3 border-t">
-      <MemberSkillsBadges userId={userId} />
-    </div>
-  );
-}
+
 
 // Derive status: Active if has in-progress task, otherwise Offline/Completed
 // This is display-level ONLY - does NOT affect task states, logs, or system truth
@@ -233,8 +226,7 @@ export function KryptonIdCard({
               {ROLE_LABELS[role]}
             </span>
           )}
-          {/* Member Skills - only in Grouping mode */}
-          {isGroupingMode && <MemberSkillsBadges userId={profile.user_id} compact />}
+          {/* Member Skills removed */}
           {/* Points Display */}
           <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 font-semibold text-sm">
             <Coins className="w-4 h-4" />
@@ -345,8 +337,7 @@ export function KryptonIdCard({
               <span className="font-medium">{format(new Date(profile.created_at), 'MMM yyyy')}</span>
             </div>
 
-            {/* Skill Portfolio Section */}
-            <SkillPortfolioSection userId={profile.user_id} />
+
           </div>
         ) : (
           /* Default PBL mode - original details */

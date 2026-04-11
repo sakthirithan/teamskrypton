@@ -12,6 +12,7 @@ export interface GlobalTodo {
   is_global: boolean;
   session_id: string | null;
   parent_id: string | null;
+  assigned_members: string[];
   sort_order: number;
   created_at: string;
   updated_at: string;
@@ -70,7 +71,7 @@ export function useGlobalTodos(mode?: string) {
   });
 
   const createTodo = useMutation({
-    mutationFn: async (input: { title: string; description?: string; mode?: string; is_global?: boolean; parent_id?: string }) => {
+    mutationFn: async (input: { title: string; description?: string; mode?: string; is_global?: boolean; parent_id?: string; assigned_members?: string[] }) => {
       if (!user) throw new Error('Not authenticated');
       const { error } = await supabase
         .from('global_todos' as any)
@@ -81,6 +82,7 @@ export function useGlobalTodos(mode?: string) {
           created_by: user.id,
           is_global: input.is_global ?? false,
           parent_id: input.parent_id || null,
+          assigned_members: input.assigned_members || [],
         } as any);
       if (error) throw error;
     },

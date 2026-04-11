@@ -16,7 +16,7 @@ const PBLTodos = () => {
 
   return (
     <PBLLayout title="To-Do List">
-      <div className="max-w-3xl mx-auto">
+      <div className="w-full h-full flex flex-col">
         <GlobalTodoPanel mode="pbl" />
       </div>
     </PBLLayout>

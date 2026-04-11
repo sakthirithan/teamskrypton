@@ -20,7 +20,7 @@ export default function GroupingPointManagement() {
 
   return (
     <GroupingLayout>
-      <div className="space-y-6 max-w-5xl mx-auto mt-4 px-4 sm:px-6">
+      <div className="w-full h-full p-6 flex flex-col">
         <PointsManagementPanel />
       </div>
     </GroupingLayout>
