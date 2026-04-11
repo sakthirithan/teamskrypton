@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { 
   Swords, Plus, Check, Clock, Send, Zap, 
-  BookOpen, Flame, Shield, Trash2, CheckCircle2, XCircle, Users
+  BookOpen, Flame, Shield, Trash2, CheckCircle2, XCircle, Users, ChevronDown
 } from 'lucide-react';
 import { useSkillChallenges } from '@/hooks/useSkillChallenges';
 import { getLevelFromXp } from '@/hooks/useSkillLevels';
@@ -45,6 +45,12 @@ export function SkillChallengesPanel({ sessionId }: SkillChallengesPanelProps) {
     xp_reward: 50,
     difficulty: 'medium',
   });
+
+  const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
+
+  const toggleCard = (id: string) => {
+    setExpandedCards(prev => ({ ...prev, [id]: !prev[id] }));
+  };
 
   const { data: profiles = [] } = useQuery({
     queryKey: ['profiles-challenges'],
@@ -331,8 +337,8 @@ export function SkillChallengesPanel({ sessionId }: SkillChallengesPanelProps) {
           </CardContent>
         </Card>
       ) : (
-        <ScrollArea className="max-h-[500px]">
-          <div className="space-y-2 pr-1">
+        <div className="h-[calc(100vh-280px)] min-h-[400px] overflow-y-auto pr-2 rounded-md">
+          <div className="space-y-3">
             {challenges.map(challenge => {
               const diff = difficultyConfig[challenge.difficulty] || difficultyConfig.medium;
               const DiffIcon = diff.icon;
@@ -341,14 +347,20 @@ export function SkillChallengesPanel({ sessionId }: SkillChallengesPanelProps) {
               const isCompleted = myCompletion?.status === 'approved';
               const isPending = myCompletion?.status === 'pending';
               const pendingReviews = allCompletions.filter(c => c.status === 'pending');
+              const approvedReviews = allCompletions.filter(c => c.status === 'approved');
+              const isExpanded = !!expandedCards[challenge.id];
 
               return (
-                <Card key={challenge.id} className={`transition-colors ${isCompleted ? 'border-emerald-500/30 bg-emerald-500/5' : ''}`}>
-                  <CardContent className="p-3">
-                    <div className="flex items-start justify-between gap-2">
+                <Card 
+                  key={challenge.id} 
+                  className={`transition-all cursor-pointer hover:shadow-sm ${isCompleted ? 'border-emerald-500/30 bg-emerald-500/5' : ''}`}
+                  onClick={() => toggleCard(challenge.id)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-medium">{challenge.title}</p>
+                          <p className="text-sm font-semibold">{challenge.title}</p>
                           <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${diff.color}`}>
                             <DiffIcon className="w-2.5 h-2.5 mr-0.5" />
                             {diff.label}
@@ -359,24 +371,21 @@ export function SkillChallengesPanel({ sessionId }: SkillChallengesPanelProps) {
                           </Badge>
                         </div>
                         {challenge.description && (
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{challenge.description}</p>
+                          <p className="text-xs text-muted-foreground mt-1.5 line-clamp-3">{challenge.description}</p>
                         )}
-                        <p className="text-[10px] text-muted-foreground mt-1">
+                        <p className="text-[10px] text-muted-foreground mt-2">
                           {formatDistanceToNow(new Date(challenge.created_at), { addSuffix: true })}
-                          {allCompletions.length > 0 && (
-                            <span className="ml-2">• {allCompletions.filter(c => c.status === 'approved').length} completed</span>
-                          )}
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-1 shrink-0">
+                      <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
                         {isCompleted && (
                           <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-emerald-600 bg-emerald-500/10 border-emerald-500/20">
                             <Check className="w-2.5 h-2.5 mr-0.5" /> Done
                           </Badge>
                         )}
                         {isPending && (
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-amber-600 bg-amber-500/10">
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-amber-600 bg-amber-500/10 border-amber-500/20">
                             <Clock className="w-2.5 h-2.5 mr-0.5" /> Pending
                           </Badge>
                         )}
@@ -384,8 +393,8 @@ export function SkillChallengesPanel({ sessionId }: SkillChallengesPanelProps) {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-7 text-xs"
-                            onClick={() => { setSubmitChallengeId(challenge.id); setProofText(''); }}
+                            className="h-7 text-xs bg-background"
+                            onClick={(e) => { e.stopPropagation(); setSubmitChallengeId(challenge.id); setProofText(''); }}
                           >
                             <Send className="w-3 h-3 mr-1" /> Submit
                           </Button>
@@ -394,47 +403,87 @@ export function SkillChallengesPanel({ sessionId }: SkillChallengesPanelProps) {
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-6 w-6 text-destructive"
-                            onClick={() => deleteChallenge.mutate(challenge.id)}
+                            className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                            onClick={(e) => { e.stopPropagation(); deleteChallenge.mutate(challenge.id); }}
                           >
-                            <Trash2 className="w-3 h-3" />
+                            <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         )}
                       </div>
                     </div>
 
-                    {/* Pending Reviews (Leadership) */}
-                    {isLeadership && pendingReviews.length > 0 && (
-                      <div className="mt-2 pt-2 border-t space-y-1.5">
-                        <p className="text-[10px] font-medium text-muted-foreground">Pending Reviews ({pendingReviews.length})</p>
-                        {pendingReviews.map(comp => (
-                          <div key={comp.id} className="flex items-center justify-between p-2 rounded-md bg-muted/40 text-xs">
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium truncate">{profileMap.get(comp.user_id) || 'Unknown'}</p>
-                              {comp.proof_text && (
-                                <p className="text-muted-foreground truncate">{comp.proof_text}</p>
+                    {/* Pending Submissions (Always visible if there are any) */}
+                    {pendingReviews.length > 0 && (
+                      <div className="mt-3 pt-3 border-t space-y-2" onClick={e => e.stopPropagation()}>
+                        <p className="text-[11px] font-semibold text-amber-600/80 uppercase tracking-wider flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          Pending Approvals ({pendingReviews.length})
+                        </p>
+                        <div className="flex flex-col gap-1.5">
+                          {pendingReviews.map(comp => (
+                            <div key={comp.id} className="flex items-center justify-between p-2.5 rounded-md bg-amber-50/50 dark:bg-amber-500/5 border border-amber-500/10 text-xs">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-foreground/90 truncate">{profileMap.get(comp.user_id) || 'Unknown Member'}</p>
+                                {comp.proof_text && (
+                                  <p className="text-muted-foreground mt-0.5 truncate text-[11px]">{comp.proof_text}</p>
+                                )}
+                              </div>
+                              {isLeadership && (
+                                <div className="flex gap-1 shrink-0 ml-2">
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-7 w-7 text-emerald-600 hover:bg-emerald-500/15"
+                                    onClick={() => handleApprove(comp.id, challenge.xp_reward, comp.user_id)}
+                                  >
+                                    <CheckCircle2 className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-7 w-7 text-destructive hover:bg-destructive/15"
+                                    onClick={() => handleReject(comp.id)}
+                                  >
+                                    <XCircle className="w-4 h-4" />
+                                  </Button>
+                                </div>
                               )}
                             </div>
-                            <div className="flex gap-1 shrink-0">
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-6 w-6 text-emerald-600"
-                                onClick={() => handleApprove(comp.id, challenge.xp_reward, comp.user_id)}
-                              >
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-6 w-6 text-destructive"
-                                onClick={() => handleReject(comp.id)}
-                              >
-                                <XCircle className="w-3.5 h-3.5" />
-                              </Button>
-                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Approved Submissions Section */}
+                    {approvedReviews.length > 0 && (
+                      <div className="mt-3 pt-3 border-t">
+                        <div className="flex items-center justify-between text-[11px] font-semibold text-emerald-600/80 uppercase tracking-wider">
+                          <span className="flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Completed By ({approvedReviews.length})
+                          </span>
+                          <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                        </div>
+                        
+                        {isExpanded && (
+                          <div className="space-y-1.5 mt-3" onClick={e => e.stopPropagation()}>
+                            {approvedReviews.map(comp => (
+                              <div key={comp.id} className="flex items-center justify-between p-2.5 rounded-md bg-emerald-50/50 dark:bg-emerald-500/5 border border-emerald-500/10 text-xs shadow-sm">
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-semibold text-emerald-700 dark:text-emerald-400 truncate">{profileMap.get(comp.user_id) || 'Unknown Member'}</p>
+                                  {comp.proof_text && (
+                                    <p className="text-emerald-600/70 dark:text-emerald-500/70 mt-0.5 truncate text-[11px]">
+                                      {comp.proof_text}
+                                    </p>
+                                  )}
+                                </div>
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400 shrink-0 ml-2">
+                                  + {challenge.xp_reward} XP
+                                </Badge>
+                              </div>
+                            ))}
                           </div>
-                        ))}
+                        )}
                       </div>
                     )}
                   </CardContent>
@@ -442,7 +491,7 @@ export function SkillChallengesPanel({ sessionId }: SkillChallengesPanelProps) {
               );
             })}
           </div>
-        </ScrollArea>
+        </div>
       )}
 
       {/* Submit Proof Dialog */}
