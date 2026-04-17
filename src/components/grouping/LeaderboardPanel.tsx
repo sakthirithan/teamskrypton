@@ -120,19 +120,29 @@ export function LeaderboardPanel() {
   const profileMap = useMemo(() => new Map(profiles.map(p => [p.user_id, p.full_name])), [profiles]);
   const streakMap = useMemo(() => new Map(streaks.map((s: any) => [s.user_id, s.current_streak])), [streaks]);
 
-  // XP Rank
-  const xpRanked = useMemo(() =>
-    xpLeaderboard.map((e, i) => ({
-      ...e, rank: i + 1, name: profileMap.get(e.user_id) || 'Unknown',
-      isMe: e.user_id === user?.id, streak: streakMap.get(e.user_id) || 0,
-    })),
-  [xpLeaderboard, profileMap, user, streakMap]);
+  // Unified ranking logic that includes all users
+  const xpRanked = useMemo(() => {
+    const xpMap = new Map(xpLeaderboard.map(e => [e.user_id, e]));
+    return profiles
+      .map(p => {
+        const entry = xpMap.get(p.user_id);
+        return {
+          user_id: p.user_id,
+          name: p.full_name,
+          xp: entry?.xp || 0,
+          level: entry?.level || 1,
+          streak: streakMap.get(p.user_id) || 0,
+          isMe: p.user_id === user?.id
+        };
+      })
+      .sort((a, b) => b.xp - a.xp || a.name.localeCompare(b.name))
+      .map((e, i) => ({ ...e, rank: i + 1 }));
+  }, [profiles, xpLeaderboard, user, streakMap]);
 
-  // PS Points Rank
   const psRanked = useMemo(() => {
     const totals = new Map<string, number>();
     
-    // Add initial balance points from grouping targets
+    // Add balance points
     targets.forEach((t) => {
       if (t.target_scope === 'individual' && t.user_id) {
         totals.set(t.user_id, (totals.get(t.user_id) || 0) + (t.balance_points || 0));
@@ -142,32 +152,43 @@ export function LeaderboardPanel() {
     // Add session earned points
     psEntries.forEach((e: any) => totals.set(e.user_id, (totals.get(e.user_id) || 0) + e.reward_points));
     
-    return Array.from(totals.entries())
-      .map(([uid, pts]) => ({ user_id: uid, points: pts, name: profileMap.get(uid) || 'Unknown', isMe: uid === user?.id }))
-      .sort((a, b) => b.points - a.points)
-      .map((e, i) => ({ ...e, rank: i + 1 }));
-  }, [psEntries, targets, profileMap, user]);
-
-  // Golden Points Rank
-  const pointsRanked = useMemo(() => {
-    return allPoints
+    return profiles
       .map(p => ({
         user_id: p.user_id,
-        points: p.points,
-        name: profileMap.get(p.user_id) || 'Unknown',
+        name: p.full_name,
+        points: totals.get(p.user_id) || 0,
         isMe: p.user_id === user?.id
       }))
-      .sort((a, b) => b.points - a.points)
+      .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name))
       .map((e, i) => ({ ...e, rank: i + 1 }));
-  }, [allPoints, profileMap, user]);
+  }, [profiles, psEntries, targets, user]);
 
-  // Activity Rank
+  const pointsRanked = useMemo(() => {
+    const pointsMap = new Map(allPoints.map(p => [p.user_id, p.points]));
+    return profiles
+      .map(p => ({
+        user_id: p.user_id,
+        name: p.full_name,
+        points: pointsMap.get(p.user_id) || 0,
+        isMe: p.user_id === user?.id
+      }))
+      .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name))
+      .map((e, i) => ({ ...e, rank: i + 1 }));
+  }, [profiles, allPoints, user]);
+
   const activityRanked = useMemo(() => {
     const lb = getActivityLeaderboard();
-    return lb.map((e, i) => ({
-      ...e, rank: i + 1, name: profileMap.get(e.user_id) || 'Unknown', isMe: e.user_id === user?.id,
-    }));
-  }, [getActivityLeaderboard, profileMap, user]);
+    const actMap = new Map(lb.map(e => [e.user_id, e.points]));
+    return profiles
+      .map(p => ({
+        user_id: p.user_id,
+        name: p.full_name,
+        points: actMap.get(p.user_id) || 0,
+        isMe: p.user_id === user?.id
+      }))
+      .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name))
+      .map((e, i) => ({ ...e, rank: i + 1 }));
+  }, [profiles, getActivityLeaderboard, user]);
 
   const activityPointsMap = useMemo(() => {
     const map = new Map<string, number>();
@@ -175,32 +196,45 @@ export function LeaderboardPanel() {
     return map;
   }, [activityRanked]);
 
-  // Skill-wise rank (group by skill, rank by challenge XP earned)
+  const availableSkills = useMemo(() => {
+    return Array.from(new Set(memberSkills.map(ms => ms.skill_name))).sort();
+  }, [memberSkills]);
+
   const skillWiseRanked = useMemo(() => {
-    const skillUsers = new Map<string, Map<string, number>>();
-    challengeCompletions.forEach((cc: any) => {
-      const ch = challenges.find((c: any) => c.id === cc.challenge_id);
-      if (!ch) return;
-      // Get user's skills
-      const userSkills = memberSkills.filter((ms: any) => ms.user_id === cc.user_id);
-      userSkills.forEach((ms: any) => {
-        if (!skillUsers.has(ms.skill_name)) skillUsers.set(ms.skill_name, new Map());
-        const map = skillUsers.get(ms.skill_name)!;
-        map.set(cc.user_id, (map.get(cc.user_id) || 0) + ch.xp_reward);
-      });
-    });
     const result: Record<string, { user_id: string; xp: number; name: string; rank: number; isMe: boolean }[]> = {};
-    skillUsers.forEach((userMap, skillName) => {
-      result[skillName] = Array.from(userMap.entries())
-        .map(([uid, xp]) => ({ user_id: uid, xp, name: profileMap.get(uid) || 'Unknown', isMe: uid === user?.id, rank: 0 }))
-        .sort((a, b) => b.xp - a.xp)
+    
+    availableSkills.forEach(skillName => {
+      const usersWithSkill = memberSkills
+        .filter(ms => ms.skill_name === skillName)
+        .map(ms => ms.user_id);
+      
+      const skillRankings = usersWithSkill.map(uid => {
+        const userXp = challengeCompletions
+          .filter((cc: any) => cc.user_id === uid)
+          .reduce((sum, cc) => {
+            const ch = challenges.find((c: any) => c.id === cc.challenge_id);
+            return sum + (ch?.xp_reward || 0);
+          }, 0);
+        
+        return {
+          user_id: uid,
+          xp: userXp,
+          name: profileMap.get(uid) || 'Unknown',
+          isMe: uid === user?.id,
+          rank: 0
+        };
+      });
+
+      result[skillName] = skillRankings
+        .sort((a, b) => b.xp - a.xp || a.name.localeCompare(b.name))
         .map((e, i) => ({ ...e, rank: i + 1 }));
     });
+    
     return result;
-  }, [challengeCompletions, challenges, memberSkills, profileMap, user]);
+  }, [availableSkills, challengeCompletions, challenges, memberSkills, profileMap, user]);
 
   const [selectedSkill, setSelectedSkill] = useState<string>('');
-  const skillNames = Object.keys(skillWiseRanked);
+  const currentSkill = selectedSkill || availableSkills[0] || '';
 
   const getRankIcon = (rank: number) => {
     switch (rank) {
@@ -211,30 +245,53 @@ export function LeaderboardPanel() {
     }
   };
 
-  const getRankBg = (rank: number, isMe: boolean) => {
-    if (isMe) return 'bg-primary/5 border-primary/20';
-    if (rank === 1) return 'bg-amber-500/5 border-amber-500/20';
-    if (rank === 2) return 'bg-slate-500/5 border-slate-500/15';
-    if (rank === 3) return 'bg-amber-700/5 border-amber-700/15';
-    return 'border-transparent hover:bg-muted/50';
-  };
-
-  const renderRankRow = (entry: { rank: number; name: string; isMe: boolean; user_id: string }, valueLabel: string, value: string | number) => (
+  const renderRankRow = (entry: { rank: number; name: string; isMe: boolean; user_id: string }, valueLabel: string, value: string | number, icon?: React.ReactNode) => (
     <div
       key={entry.user_id}
-      className={`flex items-center gap-3 px-4 py-3 border transition-colors cursor-pointer ${getRankBg(entry.rank, entry.isMe)}`}
+      className={`group flex items-center gap-4 px-5 py-3 border-b border-border/40 last:border-0 transition-colors cursor-pointer ${
+        entry.isMe ? 'bg-indigo-50/30' : 'hover:bg-muted/30'
+      }`}
       onClick={() => navigate(`/grouping/me?userId=${entry.user_id}`)}
     >
-      <div className="w-6 flex justify-center shrink-0">{getRankIcon(entry.rank)}</div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate">
-          {entry.name}
-          {entry.isMe && <span className="text-xs text-primary ml-1">(You)</span>}
-        </p>
+      <div className="w-8 flex justify-center shrink-0 items-center">
+        {getRankIcon(entry.rank)}
       </div>
+      
+      <div className="shrink-0 relative">
+        <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold border ${
+          entry.isMe ? 'bg-indigo-600 text-white border-indigo-200 shadow-sm' : 'bg-muted text-muted-foreground border-border'
+        }`}>
+          {entry.name.charAt(0).toUpperCase()}
+        </div>
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5 mb-0.5">
+          <p className={`text-[13px] font-bold truncate ${entry.isMe ? 'text-indigo-900' : 'text-slate-900'}`}>
+            {entry.name.toUpperCase()}
+          </p>
+          {entry.isMe && (
+            <Badge variant="secondary" className="text-[8px] px-1.5 py-0 h-3.5 bg-indigo-100 text-indigo-700 border-none font-bold uppercase tracking-wider">
+              YOU
+            </Badge>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5">
+           <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1 uppercase tracking-wider">
+             @ {valueLabel}
+           </span>
+        </div>
+      </div>
+
       <div className="text-right shrink-0">
-        <p className="text-sm font-bold tabular-nums">{typeof value === 'number' ? value.toLocaleString() : value}</p>
-        <p className="text-[9px] text-muted-foreground">{valueLabel}</p>
+        <div className="flex flex-col items-end leading-tight">
+          <span className={`text-[15px] font-black tabular-nums ${
+            entry.rank === 1 ? 'text-amber-600' : entry.isMe ? 'text-indigo-600' : 'text-slate-800'
+          }`}>
+            {typeof value === 'number' ? value.toLocaleString() : value}
+          </span>
+          <span className="text-[7px] font-black uppercase tracking-widest text-slate-300 mt-0.5 leading-none">{valueLabel}</span>
+        </div>
       </div>
     </div>
   );
@@ -247,80 +304,129 @@ export function LeaderboardPanel() {
   );
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold flex items-center gap-2">
-          <Trophy className="w-5 h-5 text-amber-500" />
-          Leaderboard
-        </h1>
+    <div className="space-y-6 pb-10">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border bg-card">
+        <div>
+          <h1 className="text-xl font-bold flex items-center gap-2">
+            <Trophy className="w-5 h-5 text-amber-500" />
+            Performance Leaderboard
+          </h1>
+          <p className="text-muted-foreground text-xs mt-0.5 font-medium">Competition & Skills Tracking</p>
+        </div>
+        
         {canManagePoints && (
-          <Button size="sm" className="gap-1" onClick={() => navigate('/grouping/management/points')}>
-            <Plus className="w-3 h-3" /> Point Management
+          <Button 
+            variant="default"
+            size="sm" 
+            className="gap-2 h-9 px-4 rounded-lg font-semibold" 
+            onClick={() => navigate('/grouping/management/points')}
+          >
+            <Plus className="w-4 h-4" /> Point Management
           </Button>
         )}
       </div>
 
       {!activeSession && (
-        <Card><CardContent className="p-4 text-center text-muted-foreground text-sm">No active session. Leaderboard data requires an active session.</CardContent></Card>
+        <div className="bg-amber-50/50 border border-amber-100 rounded-lg p-3 flex items-center gap-3">
+          <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+          <p className="text-amber-800 text-[11px] font-medium uppercase tracking-tight">Waiting for active session</p>
+        </div>
       )}
 
       <Tabs defaultValue="xp" className="w-full">
-        <TabsList className="w-full grid grid-cols-5">
-          <TabsTrigger value="xp" className="text-xs gap-1"><Zap className="w-3 h-3" /> XP Rank</TabsTrigger>
-          <TabsTrigger value="ps" className="text-xs gap-1"><Target className="w-3 h-3" /> PS</TabsTrigger>
-          <TabsTrigger value="activity" className="text-xs gap-1"><Star className="w-3 h-3" /> Activity</TabsTrigger>
-          <TabsTrigger value="golden" className="text-xs gap-1"><Coins className="w-3 h-3 text-amber-500" /> Golden Points</TabsTrigger>
-          <TabsTrigger value="skill" className="text-xs gap-1"><Flame className="w-3 h-3" /> Skill-wise</TabsTrigger>
+        <TabsList className="w-full h-auto p-1 bg-muted/40 rounded-xl border border-border/50 grid grid-cols-2 lg:grid-cols-5 gap-1 mb-6">
+          <TabsTrigger value="xp" className="py-1.5 rounded-lg text-xs font-semibold gap-2">
+            <Zap className="w-3.5 h-3.5" /> XP
+          </TabsTrigger>
+          <TabsTrigger value="ps" className="py-1.5 rounded-lg text-xs font-semibold gap-2">
+            <Target className="w-3.5 h-3.5" /> PS Score
+          </TabsTrigger>
+          <TabsTrigger value="activity" className="py-1.5 rounded-lg text-xs font-semibold gap-2">
+            <Star className="w-3.5 h-3.5" /> Activity
+          </TabsTrigger>
+          <TabsTrigger value="golden" className="py-1.5 rounded-lg text-xs font-semibold gap-2">
+            <Coins className="w-3.5 h-3.5" /> Golden
+          </TabsTrigger>
+          <TabsTrigger value="skill" className="py-1.5 rounded-lg text-xs font-semibold gap-2">
+            <Flame className="w-3.5 h-3.5" /> Skills
+          </TabsTrigger>
         </TabsList>
 
         {/* XP Rank */}
-        <TabsContent value="xp">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Zap className="w-4 h-4 text-primary" /> XP Leaderboard
-                <Badge variant="secondary" className="ml-auto text-xs">{xpRanked.length}</Badge>
-              </CardTitle>
+        <TabsContent value="xp" className="mt-0 focus-visible:outline-none">
+          <Card className="rounded-xl border-border/50 shadow-sm overflow-hidden">
+            <CardHeader className="py-3 px-5 bg-muted/20 border-b border-border/50">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-primary" /> Overall Mastery
+                </CardTitle>
+                <Badge variant="outline" className="text-[10px] font-medium px-2 rounded-full border-primary/20 text-primary">
+                  {xpRanked.length} Members
+                </Badge>
+              </div>
             </CardHeader>
             <CardContent className="p-0">
-              {xpRanked.length === 0 ? emptyState('No XP earned yet.') : (
-                <ScrollArea className="h-[450px]">
-                  <div className="divide-y">
+              {xpRanked.length === 0 ? emptyState('No data available.') : (
+                <ScrollArea className="h-[480px]">
+                  <div className="divide-y divide-border/30">
                     {xpRanked.map(m => (
                       <div
                         key={m.user_id}
-                        className={`flex items-center gap-3 px-4 py-3 border transition-colors cursor-pointer ${getRankBg(m.rank, m.isMe)}`}
+                        className={`flex items-center gap-4 px-5 py-3 transition-colors cursor-pointer ${
+                          m.isMe ? 'bg-primary/5' : 'hover:bg-muted/50'
+                        }`}
                         onClick={() => navigate(`/grouping/me?userId=${m.user_id}`)}
                       >
-                        <div className="w-6 flex justify-center shrink-0">{getRankIcon(m.rank)}</div>
+                         <div className="w-8 flex justify-center shrink-0 items-center">
+                          {getRankIcon(m.rank)}
+                        </div>
+                        
+                        <div className="shrink-0 relative">
+                          <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold border ${
+                            m.isMe ? 'bg-primary text-white border-primary/20' : 'bg-muted text-muted-foreground border-border'
+                          }`}>
+                            {m.name.charAt(0).toUpperCase()}
+                          </div>
+                          {m.streak > 0 && (
+                            <div className="absolute -bottom-1 -right-1 bg-amber-500 text-white rounded-full px-1 py-0.5 text-[7px] font-bold border border-background">
+                              <Flame className="w-2.5 h-2.5 fill-current inline mr-0.5" />{m.streak}
+                            </div>
+                          )}
+                        </div>
+
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-medium truncate">
-                              {m.name}{m.isMe && <span className="text-xs text-primary ml-1">(You)</span>}
+                          <div className="flex items-center gap-1.5">
+                            <p className={`text-sm font-semibold truncate ${m.isMe ? 'text-primary' : 'text-foreground'}`}>
+                              {m.name}
                             </p>
-                            {m.streak > 0 && (
-                              <Badge variant="outline" className="text-[9px] px-1 py-0 gap-0.5 border-amber-500/30 text-amber-600">
-                                <Flame className="w-2.5 h-2.5" />{m.streak}w
-                              </Badge>
+                            {m.isMe && (
+                              <Badge className="bg-primary/10 text-primary border-none text-[9px] font-medium h-4 px-1.5">YOU</Badge>
                             )}
                           </div>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Badge variant="outline" className={`text-[9px] px-1.5 py-0 ${LEVEL_COLORS[m.level - 1]}`}>
-                              Lv.{m.level} {LEVEL_NAMES[m.level - 1]}
-                            </Badge>
+                          <div className="flex items-center gap-3 mt-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className={`text-[10px] font-semibold uppercase tracking-tight ${LEVEL_COLORS[m.level - 1]}`}>
+                                {LEVEL_NAMES[m.level - 1]} <span className="opacity-50 ml-1 text-[9px]">Lv.{m.level}</span>
+                              </span>
+                            </div>
                             <div className="flex-1 max-w-[80px]">
-                              <Progress value={getXpProgress(m.xp, m.level)} className="h-1" />
+                              <Progress value={getXpProgress(m.xp, m.level)} className="h-1 bg-muted" indicatorClassName={LEVEL_COLORS[m.level - 1].replace('text-', 'bg-')} />
                             </div>
                           </div>
                         </div>
-                        <div className="flex gap-4 text-right shrink-0">
-                          <div>
-                            <p className="text-sm font-bold tabular-nums text-amber-600">{activityPointsMap.get(m.user_id) || 0}</p>
-                            <p className="text-[9px] text-muted-foreground">Points</p>
+
+                        <div className="flex items-center gap-5 text-right shrink-0">
+                          <div className="flex flex-col items-end min-w-[50px]">
+                            <span className="text-xs font-bold tabular-nums text-foreground/80">
+                              {(activityPointsMap.get(m.user_id) || 0).toLocaleString()}
+                            </span>
+                             <span className="text-[8px] uppercase font-medium text-muted-foreground/60 tracking-wider">PTS</span>
                           </div>
-                          <div>
-                            <p className="text-sm font-bold tabular-nums text-primary">{m.xp.toLocaleString()}</p>
-                            <p className="text-[9px] text-muted-foreground">XP</p>
+                          <div className="flex flex-col items-end min-w-[60px]">
+                            <span className={`text-sm font-bold tabular-nums ${m.isMe ? 'text-primary' : 'text-foreground'}`}>
+                              {m.xp.toLocaleString()}
+                            </span>
+                            <span className="text-[8px] uppercase font-medium text-muted-foreground/60 tracking-wider">Mastery XP</span>
                           </div>
                         </div>
                       </div>
@@ -333,19 +439,18 @@ export function LeaderboardPanel() {
         </TabsContent>
 
         {/* PS Points Rank */}
-        <TabsContent value="ps">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Target className="w-4 h-4 text-emerald-500" /> PS Points Leaderboard
-                <Badge variant="secondary" className="ml-auto text-xs">{psRanked.length}</Badge>
+        <TabsContent value="ps" className="mt-0 focus-visible:outline-none">
+          <Card className="rounded-xl border-border/50 shadow-sm overflow-hidden">
+             <CardHeader className="py-3 px-5 bg-muted/20 border-b border-border/50">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Target className="w-4 h-4 text-emerald-500" /> Potency Progress
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              {psRanked.length === 0 ? emptyState('No PS points earned yet.') : (
-                <ScrollArea className="h-[450px]">
-                  <div className="divide-y">
-                    {psRanked.map(e => renderRankRow(e, 'Points', e.points))}
+              {psRanked.length === 0 ? emptyState('No measurements yet.') : (
+                <ScrollArea className="h-[480px]">
+                  <div className="divide-y divide-border/30">
+                    {psRanked.map(e => renderRankRow(e, 'POINTS', e.points, <Target className="w-2.5 h-2.5" />))}
                   </div>
                 </ScrollArea>
               )}
@@ -354,19 +459,18 @@ export function LeaderboardPanel() {
         </TabsContent>
 
         {/* Golden Points Rank */}
-        <TabsContent value="golden">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Coins className="w-4 h-4 text-amber-500" /> Golden Points Leaderboard
-                <Badge variant="secondary" className="ml-auto text-xs">{pointsRanked.length}</Badge>
+        <TabsContent value="golden" className="mt-0 focus-visible:outline-none">
+          <Card className="rounded-xl border-border/50 shadow-sm overflow-hidden">
+            <CardHeader className="py-3 px-5 bg-muted/20 border-b border-border/50">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Coins className="w-4 h-4 text-yellow-500" /> Golden Reserves
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              {pointsRanked.length === 0 ? emptyState('No golden points earned yet.') : (
-                <ScrollArea className="h-[450px]">
-                  <div className="divide-y">
-                    {pointsRanked.map(e => renderRankRow(e, 'Points', e.points))}
+              {pointsRanked.length === 0 ? emptyState('No rewards yet.') : (
+                <ScrollArea className="h-[480px]">
+                  <div className="divide-y divide-border/30">
+                    {pointsRanked.map(e => renderRankRow(e, 'GOLDEN', e.points, <Coins className="w-2.5 h-2.5" />))}
                   </div>
                 </ScrollArea>
               )}
@@ -375,19 +479,18 @@ export function LeaderboardPanel() {
         </TabsContent>
 
         {/* Activity Rank */}
-        <TabsContent value="activity">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Star className="w-4 h-4 text-amber-500" /> Activity Points Leaderboard
-                <Badge variant="secondary" className="ml-auto text-xs">{activityRanked.length}</Badge>
+        <TabsContent value="activity" className="mt-0 focus-visible:outline-none">
+          <Card className="rounded-xl border-border/50 shadow-sm overflow-hidden">
+             <CardHeader className="py-3 px-5 bg-muted/20 border-b border-border/50">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Star className="w-4 h-4 text-amber-500" /> Recent Contributions
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              {activityRanked.length === 0 ? emptyState('No activity points awarded yet.') : (
-                <ScrollArea className="h-[450px]">
-                  <div className="divide-y">
-                    {activityRanked.map(e => renderRankRow(e, 'Points', e.points))}
+              {activityRanked.length === 0 ? emptyState('Activity list is empty.') : (
+                <ScrollArea className="h-[480px]">
+                  <div className="divide-y divide-border/30">
+                    {activityRanked.map(e => renderRankRow(e, 'POINTS', e.points, <Star className="w-2.5 h-2.5" />))}
                   </div>
                 </ScrollArea>
               )}
@@ -396,30 +499,42 @@ export function LeaderboardPanel() {
         </TabsContent>
 
         {/* Skill-wise Rank */}
-        <TabsContent value="skill">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Flame className="w-4 h-4 text-orange-500" /> Skill-wise Challenge Rank
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {skillNames.length === 0 ? emptyState('No skill challenge completions yet.') : (
-                <>
-                  <Select value={selectedSkill || skillNames[0]} onValueChange={setSelectedSkill}>
-                    <SelectTrigger><SelectValue placeholder="Select skill" /></SelectTrigger>
+        <TabsContent value="skill" className="mt-0 focus-visible:outline-none">
+          <Card className="rounded-xl border-border/50 shadow-sm overflow-hidden">
+            <CardHeader className="py-3 px-5 bg-muted/20 border-b border-border/50">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2 text-orange-500">
+                  <Flame className="w-4 h-4" /> Skill Specializations
+                </CardTitle>
+                
+                {availableSkills.length > 0 && (
+                  <Select value={currentSkill} onValueChange={setSelectedSkill}>
+                    <SelectTrigger className="w-full sm:w-[200px] h-8 text-[11px] font-semibold rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <Flame className="w-3.5 h-3.5 text-orange-500" />
+                        <SelectValue placeholder="Select Skill" />
+                      </div>
+                    </SelectTrigger>
                     <SelectContent>
-                      {skillNames.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                      {availableSkills.map(s => (
+                        <SelectItem key={s} value={s} className="text-[11px] font-semibold">
+                          {s.toUpperCase()}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
-                  <ScrollArea className="h-[400px]">
-                    <div className="divide-y">
-                      {(skillWiseRanked[selectedSkill || skillNames[0]] || []).map(e =>
-                        renderRankRow(e, 'XP', e.xp)
-                      )}
-                    </div>
-                  </ScrollArea>
-                </>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              {availableSkills.length === 0 ? emptyState('No active skills.') : (
+                <ScrollArea className="h-[440px]">
+                  <div className="divide-y divide-border/30">
+                    {(skillWiseRanked[currentSkill] || []).map(e =>
+                      renderRankRow(e, 'SKILL XP', e.xp, <Flame className="w-2.5 h-2.5" />)
+                    )}
+                  </div>
+                </ScrollArea>
               )}
             </CardContent>
           </Card>
