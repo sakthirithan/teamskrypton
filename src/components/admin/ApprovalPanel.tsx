@@ -69,28 +69,15 @@ export function ApprovalPanel() {
     setProcessingId(request.id);
 
     try {
-      const { error } = await supabase.auth.signUp({
-        email: request.email,
-        password: request.password_hash,
-        options: {
-          data: {
-            full_name: request.full_name,
-            department: request.department,
-            role: request.requested_role,
-          },
-          emailRedirectTo: `${window.location.origin}/`
-        }
+      // Use secure server-side edge function for approval.
+      // This avoids handling raw passwords on the client and centralizes
+      // user creation, profile/role assignment, and status updates.
+      const { data, error } = await supabase.functions.invoke('approve-registration', {
+        body: { requestId: request.id }
       });
 
       if (error) throw error;
-
-      await supabase
-        .from('registration_requests')
-        .update({
-          status: 'approved',
-          reviewed_at: new Date().toISOString()
-        })
-        .eq('id', request.id);
+      if (data?.error) throw new Error(data.error);
 
       // non-blocking email
       sendNotificationEmail(
