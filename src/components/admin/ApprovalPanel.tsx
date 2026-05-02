@@ -28,7 +28,7 @@ export function ApprovalPanel() {
     setIsLoading(true);
     const { data, error } = await supabase
       .from('registration_requests')
-      .select('*')
+      .select('id, full_name, email, department, requested_role, status, created_at')
       .eq('status', 'pending')
       .order('created_at', { ascending: true });
 
