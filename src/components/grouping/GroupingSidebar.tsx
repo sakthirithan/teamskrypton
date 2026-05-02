@@ -23,6 +23,7 @@ import {
   PinOff,
   Send,
   ListChecks,
+  Coins,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -302,6 +303,18 @@ export function GroupingSidebar() {
                   >
                     <TrendingUp className="h-4 w-4 shrink-0" />
                     {!collapsed && <span>Leaderboard</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isActive('/grouping/marketplace')}>
+                  <NavLink
+                    to="/grouping/marketplace"
+                    className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-sidebar-accent"
+                    activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                  >
+                    <Coins className="h-4 w-4 shrink-0 text-yellow-500" />
+                    {!collapsed && <span>GP Marketplace</span>}
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
