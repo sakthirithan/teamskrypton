@@ -23,11 +23,11 @@ export const PointsDisplay = memo(function PointsDisplay({
   compact = false,
 }: PointsDisplayProps) {
   const { user } = useAuth();
-  const { getUserPoints, getUserHistory, isTL } = useUserPoints();
+  const { getUserPoints, getUserHistory, canManagePoints } = useUserPoints();
   
   const targetUserId = userId || user?.id;
   const points = getUserPoints(targetUserId);
-  const history = showHistory && isTL ? getUserHistory(targetUserId || '') : [];
+  const history = showHistory && canManagePoints ? getUserHistory(targetUserId || '') : [];
 
   if (compact) {
     return (

@@ -196,9 +196,16 @@ export function SkillChallengesPanel({ sessionId }: SkillChallengesPanelProps) {
 
       const memberName = profiles.find(p => p.user_id === completionUserId)?.full_name || 'A team member';
 
-      const notifications = [
+      const notifications: Array<{
+        recipient_id: string;
+        title: string;
+        message: string;
+        type: string;
+        session_id: string;
+      }> = [
         {
-          user_id: completionUserId,
+          recipient_id: completionUserId,
+          title: 'Skill Challenge Approved',
           message: `Your Skill Challenge "${challengeTitle}" was approved! (+${challengeXp} XP${goldenPoints > 0 ? `, +${goldenPoints} Golden Points` : ''})`,
           type: 'challenge',
           session_id: sessionId,
@@ -207,7 +214,8 @@ export function SkillChallengesPanel({ sessionId }: SkillChallengesPanelProps) {
 
       if (user && user.id !== completionUserId && goldenPoints > 0) {
         notifications.push({
-          user_id: user.id,
+          recipient_id: user.id,
+          title: 'Golden Points Awarded',
           message: `You automatically awarded +${goldenPoints} Golden Points & +${challengeXp} XP to ${memberName} for "${challengeTitle}".`,
           type: 'challenge',
           session_id: sessionId,
