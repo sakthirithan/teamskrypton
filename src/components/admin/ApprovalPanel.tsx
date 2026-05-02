@@ -15,7 +15,6 @@ interface RegistrationRequest {
   requested_role: KryptonRole;
   status: 'pending' | 'approved' | 'rejected';
   created_at: string;
-  password_hash: string;
 }
 
 export function ApprovalPanel() {
