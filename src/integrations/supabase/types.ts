@@ -253,6 +253,7 @@ export type Database = {
       }
       global_todos: {
         Row: {
+          assigned_to: string | null
           created_at: string
           created_by: string
           description: string | null
@@ -266,6 +267,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          assigned_to?: string | null
           created_at?: string
           created_by: string
           description?: string | null
@@ -279,6 +281,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          assigned_to?: string | null
           created_at?: string
           created_by?: string
           description?: string | null
@@ -491,7 +494,7 @@ export type Database = {
           is_read?: boolean
           message?: string | null
           recipient_id: string
-          sender_id: string
+          sender_id?: string
           session_id?: string | null
           title: string
           type?: string
@@ -2124,8 +2127,16 @@ export type Database = {
       is_captain_or_vice: { Args: { _user_id: string }; Returns: boolean }
       is_guest_expired: { Args: { _user_id: string }; Returns: boolean }
       is_guest_user: { Args: { _user_id: string }; Returns: boolean }
+      is_lead_for_user: {
+        Args: { _lead_user_id: string; _target_user_id: string }
+        Returns: boolean
+      }
       is_leadership: { Args: { _user_id: string }; Returns: boolean }
       is_primary_test_user: { Args: { _user_id: string }; Returns: boolean }
+      is_project_lead: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_team_member_only: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
