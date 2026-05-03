@@ -25,7 +25,7 @@ export default function GroupingMarketplace() {
   const [viewerId, setViewerId] = useState<string | null>(null);
   const [rentTarget, setRentTarget] = useState<MarketplaceMaterial | null>(null);
 
-  const { materials, isLoading, myUploads, myLibrary, removeMaterial } = useMarketplace(search);
+  const { materials, isLoading, myUploads, myLibrary, removeMaterial, updateMaterial } = useMarketplace(search);
   const balance = user ? getUserPoints(user.id) : 0;
 
   const filtered = useMemo(() => {
