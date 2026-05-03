@@ -314,7 +314,7 @@ export function GroupingSidebar() {
                     activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
                   >
                     <Coins className="h-4 w-4 shrink-0 text-yellow-500" />
-                    {!collapsed && <span>GP Marketplace</span>}
+                    {!collapsed && <span>GP Redeem</span>}
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>

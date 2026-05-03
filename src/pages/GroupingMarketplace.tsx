@@ -49,7 +49,7 @@ export default function GroupingMarketplace() {
           <div>
             <h1 className="text-xl md:text-2xl font-bold flex items-center gap-2">
               <Coins className="w-6 h-6 text-yellow-500" />
-              Golden Marketplace
+              GP Redeem
             </h1>
             <p className="text-xs text-muted-foreground">
               Rent study materials with Golden Points · Uploaders earn 90% per sale · 10% to team treasury
