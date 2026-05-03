@@ -25,7 +25,7 @@ export default function GroupingMarketplace() {
   const [viewerId, setViewerId] = useState<string | null>(null);
   const [rentTarget, setRentTarget] = useState<MarketplaceMaterial | null>(null);
 
-  const { materials, isLoading, myUploads, myLibrary, removeMaterial } = useMarketplace(search);
+  const { materials, isLoading, myUploads, myLibrary, removeMaterial, updateMaterial } = useMarketplace(search);
   const balance = user ? getUserPoints(user.id) : 0;
 
   const filtered = useMemo(() => {
@@ -127,11 +127,15 @@ export default function GroupingMarketplace() {
                     const m = libraryMaterialMap.get(p.material_id);
                     if (!m) return null;
                     return (
-                      <div key={p.id} className="relative">
-                        <MaterialCard material={m} hasAccess onOpen={() => setViewerId(m.id)} />
-                        <Badge className="absolute top-2 right-2 text-[10px]" variant="secondary">
-                          Until {new Date(p.expires_at).toLocaleDateString()}
-                        </Badge>
+                      <div key={p.id} className="relative space-y-2">
+                        <MaterialCard
+                          material={m}
+                          hasAccess
+                          onOpen={() => setViewerId(m.id)}
+                          onRent={() => setRentTarget(m)}
+                          onExtend={() => setRentTarget(m)}
+                          rentalExpiresAt={p.expires_at}
+                        />
                       </div>
                     );
                   })}
@@ -153,6 +157,10 @@ export default function GroupingMarketplace() {
                       isOwner
                       onOpen={() => setViewerId(m.id)}
                       onEdit={() => { setEditing(m); setUploadOpen(true); }}
+                      onTogglePause={() => {
+                        const next = m.status === 'paused' ? 'active' : 'paused';
+                        updateMaterial.mutate({ id: m.id, status: next as any });
+                      }}
                       onDelete={() => {
                         if (confirm('Remove this material? Existing renters keep access until expiry.')) {
                           removeMaterial.mutate(m.id);

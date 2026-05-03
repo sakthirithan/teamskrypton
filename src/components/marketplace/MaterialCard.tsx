@@ -1,17 +1,21 @@
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Coins, Eye, Star, Edit, Trash2, Sparkles } from 'lucide-react';
+import { Coins, Eye, Star, Edit, Trash2, Sparkles, Pause, Play, RefreshCw } from 'lucide-react';
 import type { MarketplaceMaterial } from '@/hooks/useMarketplace';
+import { RentalCountdown } from './RentalCountdown';
 
 interface Props {
   material: MarketplaceMaterial;
   isOwner?: boolean;
   hasAccess?: boolean;
+  rentalExpiresAt?: string;
   onOpen: () => void;
   onRent?: () => void;
+  onExtend?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  onTogglePause?: () => void;
 }
 
 const TYPE_COLORS: Record<string, string> = {
@@ -23,9 +27,23 @@ const TYPE_COLORS: Record<string, string> = {
   image: 'bg-purple-500/10 text-purple-700',
 };
 
-export function MaterialCard({ material, isOwner, hasAccess, onOpen, onRent, onEdit, onDelete }: Props) {
+export function MaterialCard({
+  material,
+  isOwner,
+  hasAccess,
+  rentalExpiresAt,
+  onOpen,
+  onRent,
+  onExtend,
+  onEdit,
+  onDelete,
+  onTogglePause,
+}: Props) {
   const featured = material.featured_until && new Date(material.featured_until) > new Date();
   const avg = material.rating_count ? (material.rating_sum / material.rating_count).toFixed(1) : null;
+  const expired = rentalExpiresAt ? new Date(rentalExpiresAt).getTime() <= Date.now() : false;
+  const accessible = hasAccess && !expired;
+
   return (
     <Card className="p-4 flex flex-col gap-3 glass-card hover:shadow-lg transition-shadow">
       <div className="flex items-start justify-between gap-2">
@@ -42,6 +60,9 @@ export function MaterialCard({ material, isOwner, hasAccess, onOpen, onRent, onE
             {material.domain && (
               <Badge variant="outline" className="text-[10px]">{material.domain}</Badge>
             )}
+            {isOwner && material.status === 'paused' && (
+              <Badge variant="secondary" className="text-[10px] bg-amber-500/15 text-amber-700">Paused</Badge>
+            )}
           </div>
           <h3 className="text-sm font-semibold mt-2 line-clamp-2">{material.title}</h3>
           {material.description && (
@@ -56,6 +77,11 @@ export function MaterialCard({ material, isOwner, hasAccess, onOpen, onRent, onE
           ))}
         </div>
       )}
+      {rentalExpiresAt && (
+        <div className="rounded-md border bg-muted/30 px-2.5 py-1.5">
+          <RentalCountdown expiresAt={rentalExpiresAt} />
+        </div>
+      )}
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span className="flex items-center gap-1">
           <Eye className="w-3 h-3" />{material.view_count}
@@ -67,22 +93,34 @@ export function MaterialCard({ material, isOwner, hasAccess, onOpen, onRent, onE
           </span>
         )}
       </div>
-      <div className="flex items-center justify-between border-t pt-3">
+      <div className="flex items-center justify-between border-t pt-3 gap-2 flex-wrap">
         <div className="flex items-center gap-1 font-bold text-yellow-600">
           <Coins className="w-4 h-4" />
           {material.price_per_day}<span className="text-[10px] font-normal text-muted-foreground">/day</span>
         </div>
-        <div className="flex gap-1">
+        <div className="flex gap-1 flex-wrap justify-end">
           {isOwner ? (
             <>
-              <Button size="sm" variant="ghost" onClick={onEdit}><Edit className="w-3.5 h-3.5" /></Button>
-              <Button size="sm" variant="ghost" onClick={onDelete}><Trash2 className="w-3.5 h-3.5 text-destructive" /></Button>
+              {onTogglePause && (
+                <Button size="sm" variant="ghost" onClick={onTogglePause} title={material.status === 'paused' ? 'Resume listing' : 'Pause listing'}>
+                  {material.status === 'paused' ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
+                </Button>
+              )}
+              <Button size="sm" variant="ghost" onClick={onEdit} title="Edit"><Edit className="w-3.5 h-3.5" /></Button>
+              <Button size="sm" variant="ghost" onClick={onDelete} title="Delete"><Trash2 className="w-3.5 h-3.5 text-destructive" /></Button>
               <Button size="sm" variant="outline" onClick={onOpen}>Preview</Button>
             </>
-          ) : hasAccess ? (
-            <Button size="sm" onClick={onOpen}>Open</Button>
+          ) : accessible ? (
+            <>
+              {onExtend && (
+                <Button size="sm" variant="outline" onClick={onExtend} title="Extend rental">
+                  <RefreshCw className="w-3.5 h-3.5 mr-1" /> Extend
+                </Button>
+              )}
+              <Button size="sm" onClick={onOpen}>Open</Button>
+            </>
           ) : (
-            <Button size="sm" onClick={onRent}>Rent</Button>
+            <Button size="sm" onClick={onRent}>{expired ? 'Rent again' : 'Rent'}</Button>
           )}
         </div>
       </div>
