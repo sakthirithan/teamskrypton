@@ -4,6 +4,7 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 Deno.serve(async (req) => {
@@ -13,33 +14,35 @@ Deno.serve(async (req) => {
     if (!authHeader?.startsWith("Bearer ")) return j({ error: "Unauthorized" }, 401);
     const token = authHeader.slice(7);
 
-    const userClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } },
-    );
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+    const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+    const userClient = createClient(SUPABASE_URL, ANON, {
+      global: { headers: { Authorization: authHeader } },
+    });
     const { data: claims, error: ce } = await userClient.auth.getUser(token);
     if (ce || !claims?.user) return j({ error: "Unauthorized" }, 401);
     const userId = claims.user.id;
 
-    const body = await req.json();
+    let body: any = {};
+    try { body = await req.json(); } catch (_) {}
     const materialId = String(body?.materialId || "");
     if (!materialId) return j({ error: "materialId required" }, 400);
 
-    const admin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
+    const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
 
     const { data: mat, error: me } = await admin
       .from("marketplace_materials")
-      .select("id, uploader_id, source_url, material_type, title, status")
+      .select("id, uploader_id, source_url, material_type, title, status, view_count")
       .eq("id", materialId)
-      .single();
-    if (me || !mat) return j({ error: "Not found" }, 404);
+      .maybeSingle();
+    if (me) return j({ error: me.message }, 500);
+    if (!mat) return j({ error: "Material not found" }, 404);
 
     let allowed = mat.uploader_id === userId;
     let expiresAt: string | null = null;
+
     if (!allowed) {
       const { data: rental } = await admin
         .from("marketplace_purchases")
@@ -47,6 +50,8 @@ Deno.serve(async (req) => {
         .eq("material_id", materialId)
         .eq("buyer_id", userId)
         .eq("status", "active")
+        .order("expires_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
       if (rental && new Date(rental.expires_at) > new Date()) {
         allowed = true;
@@ -54,7 +59,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Leadership view
     if (!allowed) {
       const { data: lead } = await admin
         .from("user_roles")
@@ -66,17 +70,22 @@ Deno.serve(async (req) => {
       }
     }
 
-    if (!allowed) return j({ error: "No active rental" }, 403);
+    if (!allowed) return j({ error: "No active rental. Please rent this material to view it." }, 403);
 
-    // Log + bump views
-    await admin.from("marketplace_access_log").insert({
-      material_id: materialId,
-      user_id: userId,
-      action: "view",
-    });
-    await admin.rpc("noop").catch(() => {});
-    const { data: cur } = await admin.from("marketplace_materials").select("view_count").eq("id", materialId).single();
-    await admin.from("marketplace_materials").update({ view_count: (cur?.view_count ?? 0) + 1 }).eq("id", materialId);
+    // Best-effort logging + view bump
+    try {
+      await admin.from("marketplace_access_log").insert({
+        material_id: materialId,
+        user_id: userId,
+        action: "view",
+      });
+    } catch (_) {}
+    try {
+      await admin
+        .from("marketplace_materials")
+        .update({ view_count: (mat.view_count ?? 0) + 1 })
+        .eq("id", materialId);
+    } catch (_) {}
 
     return j({
       ok: true,
@@ -85,7 +94,8 @@ Deno.serve(async (req) => {
       source_url: mat.source_url,
       expires_at: expiresAt,
     });
-  } catch (e) {
+  } catch (e: any) {
+    console.error("marketplace-access error", e);
     return j({ error: String(e?.message || e) }, 500);
   }
 });

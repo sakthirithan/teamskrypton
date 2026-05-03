@@ -45,34 +45,46 @@ export default function GroupingMarketplace() {
   return (
     <GroupingLayout>
       <div className="w-full h-full p-4 md:p-6 flex flex-col gap-4 overflow-hidden">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          <div>
-            <h1 className="text-xl md:text-2xl font-bold flex items-center gap-2">
-              <Coins className="w-6 h-6 text-yellow-500" />
-              GP Redeem
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              Rent study materials with Golden Points · Uploaders earn 90% per sale · 10% to team treasury
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Card className="px-3 py-2 flex items-center gap-2">
-              <Coins className="w-4 h-4 text-yellow-500" />
-              <span className="text-sm font-bold">{balance}</span>
-              <span className="text-[10px] text-muted-foreground">GP</span>
-            </Card>
-            <Button onClick={() => { setEditing(null); setUploadOpen(true); }}>
-              <Plus className="w-4 h-4 mr-1" /> Upload
-            </Button>
+        {/* Hero header */}
+        <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-yellow-500/10 via-amber-500/5 to-orange-500/10 p-5">
+          <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-yellow-500/10 blur-3xl" />
+          <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-400 to-amber-600 flex items-center justify-center shadow-md">
+                <Coins className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl md:text-2xl font-bold tracking-tight">GP Redeem</h1>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Rent study materials with Golden Points · Uploaders keep 90% · 10% to treasury
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="px-4 py-2 rounded-xl bg-background/80 backdrop-blur border border-border/60 flex items-center gap-2 shadow-sm">
+                <Coins className="w-4 h-4 text-yellow-500" />
+                <div className="flex flex-col leading-none">
+                  <span className="text-base font-bold tabular-nums">{balance}</span>
+                  <span className="text-[9px] text-muted-foreground uppercase tracking-wider">Your GP</span>
+                </div>
+              </div>
+              <Button onClick={() => { setEditing(null); setUploadOpen(true); }} className="gap-1.5 h-10">
+                <Plus className="w-4 h-4" /> Upload Material
+              </Button>
+            </div>
           </div>
         </div>
 
         <Tabs defaultValue="browse" className="flex-1 flex flex-col overflow-hidden">
-          <TabsList className="self-start">
-            <TabsTrigger value="browse"><Search className="w-3.5 h-3.5 mr-1" />Browse</TabsTrigger>
-            <TabsTrigger value="library"><Library className="w-3.5 h-3.5 mr-1" />My Library ({myLibrary.length})</TabsTrigger>
-            <TabsTrigger value="uploads"><UploadIcon className="w-3.5 h-3.5 mr-1" />My Uploads ({myUploads.length})</TabsTrigger>
-            <TabsTrigger value="earnings"><TrendingUp className="w-3.5 h-3.5 mr-1" />Earnings</TabsTrigger>
+          <TabsList className="self-start h-9">
+            <TabsTrigger value="browse" className="text-xs"><Search className="w-3.5 h-3.5 mr-1.5" />Browse</TabsTrigger>
+            <TabsTrigger value="library" className="text-xs"><Library className="w-3.5 h-3.5 mr-1.5" />My Library
+              {myLibrary.length > 0 && <Badge variant="secondary" className="ml-1.5 h-4 px-1.5 text-[9px]">{myLibrary.length}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="uploads" className="text-xs"><UploadIcon className="w-3.5 h-3.5 mr-1.5" />My Uploads
+              {myUploads.length > 0 && <Badge variant="secondary" className="ml-1.5 h-4 px-1.5 text-[9px]">{myUploads.length}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="earnings" className="text-xs"><TrendingUp className="w-3.5 h-3.5 mr-1.5" />Earnings</TabsTrigger>
           </TabsList>
 
           <TabsContent value="browse" className="flex-1 overflow-hidden mt-3">
