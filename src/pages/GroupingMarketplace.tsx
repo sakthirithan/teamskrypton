@@ -133,6 +133,7 @@ export default function GroupingMarketplace() {
                           hasAccess
                           onOpen={() => setViewerId(m.id)}
                           onRent={() => setRentTarget(m)}
+                          onExtend={() => setRentTarget(m)}
                           rentalExpiresAt={p.expires_at}
                         />
                       </div>
