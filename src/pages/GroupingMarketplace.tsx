@@ -127,11 +127,14 @@ export default function GroupingMarketplace() {
                     const m = libraryMaterialMap.get(p.material_id);
                     if (!m) return null;
                     return (
-                      <div key={p.id} className="relative">
-                        <MaterialCard material={m} hasAccess onOpen={() => setViewerId(m.id)} />
-                        <Badge className="absolute top-2 right-2 text-[10px]" variant="secondary">
-                          Until {new Date(p.expires_at).toLocaleDateString()}
-                        </Badge>
+                      <div key={p.id} className="relative space-y-2">
+                        <MaterialCard
+                          material={m}
+                          hasAccess
+                          onOpen={() => setViewerId(m.id)}
+                          onRent={() => setRentTarget(m)}
+                          rentalExpiresAt={p.expires_at}
+                        />
                       </div>
                     );
                   })}
