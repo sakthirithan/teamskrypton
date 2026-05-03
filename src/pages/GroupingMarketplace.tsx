@@ -157,6 +157,10 @@ export default function GroupingMarketplace() {
                       isOwner
                       onOpen={() => setViewerId(m.id)}
                       onEdit={() => { setEditing(m); setUploadOpen(true); }}
+                      onTogglePause={() => {
+                        const next = m.status === 'paused' ? 'active' : 'paused';
+                        updateMaterial.mutate({ id: m.id, status: next as any });
+                      }}
                       onDelete={() => {
                         if (confirm('Remove this material? Existing renters keep access until expiry.')) {
                           removeMaterial.mutate(m.id);
