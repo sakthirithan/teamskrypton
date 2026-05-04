@@ -13,25 +13,61 @@ import { MaterialCard } from '@/components/marketplace/MaterialCard';
 import { UploadMaterialDialog } from '@/components/marketplace/UploadMaterialDialog';
 import { PurchaseDialog } from '@/components/marketplace/PurchaseDialog';
 import { MaterialViewer } from '@/components/marketplace/MaterialViewer';
+import { ReviewDialog } from '@/components/marketplace/ReviewDialog';
+import { DeleteUploadDialog } from '@/components/marketplace/DeleteUploadDialog';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+} from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
+
+type SortMode = 'newest' | 'popular' | 'rating' | 'cheap' | 'featured';
 
 export default function GroupingMarketplace() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const { getUserPoints } = useUserPoints();
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
+  const [sort, setSort] = useState<SortMode>('newest');
   const [uploadOpen, setUploadOpen] = useState(false);
   const [editing, setEditing] = useState<MarketplaceMaterial | null>(null);
   const [viewerId, setViewerId] = useState<string | null>(null);
   const [rentTarget, setRentTarget] = useState<MarketplaceMaterial | null>(null);
+  const [reviewTarget, setReviewTarget] = useState<MarketplaceMaterial | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<MarketplaceMaterial | null>(null);
 
-  const { materials, isLoading, myUploads, myLibrary, removeMaterial, updateMaterial } = useMarketplace(search);
+  const {
+    materials, isLoading, myUploads, myLibrary, updateMaterial, openExternal,
+  } = useMarketplace(search);
   const balance = user ? getUserPoints(user.id) : 0;
 
   const filtered = useMemo(() => {
-    if (filterType === 'all') return materials;
-    return materials.filter((m) => m.material_type === filterType);
-  }, [materials, filterType]);
+    let list = filterType === 'all' ? materials : materials.filter((m) => m.material_type === filterType);
+    list = [...list];
+    switch (sort) {
+      case 'popular':
+        list.sort((a, b) => b.purchase_count - a.purchase_count); break;
+      case 'rating':
+        list.sort((a, b) => {
+          const ar = a.rating_count ? a.rating_sum / a.rating_count : 0;
+          const br = b.rating_count ? b.rating_sum / b.rating_count : 0;
+          return br - ar;
+        }); break;
+      case 'cheap':
+        list.sort((a, b) => a.price_per_day - b.price_per_day); break;
+      case 'featured':
+        list.sort((a, b) => {
+          const af = a.featured_until && new Date(a.featured_until) > new Date() ? 1 : 0;
+          const bf = b.featured_until && new Date(b.featured_until) > new Date() ? 1 : 0;
+          return bf - af;
+        }); break;
+      case 'newest':
+      default:
+        list.sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
+    }
+    return list;
+  }, [materials, filterType, sort]);
 
   const libraryMaterialMap = useMemo(() => {
     const map = new Map<string, MarketplaceMaterial>();
@@ -41,6 +77,11 @@ export default function GroupingMarketplace() {
   }, [materials, myUploads]);
 
   const accessibleIds = useMemo(() => new Set(myLibrary.map((p) => p.material_id)), [myLibrary]);
+
+  const handleOpenExternal = async (id: string) => {
+    try { await openExternal(id); }
+    catch (e: any) { toast({ variant: 'destructive', title: 'Cannot open', description: e.message }); }
+  };
 
   return (
     <GroupingLayout>
@@ -56,7 +97,7 @@ export default function GroupingMarketplace() {
               <div>
                 <h1 className="text-xl md:text-2xl font-bold tracking-tight">GP Redeem</h1>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Rent study materials with Golden Points · Uploaders keep 90% · 10% to treasury
+                  Rent study materials with Golden Points · Open inside the app or in a new tab · Uploaders keep 90%
                 </p>
               </div>
             </div>
@@ -90,6 +131,16 @@ export default function GroupingMarketplace() {
           <TabsContent value="browse" className="flex-1 overflow-hidden mt-3">
             <div className="flex flex-col md:flex-row gap-2 mb-3">
               <Input placeholder="Search title, description, keywords…" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <Select value={sort} onValueChange={(v) => setSort(v as SortMode)}>
+                <SelectTrigger className="w-full md:w-44"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">Newest first</SelectItem>
+                  <SelectItem value="popular">Most rented</SelectItem>
+                  <SelectItem value="rating">Top rated</SelectItem>
+                  <SelectItem value="cheap">Cheapest</SelectItem>
+                  <SelectItem value="featured">Featured first</SelectItem>
+                </SelectContent>
+              </Select>
               <div className="flex gap-1 flex-wrap">
                 {['all', 'pdf', 'drive', 'youtube', 'github', 'url', 'image'].map((t) => (
                   <Button
@@ -104,7 +155,7 @@ export default function GroupingMarketplace() {
                 ))}
               </div>
             </div>
-            <ScrollArea className="h-[calc(100vh-280px)]">
+            <ScrollArea className="h-[calc(100vh-320px)]">
               {isLoading ? (
                 <p className="text-sm text-muted-foreground p-8 text-center">Loading…</p>
               ) : filtered.length === 0 ? (
@@ -114,16 +165,21 @@ export default function GroupingMarketplace() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pr-3">
-                  {filtered.map((m) => (
-                    <MaterialCard
-                      key={m.id}
-                      material={m}
-                      isOwner={m.uploader_id === user?.id}
-                      hasAccess={accessibleIds.has(m.id) || m.uploader_id === user?.id}
-                      onOpen={() => setViewerId(m.id)}
-                      onRent={() => setRentTarget(m)}
-                    />
-                  ))}
+                  {filtered.map((m) => {
+                    const owned = m.uploader_id === user?.id;
+                    const access = accessibleIds.has(m.id) || owned;
+                    return (
+                      <MaterialCard
+                        key={m.id}
+                        material={m}
+                        isOwner={owned}
+                        hasAccess={access}
+                        onOpen={() => setViewerId(m.id)}
+                        onOpenExternal={access ? () => handleOpenExternal(m.id) : undefined}
+                        onRent={() => setRentTarget(m)}
+                      />
+                    );
+                  })}
                 </div>
               )}
             </ScrollArea>
@@ -139,16 +195,17 @@ export default function GroupingMarketplace() {
                     const m = libraryMaterialMap.get(p.material_id);
                     if (!m) return null;
                     return (
-                      <div key={p.id} className="relative space-y-2">
-                        <MaterialCard
-                          material={m}
-                          hasAccess
-                          onOpen={() => setViewerId(m.id)}
-                          onRent={() => setRentTarget(m)}
-                          onExtend={() => setRentTarget(m)}
-                          rentalExpiresAt={p.expires_at}
-                        />
-                      </div>
+                      <MaterialCard
+                        key={p.id}
+                        material={m}
+                        hasAccess
+                        onOpen={() => setViewerId(m.id)}
+                        onOpenExternal={() => handleOpenExternal(m.id)}
+                        onRent={() => setRentTarget(m)}
+                        onExtend={() => setRentTarget(m)}
+                        onReview={() => setReviewTarget(m)}
+                        rentalExpiresAt={p.expires_at}
+                      />
                     );
                   })}
                 </div>
@@ -168,16 +225,19 @@ export default function GroupingMarketplace() {
                       material={m}
                       isOwner
                       onOpen={() => setViewerId(m.id)}
+                      onOpenExternal={() => handleOpenExternal(m.id)}
                       onEdit={() => { setEditing(m); setUploadOpen(true); }}
                       onTogglePause={() => {
                         const next = m.status === 'paused' ? 'active' : 'paused';
                         updateMaterial.mutate({ id: m.id, status: next as any });
+                        toast({
+                          title: next === 'paused' ? 'Listing paused' : 'Listing resumed',
+                          description: next === 'paused'
+                            ? 'Hidden from Browse. Existing renters keep access until expiry.'
+                            : 'Visible in Browse again.',
+                        });
                       }}
-                      onDelete={() => {
-                        if (confirm('Remove this material? Existing renters keep access until expiry.')) {
-                          removeMaterial.mutate(m.id);
-                        }
-                      }}
+                      onDelete={() => setDeleteTarget(m)}
                     />
                   ))}
                 </div>
@@ -214,6 +274,12 @@ export default function GroupingMarketplace() {
       <UploadMaterialDialog open={uploadOpen} onOpenChange={(v) => { setUploadOpen(v); if (!v) setEditing(null); }} editing={editing} />
       <PurchaseDialog material={rentTarget} onClose={() => setRentTarget(null)} />
       <MaterialViewer materialId={viewerId} onClose={() => setViewerId(null)} />
+      <ReviewDialog
+        materialId={reviewTarget?.id || null}
+        materialTitle={reviewTarget?.title}
+        onClose={() => setReviewTarget(null)}
+      />
+      <DeleteUploadDialog material={deleteTarget} onClose={() => setDeleteTarget(null)} />
     </GroupingLayout>
   );
 }
