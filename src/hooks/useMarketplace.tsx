@@ -204,6 +204,57 @@ export function useMarketplace(searchQuery?: string) {
     return data as { title: string; description: string; keywords: string[] };
   };
 
+  // Reviews
+  const useMaterialReviews = (materialId: string | null) =>
+    useQuery({
+      queryKey: ['marketplace-reviews', materialId],
+      queryFn: async () => {
+        if (!materialId) return [];
+        const { data, error } = await supabase
+          .from('marketplace_reviews' as any)
+          .select('id, buyer_id, rating, comment, created_at')
+          .eq('material_id', materialId)
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        return data as any[];
+      },
+      enabled: !!materialId,
+    });
+
+  const submitReview = useMutation({
+    mutationFn: async ({ materialId, rating, comment }: { materialId: string; rating: number; comment?: string }) => {
+      const { error } = await supabase.from('marketplace_reviews' as any).upsert(
+        { material_id: materialId, buyer_id: user!.id, rating, comment: comment ?? null },
+        { onConflict: 'material_id,buyer_id' },
+      );
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['marketplace-reviews', vars.materialId] });
+      qc.invalidateQueries({ queryKey: ['marketplace-materials'] });
+      toast({ title: 'Thanks for your review!' });
+    },
+    onError: (e: any) => toast({ variant: 'destructive', title: 'Could not submit review', description: e.message }),
+  });
+
+  const hardDeleteMaterial = useMutation({
+    mutationFn: async (id: string) => {
+      const { count } = await supabase
+        .from('marketplace_purchases' as any)
+        .select('id', { count: 'exact', head: true })
+        .eq('material_id', id);
+      if ((count ?? 0) > 0) throw new Error('Has rental history — use Remove from listing instead.');
+      const { error } = await supabase.from('marketplace_materials' as any).delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['marketplace-my-uploads'] });
+      qc.invalidateQueries({ queryKey: ['marketplace-materials'] });
+      toast({ title: 'Material permanently deleted' });
+    },
+    onError: (e: any) => toast({ variant: 'destructive', title: 'Hard delete blocked', description: e.message }),
+  });
+
   return {
     materials: materials.data || [],
     isLoading: materials.isLoading,
@@ -212,8 +263,12 @@ export function useMarketplace(searchQuery?: string) {
     createMaterial,
     updateMaterial,
     removeMaterial,
+    hardDeleteMaterial,
     purchase,
     accessMaterial,
+    openExternal,
     suggestMeta,
+    useMaterialReviews,
+    submitReview,
   };
 }
