@@ -28,6 +28,7 @@ Deno.serve(async (req) => {
     let body: any = {};
     try { body = await req.json(); } catch (_) {}
     const materialId = String(body?.materialId || "");
+    const action = body?.action === "external_open" ? "external_open" : "view";
     if (!materialId) return j({ error: "materialId required" }, 400);
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
