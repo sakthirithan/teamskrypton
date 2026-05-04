@@ -28,6 +28,7 @@ Deno.serve(async (req) => {
     let body: any = {};
     try { body = await req.json(); } catch (_) {}
     const materialId = String(body?.materialId || "");
+    const action = body?.action === "external_open" ? "external_open" : "view";
     if (!materialId) return j({ error: "materialId required" }, 400);
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
@@ -72,20 +73,22 @@ Deno.serve(async (req) => {
 
     if (!allowed) return j({ error: "No active rental. Please rent this material to view it." }, 403);
 
-    // Best-effort logging + view bump
+    // Best-effort logging + view bump (only for inside-app views)
     try {
       await admin.from("marketplace_access_log").insert({
         material_id: materialId,
         user_id: userId,
-        action: "view",
+        action,
       });
     } catch (_) {}
-    try {
-      await admin
-        .from("marketplace_materials")
-        .update({ view_count: (mat.view_count ?? 0) + 1 })
-        .eq("id", materialId);
-    } catch (_) {}
+    if (action === "view") {
+      try {
+        await admin
+          .from("marketplace_materials")
+          .update({ view_count: (mat.view_count ?? 0) + 1 })
+          .eq("id", materialId);
+      } catch (_) {}
+    }
 
     return j({
       ok: true,
