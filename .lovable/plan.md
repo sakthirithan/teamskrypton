@@ -1,160 +1,119 @@
-# Golden Points Redeem — Study Material Marketplace
+## GP Redeem v3 — Full CRUD + Open-Anywhere + Power Features
 
-A new sidebar section where members **monetise their study materials** with Golden Points (GP). Uploaders set a daily price; buyers rent access for X days; content opens **inside an in-app secure viewer** with downloads, sharing and right-click blocked. This dramatically increases GP utility (currently only earned via challenges; never spent).
+Three intents in this request:
 
-## Concept Overview
+1. Make sure every uploader can fully CRUD their own uploads (with confirmations + UX polish).
+2. Let viewers choose between **"Open inside app"** (current secure viewer) and **"Open in new tab"** when they have valid access — so renters can use the link in a real browser if they need to.
+3. Add useful, well-thought-out features that increase the value of Golden Points and make the page feel like a real marketplace.
+
+---
+
+### 1. Full CRUD on My Uploads
+
+Currently uploaders can edit, pause/resume, soft-delete. We'll harden it:
+
+- **Delete confirmation dialog** (replacing native `confirm()`) with two clear options:
+  - *Remove from listing* — sets `status='removed'`; existing renters keep access until expiry. (current behavior, kept)
+  - *Hard delete* — only allowed when `purchase_count = 0` and no active rentals; permanently removes the row + access logs.
+- **Edit dialog enhancement**: allow editing **all** safe fields (title, description, keywords, domain, price/day, min/max days, discounts, thumbnail). Source URL stays locked once published (already enforced) to prevent bait-and-switch on existing renters.
+- **Inline status toggle** with a tiny toast explaining the effect ("Paused — hidden from Browse, existing renters still have access").
+- **Bulk actions in My Uploads** (when more than 1 upload): Pause all / Resume all / Select-and-delete.
+- **Upload validation**: block duplicate `source_url` for the same uploader (friendly error).
+
+### 2. Open inside vs. Open in new tab
+
+Renters/owners with valid access get **two buttons** on accessible cards and inside the viewer header:
+
+- **Open inside app** — current secure `MaterialViewer` (sandbox iframe, watermark, blocked downloads/right-click, auto-close on expiry). Default for PDF/Drive/YouTube/image/url.
+- **Go to web** — opens the real `source_url` in a new tab via `window.open(url, '_blank', 'noopener,noreferrer')`. We log this as `action='external_open'` in `marketplace_access_log` so uploaders/leadership can see it.
+
+GitHub specifically: since GitHub blocks iframe embedding, the inside-app viewer will show a friendly "GitHub repos open best in a new tab" card with a single "Go to web" button — fixes the current dead-end UX.
+
+Access still requires an active rental — both buttons call `marketplace-access` first to verify, so an expired user can't bypass via the new-tab button.
+
+### 3. New high-value features
+
+**a. Wishlist / Save for later**
+
+- New `marketplace_wishlist` table `(user_id, material_id, created_at, unique)`.
+- Heart icon on every browse card; new "Wishlist" tab with count badge.
+- Notify wishlist users (in-app `grouping_notifications`) when the uploader drops the price or runs a flash sale.
+
+**b. Flash sales & featured boosts (sinks for GP → drives GP demand)**
+
+- Uploaders can pay GP from their balance to boost their listing:
+  - **Featured for 24h** = 50 GP, **7d** = 250 GP. Uses existing `featured_until` column.
+  - **Flash sale** = uploader sets a temp discount % + end date stored on the material.
+- New edge function `marketplace-boost` handles atomic GP debit → update.
+
+**c. Star ratings & reviews**
+
+- Wire the existing `marketplace_reviews` table into the UI:
+  - After a rental ends, prompt the renter to leave a 1–5 star review.
+  - Show average rating, review count and latest 3 reviews on a new "Details" sheet that opens when clicking the title.
+- Helpful for buyers; also drives quality (high-rated = more rentals = more GP for uploader).
+
+**d. Free preview window**
+
+- New material field `free_preview_minutes` (0–10). When set, anyone can open the material once for that many minutes; access auto-revokes. Tracked via `marketplace_purchases` rows with `gp_paid=0` and short `expires_at`.
+- Encourages confident rentals.
+
+**e. Earn more GP — Refer-a-Renter**
+
+- When a buyer rents a material, the uploader gets a referral code. If a *new* renter clicks a uploader's share link and rents anything within 24h, the uploader gets +5 bonus GP. Stored in a small `marketplace_referrals` table.
+
+**f. Smarter Browse**
+
+- Sort dropdown: **Newest / Most rented / Top rated / Cheapest / Featured first** (currently hardcoded).
+- "Trending now" row at the top of Browse — top 5 by purchases in the last 7 days.
+- Server-side full-text search via the existing `search_vec` tsvector column (already in DB) — replaces the current `ilike` for far better matching of keywords/domain.
+
+**g. Earnings tab upgrade**
+
+- Real chart (last 30 days GP earned) using existing `points_history` filtered by `operation_type='marketplace'`.
+- Per-material breakdown: rentals, GP earned, avg rating, conversion (views → rentals).
+- "Payout pulse" card: 90% to you, 10% to treasury — running totals.
+
+**h. Anti-abuse**
+
+- Rate-limit material creation (max 5/day per user) via a check inside the existing insert RLS path — prevents spam.
+- Min price floor of 1 GP/day, max 100 GP/day to keep economy healthy.
+
+### 4. Technical changes
 
 ```text
-Earner  ─►  Uploads material (link/PDF/repo) ─►  Sets GP/day price
-                                                       │
-Buyer   ─►  Browses / searches by keywords/tags  ─►  Picks N days  ─►  Pays N×price GP
-                                                       │
-                                  In-app secure viewer (expires automatically)
+DB migrations
+├─ marketplace_wishlist (user_id, material_id, created_at, PK composite)
+│   └─ RLS: own rows only
+├─ marketplace_referrals (referrer_id, referred_buyer_id, material_id, awarded, created_at)
+├─ marketplace_materials  (+ flash_sale_pct INT default 0,
+│                          + flash_sale_until TIMESTAMPTZ,
+│                          + free_preview_minutes INT default 0)
+└─ Trigger: on marketplace_purchases insert where gp_paid=0 → mark as preview row
+
+Edge functions
+├─ marketplace-purchase (existing) — extend to handle preview (gp_paid=0, expires_at=now+preview_minutes)
+├─ marketplace-boost     (NEW) — atomic GP debit + featured_until / flash_sale set
+├─ marketplace-access    (existing) — also accept preview rentals; log external_open action
+└─ marketplace-review    (NEW) — verify rental existed before insert; recompute rating_sum/count
+
+Frontend
+├─ MaterialCard: hasAccess → split "Open inside" + "Go to web" buttons; wishlist heart; flash-sale ribbon
+├─ MaterialViewer: header gets "Open in new tab" link; GitHub friendly fallback
+├─ GroupingMarketplace: Wishlist tab; sort dropdown; trending row; details sheet w/ reviews
+├─ PurchaseDialog: show preview option if available; flash-sale price line
+├─ BoostDialog (NEW): featured/flash sale purchase
+├─ ReviewDialog (NEW): post-rental star + comment
+└─ EarningsChart (NEW) inside Earnings tab
 ```
 
-- Uploader receives 90% of GP paid; 10% goes to a "Team Treasury" wallet (sink to keep economy balanced).
-- Materials can be: **PDFs**, **Google Drive links**, **YouTube**, **GitHub repos**, **generic URLs**, **images**.
-- Viewer is mandatory — clicking a material card opens a modal viewer; the underlying URL is never exposed in the DOM as an anchor.
+### 5. What stays the same
 
-## Sidebar entry
+- Inside-app viewer remains the default secure path with watermark, sandbox, no downloads — unchanged for current users.
+- Existing rentals, history, GP balances, and treasury logic are untouched.
+- All new features additive; no breaking schema changes.
 
-New top-level item under Dashboard: **Golden Marketplace** (Coins icon), route `/grouping/marketplace`. Tabs inside:
-1. **Browse** — search, filter by domain/keyword/price, sort by popularity/newest/cheapest.
-2. **My Library** — materials the user has active access to (with countdown).
-3. **My Uploads** — CRUD on own materials, earnings, view stats.
-4. **Earnings** — GP earned, transaction log, treasury info.
-5. **Leaderboard tile** — top earners / top sellers (re-uses existing leaderboard styling).
-
-## Database (new tables)
-
-All RLS-enforced. Migration creates:
-
-- `marketplace_materials`
-  - id, uploader_id, title, description, material_type (`pdf|drive|youtube|github|url|image`), source_url, thumbnail_url, keywords text[], domain, price_per_day int, min_days int default 1, max_days int default 30, status (`active|paused|removed`), view_count, purchase_count, avg_rating numeric, created_at, updated_at.
-- `marketplace_keywords` (denormalised for fast search) OR use Postgres `tsvector` column + GIN index on title+description+keywords for ranked full-text search.
-- `marketplace_purchases`
-  - id, material_id, buyer_id, uploader_id, days_purchased, gp_paid, expires_at, created_at, status (`active|expired|refunded`). Unique partial index `(material_id, buyer_id) where status='active'` to prevent duplicate concurrent rentals (extends instead).
-- `marketplace_reviews` — buyer_id, material_id, rating 1-5, comment, created_at.
-- `marketplace_treasury` — single-row wallet tracking 10% commissions (visible to leadership).
-- `marketplace_access_log` — material_id, user_id, action (`view|attempt_copy|attempt_download|attempt_print`), created_at — used for anti-piracy heuristics + analytics.
-
-GP balance is already tracked by `useUserPoints`; we'll add an `operation_type='marketplace_spend' | 'marketplace_earn' | 'marketplace_refund'` to `points_history`.
-
-## RLS / Security Model
-
-- Anyone authenticated can SELECT `marketplace_materials` where `status='active'` (browse).
-- Only uploader OR leadership can UPDATE/DELETE own materials. Leadership can moderate (remove inappropriate uploads).
-- `marketplace_purchases`: buyer can SELECT own; uploader can SELECT purchases of their materials (for stats, no buyer name leaked beyond display name); leadership can view all.
-- **All purchases go through an Edge Function** `marketplace-purchase` that:
-  1. Verifies JWT.
-  2. Locks the buyer's points row, validates balance ≥ days × price.
-  3. Atomically: deducts buyer GP, credits uploader 90%, credits treasury 10%, creates purchase row with `expires_at = now() + days * 1 day` (extends if active purchase exists), inserts 3 `points_history` rows.
-  4. Returns updated balances.
-- `source_url` is **never returned by SELECT to non-owners**. We use a Postgres view `marketplace_materials_public` that omits `source_url`. Buyers retrieve the URL only via Edge Function `marketplace-access` which:
-  1. Verifies active purchase (`expires_at > now()`).
-  2. Returns a **short-lived signed token** (JWT, 5 min TTL) bound to `(user_id, material_id)`.
-  3. Logs the view in `marketplace_access_log`.
-- All viewer requests pass that token back; an Edge Function `marketplace-stream` validates token and proxies/redirects.
-
-## In-App Secure Viewer
-
-A single `<MaterialViewer>` modal/route renders content based on `material_type`:
-
-| Type | Renderer | Anti-leak measures |
-|---|---|---|
-| PDF | `<iframe src="/api/marketplace-stream?token=…#toolbar=0&navpanes=0">` (Edge Function streams the bytes with `Content-Disposition: inline`, `X-Frame-Options: SAMEORIGIN`). | PDF.js viewer with print/download buttons removed; page rendered to canvas to defeat copy. |
-| Google Drive | Edge Function fetches Drive **preview** URL (`/preview` variant, not `/view`) and proxies it inside iframe. | Google's own preview already disables download. We add overlay + sandbox attrs. |
-| YouTube | Embed with `?rel=0&modestbranding=1&controls=1` in sandboxed iframe. | – |
-| GitHub | Edge Function fetches repo file tree via GitHub API and renders read-only file browser inside the app (Markdown via `react-markdown`, code via `prismjs`). User never leaves site. | Clone/download buttons absent. |
-| Generic URL | Sandboxed iframe (`sandbox="allow-scripts allow-same-origin"`, no `allow-downloads`, no `allow-popups`). | If site sets `X-Frame-Options: DENY`, we show a friendly fallback explaining material can't be embedded — uploader is asked to use a Drive/PDF mirror. |
-| Image | Canvas-rendered (not `<img>` `src`), with watermark overlay. | – |
-
-Viewer wrapper applies on the modal:
-- `onContextMenu={e => e.preventDefault()}` (right-click block).
-- `user-select: none`, `-webkit-touch-callout: none`.
-- Overlay watermark layer with the buyer's name + email faintly tiled across the iframe (deters screenshots).
-- Keyboard handler blocks `Ctrl/Cmd+S`, `Ctrl+P`, `PrintScreen`, `Ctrl+C` while viewer focused.
-- `iframe` always has `sandbox` and `referrerPolicy="no-referrer"`; **no `download` attribute anywhere**.
-- All material links rendered in cards are `<button>` elements that open the viewer — not `<a href>` — so URL never appears in DOM/inspect/copy-link.
-- Live countdown badge shows time remaining; viewer auto-closes when `expires_at` passes.
-
-> Honest limitation we'll document in the UI for uploaders: a determined user can still screenshot or photograph the screen. The combination of watermark + access logs + the GP cost makes piracy traceable and economically unattractive, but no web tech provides true DRM. We recommend uploaders price valuable content per-day rather than expose one-time PDFs.
-
-## Auto-detection of Material Type
-
-When the uploader pastes a URL we detect type client-side:
-- `drive.google.com` → drive (auto-extract file id, switch to `/preview`).
-- `youtube.com|youtu.be` → youtube (extract videoId).
-- `github.com/<owner>/<repo>` → github.
-- `.pdf` extension or `application/pdf` HEAD content-type → pdf.
-- Image extensions → image.
-- else → url.
-
-Title/description/keywords can be auto-suggested via existing **Lovable AI Gateway** (`google/gemini-2.5-flash`) — Edge Function `marketplace-suggest-meta` takes the URL, returns title/keywords/short description for the uploader to accept/edit.
-
-## Search
-
-- Postgres `tsvector` column `search_vec` populated by trigger from `title || description || array_to_string(keywords,' ')`.
-- GIN index. Browse tab uses `websearch_to_tsquery` with `ts_rank` ordering.
-- Filters: domain (skill domain enum), price range (slider on GP/day), material type pill tabs.
-
-## GP Economy Boost
-
-To make GP feel valuable rather than vestigial:
-1. **Spending sink**: marketplace is the first real GP spend.
-2. **Treasury**: 10% commission accumulates; Team Captain can run periodic "treasury auctions" (special premium materials only treasury can unlock for the whole team) — future hook.
-3. **Earner badges**: "First Sale", "1k GP Earned", "Top Seller of the Week" auto-awarded via existing badges framework.
-4. **Featured slot**: uploader can "boost" a listing for 50 GP/day — shown at top of Browse. Self-spend reinforces sink.
-5. **Refund safety**: if uploader removes material while purchases are active, the Edge Function refunds remaining days pro-rata.
-6. **Bundle pricing**: optional `discount_pct_7d`, `discount_pct_30d` fields encourage longer rentals.
-
-## Permissions Recap
-
-- **Members**: upload, edit/delete own, buy, review, view active library.
-- **Project Leads & Leadership**: same + moderate (remove/edit any), view treasury, view all purchases, ban an uploader.
-- **Team Members (read-only mode)**: per existing constraint memory — they can browse and buy in their own workspace; cannot upload while viewing other workspaces.
-- Closed-session lock does **not** apply (marketplace is global, not session-bound).
-
-## Files to Create / Edit
-
-**New files**
-- `supabase/migrations/<ts>_marketplace.sql` — tables, RLS, view, tsvector trigger, indexes.
-- `supabase/functions/marketplace-purchase/index.ts`
-- `supabase/functions/marketplace-access/index.ts` (issues short-lived signed access token)
-- `supabase/functions/marketplace-stream/index.ts` (proxies PDFs/Drive previews, validates token, sets headers)
-- `supabase/functions/marketplace-suggest-meta/index.ts` (Lovable AI metadata helper)
-- `src/hooks/useMarketplace.tsx` (TanStack Query: list, search, my-uploads, my-library, purchase mutation)
-- `src/pages/GroupingMarketplace.tsx` (tabbed page)
-- `src/components/marketplace/MaterialCard.tsx`
-- `src/components/marketplace/MaterialViewer.tsx` (the secure modal)
-- `src/components/marketplace/UploadMaterialDialog.tsx`
-- `src/components/marketplace/PurchaseDialog.tsx` (day picker + price preview)
-- `src/components/marketplace/MyLibraryList.tsx`
-- `src/components/marketplace/EarningsPanel.tsx`
-- `src/components/marketplace/SearchBar.tsx`
-- `src/components/marketplace/WatermarkOverlay.tsx`
-
-**Edited files**
-- `src/components/grouping/GroupingSidebar.tsx` — add "Golden Marketplace" item with Coins icon under Dashboard.
-- `src/App.tsx` — register `/grouping/marketplace` route.
-- `src/hooks/useUserPoints.tsx` — add `marketplace_spend|earn|refund` operation types and helper `spendPoints`.
-- `supabase/config.toml` — register new functions (verify_jwt=false, manual auth like the others).
-
-## Edge Cases Handled
-
-- Buyer extends an active rental → `expires_at` is *added to*, not replaced.
-- Uploader edits price while a rental is active → existing purchase unaffected; new buyers see new price.
-- Material removed → status→`removed`, hidden from browse, existing buyers retain access until expiry; refund optional via leadership.
-- Buyer's own uploads are free to view (no purchase row needed; access function checks `uploader_id = auth.uid()`).
-- Insufficient GP → friendly modal with "Earn more via Skill Challenges" link.
-- Self-purchase blocked at function level.
-- Race condition on points: handled via `for update` row lock inside the Edge Function transaction.
-
-## Out of Scope (can be added later)
-
-- Comments / Q&A thread on a material.
-- Subscription bundles ("all materials by uploader X for 100 GP/month").
-- Cross-team marketplace.
-- Mobile-native PDF viewer hardening via Capacitor plugins.
-
-After your approval I'll implement migrations, edge functions, hooks, and UI in one pass.
+If you'd like, I can scope down to just **(1) + (2) + a/c/f** for a faster first ship, then layer the rest. Otherwise I'll implement everything above on approval.  
+  
+  
+Also , Correct & Fix Inside-app Viewer use iframe for all type of materials & Files.If possible run Browser inside website
