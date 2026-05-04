@@ -181,13 +181,19 @@ export function useMarketplace(searchQuery?: string) {
     onError: (e: any) => toast({ variant: 'destructive', title: 'Purchase failed', description: e.message }),
   });
 
-  const accessMaterial = async (materialId: string) => {
+  const accessMaterial = async (materialId: string, action: 'view' | 'external_open' = 'view') => {
     const { data, error } = await supabase.functions.invoke('marketplace-access', {
-      body: { materialId },
+      body: { materialId, action },
     });
     if (error) throw error;
     if ((data as any)?.error) throw new Error((data as any).error);
     return data as { source_url: string; material_type: MaterialType; title: string; expires_at: string | null };
+  };
+
+  const openExternal = async (materialId: string) => {
+    const d = await accessMaterial(materialId, 'external_open');
+    window.open(d.source_url, '_blank', 'noopener,noreferrer');
+    return d;
   };
 
   const suggestMeta = async (url: string) => {
