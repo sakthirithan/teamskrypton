@@ -35,7 +35,7 @@ const TYPE_META: Record<string, { Icon: any; gradient: string; text: string }> =
 
 export function MaterialCard({
   material, isOwner, hasAccess, rentalExpiresAt,
-  onOpen, onRent, onExtend, onEdit, onDelete, onTogglePause,
+  onOpen, onOpenExternal, onRent, onExtend, onEdit, onDelete, onTogglePause, onReview,
 }: Props) {
   const featured = material.featured_until && new Date(material.featured_until) > new Date();
   const avg = material.rating_count ? (material.rating_sum / material.rating_count).toFixed(1) : null;
