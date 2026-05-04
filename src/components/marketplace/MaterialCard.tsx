@@ -135,12 +135,17 @@ export function MaterialCard({
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
           {isOwner ? (
             <>
               <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" onClick={onOpen}>
                 <Eye className="w-3.5 h-3.5 mr-1" /> Preview
               </Button>
+              {onOpenExternal && (
+                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={onOpenExternal} title="Open in new tab">
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </Button>
+              )}
               {onTogglePause && (
                 <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={onTogglePause} title={isPaused ? 'Resume' : 'Pause'}>
                   {isPaused ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
@@ -156,10 +161,20 @@ export function MaterialCard({
           ) : accessible ? (
             <>
               <Button size="sm" className="flex-1 h-8 text-xs" onClick={onOpen}>
-                <Unlock className="w-3.5 h-3.5 mr-1" /> Open Material
+                <Unlock className="w-3.5 h-3.5 mr-1" /> Open in app
               </Button>
+              {onOpenExternal && (
+                <Button size="sm" variant="outline" className="h-8 px-2 text-xs" onClick={onOpenExternal} title="Open in new tab">
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </Button>
+              )}
+              {onReview && (
+                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={onReview} title="Leave a review">
+                  <MessageSquarePlus className="w-3.5 h-3.5" />
+                </Button>
+              )}
               {onExtend && (
-                <Button size="sm" variant="outline" className="h-8 px-2.5 text-xs" onClick={onExtend} title="Extend rental">
+                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={onExtend} title="Extend rental">
                   <RefreshCw className="w-3.5 h-3.5" />
                 </Button>
               )}
