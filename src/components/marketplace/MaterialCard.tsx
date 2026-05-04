@@ -3,7 +3,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Coins, Eye, Star, Edit, Trash2, Sparkles, Pause, Play, RefreshCw,
-  FileText, Video, Github, Link2, Image as ImageIcon, HardDrive, Lock, Unlock, ShoppingCart
+  FileText, Video, Github, Link2, Image as ImageIcon, HardDrive, Lock, Unlock, ShoppingCart,
+  ExternalLink, MessageSquarePlus,
 } from 'lucide-react';
 import type { MarketplaceMaterial } from '@/hooks/useMarketplace';
 import { RentalCountdown } from './RentalCountdown';
@@ -14,11 +15,13 @@ interface Props {
   hasAccess?: boolean;
   rentalExpiresAt?: string;
   onOpen: () => void;
+  onOpenExternal?: () => void;
   onRent?: () => void;
   onExtend?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
   onTogglePause?: () => void;
+  onReview?: () => void;
 }
 
 const TYPE_META: Record<string, { Icon: any; gradient: string; text: string }> = {
