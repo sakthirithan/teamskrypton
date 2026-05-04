@@ -73,20 +73,22 @@ Deno.serve(async (req) => {
 
     if (!allowed) return j({ error: "No active rental. Please rent this material to view it." }, 403);
 
-    // Best-effort logging + view bump
+    // Best-effort logging + view bump (only for inside-app views)
     try {
       await admin.from("marketplace_access_log").insert({
         material_id: materialId,
         user_id: userId,
-        action: "view",
+        action,
       });
     } catch (_) {}
-    try {
-      await admin
-        .from("marketplace_materials")
-        .update({ view_count: (mat.view_count ?? 0) + 1 })
-        .eq("id", materialId);
-    } catch (_) {}
+    if (action === "view") {
+      try {
+        await admin
+          .from("marketplace_materials")
+          .update({ view_count: (mat.view_count ?? 0) + 1 })
+          .eq("id", materialId);
+      } catch (_) {}
+    }
 
     return j({
       ok: true,
