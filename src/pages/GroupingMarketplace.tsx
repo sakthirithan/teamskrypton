@@ -313,6 +313,8 @@ export default function GroupingMarketplace() {
                         onExtend={() => setRentTarget(m)}
                         onReview={() => setReviewTarget(m)}
                         rentalExpiresAt={p.expires_at}
+                        isWishlisted={wishlistSet.has(m.id)}
+                        onToggleWishlist={() => toggleWishlist.mutate(m.id)}
                       />
                     );
                   })}
