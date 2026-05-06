@@ -4,16 +4,20 @@ import { Button } from '@/components/ui/button';
 import {
   Coins, Eye, Star, Edit, Trash2, Sparkles, Pause, Play, RefreshCw,
   FileText, Video, Github, Link2, Image as ImageIcon, HardDrive, Lock, Unlock, ShoppingCart,
-  ExternalLink, MessageSquarePlus,
+  ExternalLink, MessageSquarePlus, Heart, Flame, Zap,
 } from 'lucide-react';
 import type { MarketplaceMaterial } from '@/hooks/useMarketplace';
 import { RentalCountdown } from './RentalCountdown';
+import { cn } from '@/lib/utils';
 
 interface Props {
   material: MarketplaceMaterial;
   isOwner?: boolean;
   hasAccess?: boolean;
   rentalExpiresAt?: string;
+  trendingCount?: number;
+  isWishlisted?: boolean;
+  onToggleWishlist?: () => void;
   onOpen: () => void;
   onOpenExternal?: () => void;
   onRent?: () => void;
@@ -34,8 +38,8 @@ const TYPE_META: Record<string, { Icon: any; gradient: string; text: string }> =
 };
 
 export function MaterialCard({
-  material, isOwner, hasAccess, rentalExpiresAt,
-  onOpen, onOpenExternal, onRent, onExtend, onEdit, onDelete, onTogglePause, onReview,
+  material, isOwner, hasAccess, rentalExpiresAt, trendingCount, isWishlisted,
+  onToggleWishlist, onOpen, onOpenExternal, onRent, onExtend, onEdit, onDelete, onTogglePause, onReview,
 }: Props) {
   const featured = material.featured_until && new Date(material.featured_until) > new Date();
   const avg = material.rating_count ? (material.rating_sum / material.rating_count).toFixed(1) : null;
@@ -44,16 +48,35 @@ export function MaterialCard({
   const meta = TYPE_META[material.material_type] || TYPE_META.url;
   const TypeIcon = meta.Icon;
   const isPaused = material.status === 'paused';
+  const ageHrs = (Date.now() - +new Date(material.created_at)) / 36e5;
+  const isNew = ageHrs < 72;
+  const trending = (trendingCount ?? 0) >= 3;
+  const bestDiscount = Math.max(material.discount_pct_7d || 0, material.discount_pct_30d || 0);
 
   return (
-    <Card className="group relative overflow-hidden border border-border/60 hover:border-primary/40 hover:shadow-lg transition-all duration-200">
-      {/* Header banner */}
-      <div className={`relative h-20 bg-gradient-to-br ${meta.gradient} border-b border-border/40`}>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <TypeIcon className={`w-9 h-9 ${meta.text} opacity-60`} />
-        </div>
-        <div className="absolute top-2 left-2 flex gap-1.5">
-          <Badge variant="secondary" className={`text-[9px] uppercase font-bold tracking-wide ${meta.text} bg-background/80 backdrop-blur`}>
+    <Card className="group relative overflow-hidden border border-border/60 hover:border-primary/40 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200">
+      {/* Header / cover */}
+      <div className={cn(
+        'relative h-28 border-b border-border/40 overflow-hidden',
+        material.thumbnail_url ? 'bg-muted' : `bg-gradient-to-br ${meta.gradient}`,
+      )}>
+        {material.thumbnail_url ? (
+          <img
+            src={material.thumbnail_url}
+            alt={material.title}
+            loading="lazy"
+            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <TypeIcon className={`w-10 h-10 ${meta.text} opacity-60`} />
+          </div>
+        )}
+
+        {/* Top-left badges */}
+        <div className="absolute top-2 left-2 flex gap-1.5 flex-wrap max-w-[70%]">
+          <Badge variant="secondary" className={`text-[9px] uppercase font-bold tracking-wide ${meta.text} bg-background/90 backdrop-blur`}>
+            <TypeIcon className="w-2.5 h-2.5 mr-0.5" />
             {material.material_type}
           </Badge>
           {featured && (
@@ -61,17 +84,53 @@ export function MaterialCard({
               <Sparkles className="w-2.5 h-2.5" /> Featured
             </Badge>
           )}
+          {trending && (
+            <Badge className="text-[9px] gap-0.5 bg-orange-500 text-white border-0">
+              <Flame className="w-2.5 h-2.5" /> Trending
+            </Badge>
+          )}
+          {isNew && !trending && (
+            <Badge className="text-[9px] gap-0.5 bg-emerald-500 text-white border-0">
+              <Zap className="w-2.5 h-2.5" /> New
+            </Badge>
+          )}
           {isOwner && isPaused && (
             <Badge variant="secondary" className="text-[9px] bg-amber-500/15 text-amber-700 border-0">Paused</Badge>
           )}
         </div>
+
+        {/* Price chip */}
         <div className="absolute top-2 right-2">
-          <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-500/95 text-white text-[11px] font-bold shadow-sm">
+          <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-500/95 text-white text-[11px] font-bold shadow-md">
             <Coins className="w-3 h-3" />
             {material.price_per_day}
             <span className="text-[9px] font-medium opacity-90">/d</span>
           </div>
         </div>
+
+        {/* Wishlist heart (renters only) */}
+        {!isOwner && onToggleWishlist && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onToggleWishlist(); }}
+            className={cn(
+              'absolute bottom-2 left-2 w-7 h-7 rounded-full flex items-center justify-center backdrop-blur transition-all',
+              isWishlisted ? 'bg-rose-500 text-white' : 'bg-background/80 text-muted-foreground hover:text-rose-500',
+            )}
+            title={isWishlisted ? 'Saved' : 'Save for later'}
+          >
+            <Heart className={cn('w-3.5 h-3.5', isWishlisted && 'fill-current')} />
+          </button>
+        )}
+
+        {/* Discount ribbon */}
+        {bestDiscount > 0 && !isOwner && (
+          <div className="absolute -left-7 top-3 -rotate-45 bg-rose-500 text-white text-[9px] font-bold px-8 py-0.5 shadow-md uppercase tracking-wider">
+            Save {bestDiscount}%
+          </div>
+        )}
+
+        {/* Access pill */}
         {accessible && !isOwner && (
           <div className="absolute bottom-2 right-2">
             <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500 text-white text-[9px] font-bold uppercase tracking-wide shadow-sm">
@@ -96,6 +155,12 @@ export function MaterialCard({
             <p className="text-xs text-muted-foreground line-clamp-2 leading-snug">{material.description}</p>
           )}
         </div>
+
+        {trending && trendingCount && (
+          <p className="text-[10px] font-medium text-orange-600 flex items-center gap-1">
+            <Flame className="w-3 h-3" /> {trendingCount} rented this week
+          </p>
+        )}
 
         {(material.domain || material.keywords?.length > 0) && (
           <div className="flex flex-wrap gap-1">
@@ -128,8 +193,9 @@ export function MaterialCard({
             <ShoppingCart className="w-3 h-3" />{material.purchase_count}
           </span>
           {avg && (
-            <span className="flex items-center gap-1 ml-auto">
+            <span className="flex items-center gap-1 ml-auto font-medium text-foreground">
               <Star className="w-3 h-3 fill-yellow-500 text-yellow-500" />{avg}
+              <span className="text-muted-foreground font-normal">({material.rating_count})</span>
             </span>
           )}
         </div>
@@ -182,7 +248,7 @@ export function MaterialCard({
           ) : (
             <Button size="sm" className="flex-1 h-8 text-xs gap-1" onClick={onRent}>
               <Coins className="w-3.5 h-3.5" />
-              {expired ? 'Rent again' : 'Rent now'}
+              {expired ? 'Rent again' : `Rent from ${material.price_per_day} GP`}
             </Button>
           )}
         </div>
