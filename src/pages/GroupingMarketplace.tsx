@@ -78,6 +78,27 @@ export default function GroupingMarketplace() {
   }, [materials, myUploads]);
 
   const accessibleIds = useMemo(() => new Set(myLibrary.map((p) => p.material_id)), [myLibrary]);
+  const wishlistSet = useMemo(() => new Set(wishlist), [wishlist]);
+
+  const domains = useMemo(() => {
+    const d = new Set<string>();
+    materials.forEach((m) => m.domain && d.add(m.domain));
+    return Array.from(d).slice(0, 12);
+  }, [materials]);
+
+  const topThisWeek = useMemo(() => {
+    return [...materials]
+      .map((m) => ({ m, score: trending.get(m.id) || 0 }))
+      .filter((x) => x.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5)
+      .map((x) => x.m);
+  }, [materials, trending]);
+
+  const wishlistMaterials = useMemo(
+    () => materials.filter((m) => wishlistSet.has(m.id)),
+    [materials, wishlistSet],
+  );
 
   const handleOpenExternal = async (id: string) => {
     try { await openExternal(id); }
