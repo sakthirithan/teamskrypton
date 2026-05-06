@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Coins, Plus, Search, Library, Upload as UploadIcon, TrendingUp, Sparkles } from 'lucide-react';
+import { Coins, Plus, Search, Library, Upload as UploadIcon, TrendingUp, Sparkles, Heart, Flame } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserPoints } from '@/hooks/useUserPoints';
 import { useMarketplace, type MarketplaceMaterial } from '@/hooks/useMarketplace';
