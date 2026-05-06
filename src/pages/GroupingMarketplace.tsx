@@ -144,6 +144,9 @@ export default function GroupingMarketplace() {
             <TabsTrigger value="library" className="text-xs"><Library className="w-3.5 h-3.5 mr-1.5" />My Library
               {myLibrary.length > 0 && <Badge variant="secondary" className="ml-1.5 h-4 px-1.5 text-[9px]">{myLibrary.length}</Badge>}
             </TabsTrigger>
+            <TabsTrigger value="wishlist" className="text-xs"><Heart className="w-3.5 h-3.5 mr-1.5" />Wishlist
+              {wishlistMaterials.length > 0 && <Badge variant="secondary" className="ml-1.5 h-4 px-1.5 text-[9px]">{wishlistMaterials.length}</Badge>}
+            </TabsTrigger>
             <TabsTrigger value="uploads" className="text-xs"><UploadIcon className="w-3.5 h-3.5 mr-1.5" />My Uploads
               {myUploads.length > 0 && <Badge variant="secondary" className="ml-1.5 h-4 px-1.5 text-[9px]">{myUploads.length}</Badge>}
             </TabsTrigger>
