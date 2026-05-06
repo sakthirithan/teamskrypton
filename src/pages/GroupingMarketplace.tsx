@@ -39,6 +39,7 @@ export default function GroupingMarketplace() {
 
   const {
     materials, isLoading, myUploads, myLibrary, updateMaterial, openExternal,
+    wishlist, toggleWishlist, trending,
   } = useMarketplace(search);
   const balance = user ? getUserPoints(user.id) : 0;
 
