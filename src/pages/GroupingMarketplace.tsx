@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Coins, Plus, Search, Library, Upload as UploadIcon, TrendingUp, Sparkles } from 'lucide-react';
+import { Coins, Plus, Search, Library, Upload as UploadIcon, TrendingUp, Sparkles, Heart, Flame } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserPoints } from '@/hooks/useUserPoints';
 import { useMarketplace, type MarketplaceMaterial } from '@/hooks/useMarketplace';
@@ -39,6 +39,7 @@ export default function GroupingMarketplace() {
 
   const {
     materials, isLoading, myUploads, myLibrary, updateMaterial, openExternal,
+    wishlist, toggleWishlist, trending,
   } = useMarketplace(search);
   const balance = user ? getUserPoints(user.id) : 0;
 
@@ -77,6 +78,27 @@ export default function GroupingMarketplace() {
   }, [materials, myUploads]);
 
   const accessibleIds = useMemo(() => new Set(myLibrary.map((p) => p.material_id)), [myLibrary]);
+  const wishlistSet = useMemo(() => new Set(wishlist), [wishlist]);
+
+  const domains = useMemo(() => {
+    const d = new Set<string>();
+    materials.forEach((m) => m.domain && d.add(m.domain));
+    return Array.from(d).slice(0, 12);
+  }, [materials]);
+
+  const topThisWeek = useMemo(() => {
+    return [...materials]
+      .map((m) => ({ m, score: trending.get(m.id) || 0 }))
+      .filter((x) => x.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5)
+      .map((x) => x.m);
+  }, [materials, trending]);
+
+  const wishlistMaterials = useMemo(
+    () => materials.filter((m) => wishlistSet.has(m.id)),
+    [materials, wishlistSet],
+  );
 
   const handleOpenExternal = async (id: string) => {
     try { await openExternal(id); }
@@ -122,6 +144,9 @@ export default function GroupingMarketplace() {
             <TabsTrigger value="library" className="text-xs"><Library className="w-3.5 h-3.5 mr-1.5" />My Library
               {myLibrary.length > 0 && <Badge variant="secondary" className="ml-1.5 h-4 px-1.5 text-[9px]">{myLibrary.length}</Badge>}
             </TabsTrigger>
+            <TabsTrigger value="wishlist" className="text-xs"><Heart className="w-3.5 h-3.5 mr-1.5" />Wishlist
+              {wishlistMaterials.length > 0 && <Badge variant="secondary" className="ml-1.5 h-4 px-1.5 text-[9px]">{wishlistMaterials.length}</Badge>}
+            </TabsTrigger>
             <TabsTrigger value="uploads" className="text-xs"><UploadIcon className="w-3.5 h-3.5 mr-1.5" />My Uploads
               {myUploads.length > 0 && <Badge variant="secondary" className="ml-1.5 h-4 px-1.5 text-[9px]">{myUploads.length}</Badge>}
             </TabsTrigger>
@@ -155,7 +180,55 @@ export default function GroupingMarketplace() {
                 ))}
               </div>
             </div>
-            <ScrollArea className="h-[calc(100vh-320px)]">
+            {domains.length > 0 && (
+              <div className="flex gap-1.5 flex-wrap mb-3">
+                <span className="text-[10px] text-muted-foreground self-center mr-1 uppercase tracking-wider">Categories:</span>
+                {domains.map((d) => (
+                  <Button
+                    key={d}
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setSearch(d)}
+                    className="capitalize text-[11px] h-6 px-2"
+                  >
+                    {d}
+                  </Button>
+                ))}
+              </div>
+            )}
+
+            <ScrollArea className="h-[calc(100vh-340px)]">
+              {topThisWeek.length > 0 && (
+                <div className="mb-4">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Flame className="w-4 h-4 text-orange-500" />
+                    <h3 className="text-sm font-semibold">Top this week</h3>
+                    <Badge variant="secondary" className="text-[9px]">Hot in GP Redeem</Badge>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pr-3">
+                    {topThisWeek.map((m) => {
+                      const owned = m.uploader_id === user?.id;
+                      const access = accessibleIds.has(m.id) || owned;
+                      return (
+                        <MaterialCard
+                          key={`top-${m.id}`}
+                          material={m}
+                          isOwner={owned}
+                          hasAccess={access}
+                          trendingCount={trending.get(m.id)}
+                          isWishlisted={wishlistSet.has(m.id)}
+                          onToggleWishlist={() => toggleWishlist.mutate(m.id)}
+                          onOpen={() => setViewerId(m.id)}
+                          onOpenExternal={access ? () => handleOpenExternal(m.id) : undefined}
+                          onRent={() => setRentTarget(m)}
+                        />
+                      );
+                    })}
+                  </div>
+                  <div className="border-b border-border/40 mt-4" />
+                </div>
+              )}
+
               {isLoading ? (
                 <p className="text-sm text-muted-foreground p-8 text-center">Loading…</p>
               ) : filtered.length === 0 ? (
@@ -174,6 +247,41 @@ export default function GroupingMarketplace() {
                         material={m}
                         isOwner={owned}
                         hasAccess={access}
+                        trendingCount={trending.get(m.id)}
+                        isWishlisted={wishlistSet.has(m.id)}
+                        onToggleWishlist={() => toggleWishlist.mutate(m.id)}
+                        onOpen={() => setViewerId(m.id)}
+                        onOpenExternal={access ? () => handleOpenExternal(m.id) : undefined}
+                        onRent={() => setRentTarget(m)}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+            </ScrollArea>
+          </TabsContent>
+
+          <TabsContent value="wishlist" className="flex-1 overflow-hidden mt-3">
+            <ScrollArea className="h-[calc(100vh-260px)]">
+              {wishlistMaterials.length === 0 ? (
+                <div className="text-center p-8">
+                  <Heart className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">Tap the heart on any material in GP Redeem to save it here.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pr-3">
+                  {wishlistMaterials.map((m) => {
+                    const owned = m.uploader_id === user?.id;
+                    const access = accessibleIds.has(m.id) || owned;
+                    return (
+                      <MaterialCard
+                        key={m.id}
+                        material={m}
+                        isOwner={owned}
+                        hasAccess={access}
+                        trendingCount={trending.get(m.id)}
+                        isWishlisted
+                        onToggleWishlist={() => toggleWishlist.mutate(m.id)}
                         onOpen={() => setViewerId(m.id)}
                         onOpenExternal={access ? () => handleOpenExternal(m.id) : undefined}
                         onRent={() => setRentTarget(m)}
@@ -205,6 +313,8 @@ export default function GroupingMarketplace() {
                         onExtend={() => setRentTarget(m)}
                         onReview={() => setReviewTarget(m)}
                         rentalExpiresAt={p.expires_at}
+                        isWishlisted={wishlistSet.has(m.id)}
+                        onToggleWishlist={() => toggleWishlist.mutate(m.id)}
                       />
                     );
                   })}

@@ -237,6 +237,62 @@ export function useMarketplace(searchQuery?: string) {
     onError: (e: any) => toast({ variant: 'destructive', title: 'Could not submit review', description: e.message }),
   });
 
+  // Wishlist
+  const wishlist = useQuery({
+    queryKey: ['marketplace-wishlist', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('marketplace_wishlist' as any)
+        .select('material_id')
+        .eq('user_id', user!.id);
+      if (error) throw error;
+      return (data || []).map((r: any) => r.material_id as string);
+    },
+    enabled: !!user,
+  });
+
+  const toggleWishlist = useMutation({
+    mutationFn: async (materialId: string) => {
+      const isSaved = (wishlist.data || []).includes(materialId);
+      if (isSaved) {
+        const { error } = await supabase
+          .from('marketplace_wishlist' as any)
+          .delete()
+          .eq('user_id', user!.id)
+          .eq('material_id', materialId);
+        if (error) throw error;
+        return 'removed' as const;
+      }
+      const { error } = await supabase
+        .from('marketplace_wishlist' as any)
+        .insert({ user_id: user!.id, material_id: materialId });
+      if (error) throw error;
+      return 'added' as const;
+    },
+    onSuccess: (action) => {
+      qc.invalidateQueries({ queryKey: ['marketplace-wishlist'] });
+      toast({ title: action === 'added' ? '❤️ Saved to wishlist' : 'Removed from wishlist' });
+    },
+  });
+
+  // Trending: rentals in the last 7 days, grouped by material
+  const trending = useQuery({
+    queryKey: ['marketplace-trending'],
+    queryFn: async () => {
+      const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const { data, error } = await supabase
+        .from('marketplace_purchases' as any)
+        .select('material_id')
+        .gte('created_at', since);
+      if (error) throw error;
+      const counts = new Map<string, number>();
+      (data || []).forEach((r: any) => counts.set(r.material_id, (counts.get(r.material_id) || 0) + 1));
+      return counts;
+    },
+    enabled: !!user,
+    staleTime: 60_000,
+  });
+
   const hardDeleteMaterial = useMutation({
     mutationFn: async (id: string) => {
       const { count } = await supabase
@@ -270,5 +326,8 @@ export function useMarketplace(searchQuery?: string) {
     suggestMeta,
     useMaterialReviews,
     submitReview,
+    wishlist: wishlist.data || [],
+    toggleWishlist,
+    trending: trending.data || new Map<string, number>(),
   };
 }

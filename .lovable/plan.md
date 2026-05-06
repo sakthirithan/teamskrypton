@@ -1,119 +1,132 @@
-## GP Redeem v3 — Full CRUD + Open-Anywhere + Power Features
+## Goals
 
-Three intents in this request:
-
-1. Make sure every uploader can fully CRUD their own uploads (with confirmations + UX polish).
-2. Let viewers choose between **"Open inside app"** (current secure viewer) and **"Open in new tab"** when they have valid access — so renters can use the link in a real browser if they need to.
-3. Add useful, well-thought-out features that increase the value of Golden Points and make the page feel like a real marketplace.
+1. Let uploaders set/edit a **thumbnail image** for each material.
+2. Make the **Edit upload** dialog correctly prefill all previously saved values.
+3. Add high-impact rental-marketplace features to **GP Redeem** that nudge users to rent (inspired by Airbnb / Udemy / Skillshare / Kindle Unlimited).
 
 ---
 
-### 1. Full CRUD on My Uploads
+## 1. Thumbnails for uploads
 
-Currently uploaders can edit, pause/resume, soft-delete. We'll harden it:
+`marketplace_materials.thumbnail_url` already exists in the type. We will use a public **Lovable Cloud storage bucket** so any user can upload an image for their own material.
 
-- **Delete confirmation dialog** (replacing native `confirm()`) with two clear options:
-  - *Remove from listing* — sets `status='removed'`; existing renters keep access until expiry. (current behavior, kept)
-  - *Hard delete* — only allowed when `purchase_count = 0` and no active rentals; permanently removes the row + access logs.
-- **Edit dialog enhancement**: allow editing **all** safe fields (title, description, keywords, domain, price/day, min/max days, discounts, thumbnail). Source URL stays locked once published (already enforced) to prevent bait-and-switch on existing renters.
-- **Inline status toggle** with a tiny toast explaining the effect ("Paused — hidden from Browse, existing renters still have access").
-- **Bulk actions in My Uploads** (when more than 1 upload): Pause all / Resume all / Select-and-delete.
-- **Upload validation**: block duplicate `source_url` for the same uploader (friendly error).
+**Migration**
 
-### 2. Open inside vs. Open in new tab
+- Create public bucket `marketplace-thumbnails`.
+- RLS on `storage.objects`:
+  - `select`: public (bucket is public).
+  - `insert / update / delete`: only `auth.uid()` matching the file's first folder segment (`{user_id}/...`).
 
-Renters/owners with valid access get **two buttons** on accessible cards and inside the viewer header:
+`**UploadMaterialDialog.tsx**`
 
-- **Open inside app** — current secure `MaterialViewer` (sandbox iframe, watermark, blocked downloads/right-click, auto-close on expiry). Default for PDF/Drive/YouTube/image/url.
-- **Go to web** — opens the real `source_url` in a new tab via `window.open(url, '_blank', 'noopener,noreferrer')`. We log this as `action='external_open'` in `marketplace_access_log` so uploaders/leadership can see it.
+- Add a "Thumbnail" field with:
+  - File picker (image/* only, max ~2 MB, downscaled client-side via canvas to 800px wide WebP).
+  - Live preview, "Remove" button, fallback to type-icon banner if empty.
+  - On submit: upload to `marketplace-thumbnails/{user_id}/{materialId-or-uuid}.webp`, save `getPublicUrl()` into `thumbnail_url`.
+- Auto-suggest: when AI Assist runs on YouTube links, also pull `https://img.youtube.com/vi/{id}/hqdefault.jpg` as a default thumbnail.
 
-GitHub specifically: since GitHub blocks iframe embedding, the inside-app viewer will show a friendly "GitHub repos open best in a new tab" card with a single "Go to web" button — fixes the current dead-end UX.
+`**MaterialCard.tsx**`
 
-Access still requires an active rental — both buttons call `marketplace-access` first to verify, so an expired user can't bypass via the new-tab button.
+- If `material.thumbnail_url` exists → render it as a 16:9 cover image in the header band; type-icon shrinks to a corner chip. Otherwise keep current gradient + big icon.
 
-### 3. New high-value features
+---
 
-**a. Wishlist / Save for later**
+## 2. Edit dialog must show last-saved values
 
-- New `marketplace_wishlist` table `(user_id, material_id, created_at, unique)`.
-- Heart icon on every browse card; new "Wishlist" tab with count badge.
-- Notify wishlist users (in-app `grouping_notifications`) when the uploader drops the price or runs a flash sale.
+Current bug: `useState` defaults are initialized once when the dialog file mounts; opening Edit for a different row, or after a save, can show stale values.
 
-**b. Flash sales & featured boosts (sinks for GP → drives GP demand)**
+Fix in `UploadMaterialDialog.tsx`:
 
-- Uploaders can pay GP from their balance to boost their listing:
-  - **Featured for 24h** = 50 GP, **7d** = 250 GP. Uses existing `featured_until` column.
-  - **Flash sale** = uploader sets a temp discount % + end date stored on the material.
-- New edge function `marketplace-boost` handles atomic GP debit → update.
+- Wrap field state init in a `useEffect([editing, open])` that resets every field from the latest `editing` row when the dialog opens (including `thumbnail_url`, `domain`, `discount_pct_7d`, `discount_pct_30d`, `min_days`, `max_days`, `keywords`, etc.).
+- On close, clear local state so a subsequent "Upload" opens clean.
+- Keep `source_url` disabled in edit mode (already done) but show it.
 
-**c. Star ratings & reviews**
+---
 
-- Wire the existing `marketplace_reviews` table into the UI:
-  - After a rental ends, prompt the renter to leave a 1–5 star review.
-  - Show average rating, review count and latest 3 reviews on a new "Details" sheet that opens when clicking the title.
-- Helpful for buyers; also drives quality (high-rated = more rentals = more GP for uploader).
+## 3. GP Redeem — features to drive rentals
 
-**d. Free preview window**
+### a. Trust & social proof on every card
 
-- New material field `free_preview_minutes` (0–10). When set, anyone can open the material once for that many minutes; access auto-revokes. Tracked via `marketplace_purchases` rows with `gp_paid=0` and short `expires_at`.
-- Encourages confident rentals.
+- ⭐ Average rating + review count (already partly there) — show as `4.8 ★ (23)`; add tooltip "Top rated this week" if avg ≥ 4.5 and ≥ 5 reviews.
+- 🔥 **Trending badge** when `purchase_count` in last 7 days ≥ threshold (computed in hook from a lightweight query on `marketplace_purchases`).
+- 👤 **Uploader chip** (avatar + name) clickable → opens their public profile.
+- 🆕 "New" pill for materials created within 72 h.
 
-**e. Earn more GP — Refer-a-Renter**
+### b. Urgency & savings
 
-- When a buyer rents a material, the uploader gets a referral code. If a *new* renter clicks a uploader's share link and rents anything within 24h, the uploader gets +5 bonus GP. Stored in a small `marketplace_referrals` table.
+- **Discount ribbon**: if `discount_pct_7d > 0` show a corner ribbon "Save {n}% on 7-day rent". Same for 30 d.
+- **Live "X people rented this week"** counter under the title.
+- "Only Y GP — less than a coffee" microcopy under price.
 
-**f. Smarter Browse**
+### c. Risk-reversal CTAs
 
-- Sort dropdown: **Newest / Most rented / Top rated / Cheapest / Featured first** (currently hardcoded).
-- "Trending now" row at the top of Browse — top 5 by purchases in the last 7 days.
-- Server-side full-text search via the existing `search_vec` tsvector column (already in DB) — replaces the current `ilike` for far better matching of keywords/domain.
+- Free **30-second preview** button on viewer (no GP charge, watermarked, locked after 30 s) — reuses `marketplace-access` with `action: 'preview'`; backend issues a 30 s temp grant. (Light implementation; if blocked iframe, fall back to "Open external preview").
+- Show "Cancel anytime — no auto-renew" line in the Purchase dialog.
 
-**g. Earnings tab upgrade**
+### d. Personalization
 
-- Real chart (last 30 days GP earned) using existing `points_history` filtered by `operation_type='marketplace'`.
-- Per-material breakdown: rentals, GP earned, avg rating, conversion (views → rentals).
-- "Payout pulse" card: 90% to you, 10% to treasury — running totals.
+- **"Recommended for you"** strip at the top of Browse: filter by user's tracked skill domains (from `member_skills`) ordered by rating × popularity.
+- **"Continue learning"** strip: active rentals in My Library that are < 24 h from expiry, with one-click *Extend +7 d* (auto-applies discount).
+- **Wishlist / Save for later** ❤️ icon on each card — new table `marketplace_wishlist (user_id, material_id, created_at)` with simple RLS (owner-only).
 
-**h. Anti-abuse**
+### e. Gamification
 
-- Rate-limit material creation (max 5/day per user) via a check inside the existing insert RLS path — prevents spam.
-- Min price floor of 1 GP/day, max 100 GP/day to keep economy healthy.
+- **Rental streak** chip in the hero: "3-day study streak — rent 1 more material this week to keep it." (Counts active rentals/day.)
+- **First rental bonus**: if user has 0 rentals ever, show banner "Get 10 GP back on your first rent" (refund handled by `marketplace-purchase` edge fn checking purchase count).
+- **Milestone toasts**: "🎉 5th rental this month — earned a 'Knowledge Seeker' badge."
 
-### 4. Technical changes
+### f. Discovery
 
-```text
-DB migrations
-├─ marketplace_wishlist (user_id, material_id, created_at, PK composite)
-│   └─ RLS: own rows only
-├─ marketplace_referrals (referrer_id, referred_buyer_id, material_id, awarded, created_at)
-├─ marketplace_materials  (+ flash_sale_pct INT default 0,
-│                          + flash_sale_until TIMESTAMPTZ,
-│                          + free_preview_minutes INT default 0)
-└─ Trigger: on marketplace_purchases insert where gp_paid=0 → mark as preview row
+- **Category chips row** below hero (DSA, Web, ML, System Design, Aptitude…) computed from existing `domain` values; clicking sets `filterType`/domain.
+- **"Top this week" carousel** in Browse — top 5 by recent purchases, larger cards with cover image.
+- **Smart search**: client-side highlight of matching keywords in title/description.
 
-Edge functions
-├─ marketplace-purchase (existing) — extend to handle preview (gp_paid=0, expires_at=now+preview_minutes)
-├─ marketplace-boost     (NEW) — atomic GP debit + featured_until / flash_sale set
-├─ marketplace-access    (existing) — also accept preview rentals; log external_open action
-└─ marketplace-review    (NEW) — verify rental existed before insert; recompute rating_sum/count
+### g. Hero polish
 
-Frontend
-├─ MaterialCard: hasAccess → split "Open inside" + "Go to web" buttons; wishlist heart; flash-sale ribbon
-├─ MaterialViewer: header gets "Open in new tab" link; GitHub friendly fallback
-├─ GroupingMarketplace: Wishlist tab; sort dropdown; trending row; details sheet w/ reviews
-├─ PurchaseDialog: show preview option if available; flash-sale price line
-├─ BoostDialog (NEW): featured/flash sale purchase
-├─ ReviewDialog (NEW): post-rental star + comment
-└─ EarningsChart (NEW) inside Earnings tab
-```
+- Replace static GP chip with a small ring showing "GP balance / cost of cheapest active material" so user instantly sees what they can afford.
+- CTA "What's hot →" smooth-scrolls to the Top this week carousel.
 
-### 5. What stays the same
+---
 
-- Inside-app viewer remains the default secure path with watermark, sandbox, no downloads — unchanged for current users.
-- Existing rentals, history, GP balances, and treasury logic are untouched.
-- All new features additive; no breaking schema changes.
+## Technical details
 
-If you'd like, I can scope down to just **(1) + (2) + a/c/f** for a faster first ship, then layer the rest. Otherwise I'll implement everything above on approval.  
+### Files to edit
+
+- `src/components/marketplace/UploadMaterialDialog.tsx` — thumbnail picker + reset effect.
+- `src/components/marketplace/MaterialCard.tsx` — cover image, ribbons, trending/new badges, uploader chip, wishlist heart.
+- `src/pages/GroupingMarketplace.tsx` — recommended/continue/top strips, category chips, hero ring.
+- `src/hooks/useMarketplace.tsx` — add `wishlist`, `recommended`, `trending`, `weeklyRentals` queries; `toggleWishlist` mutation.
+- `src/components/marketplace/PurchaseDialog.tsx` — "no auto-renew" copy, first-rental bonus hint.
+- `src/components/marketplace/MaterialViewer.tsx` — 30 s preview mode.
+- `supabase/functions/marketplace-access/index.ts` — accept `action: 'preview'`, issue 30 s grant without GP charge.
+- `supabase/functions/marketplace-purchase/index.ts` — apply 10 GP refund on user's first successful rental.
+
+### Migrations
+
+1. Create public storage bucket `marketplace-thumbnails` + RLS.
+2. New table `marketplace_wishlist (id, user_id, material_id, created_at)` + RLS (user CRUD own rows; uniqueness on `user_id,material_id`).
+3. Index `marketplace_purchases (created_at desc)` for trending query.
+
+### Design tokens
+
+Stick to existing yellow/amber GP palette + emerald (active) + rose (expired). No new global tokens.
+
+### Out of scope
+
+- Real money payments, refunds beyond GP, multi-image galleries.  
   
-  
-Also , Correct & Fix Inside-app Viewer use iframe for all type of materials & Files.If possible run Browser inside website
+🎨 UI/UX Improvements
+  # 1. Hover Video Preview
+  Like:
+  - Netflix
+  - Udemy
+  Hover card:
+  - auto-play 5s preview GIF/video or Description visibility through AI or Uploader's Description
+  Massive conversion boost.
+  ---
+  # 2. Skeleton Loading
+  For:
+  - cards
+  - thumbnails
+  - carousels
+  Makes app feel premium.
