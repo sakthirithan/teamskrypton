@@ -180,7 +180,55 @@ export default function GroupingMarketplace() {
                 ))}
               </div>
             </div>
-            <ScrollArea className="h-[calc(100vh-320px)]">
+            {domains.length > 0 && (
+              <div className="flex gap-1.5 flex-wrap mb-3">
+                <span className="text-[10px] text-muted-foreground self-center mr-1 uppercase tracking-wider">Categories:</span>
+                {domains.map((d) => (
+                  <Button
+                    key={d}
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setSearch(d)}
+                    className="capitalize text-[11px] h-6 px-2"
+                  >
+                    {d}
+                  </Button>
+                ))}
+              </div>
+            )}
+
+            <ScrollArea className="h-[calc(100vh-340px)]">
+              {topThisWeek.length > 0 && (
+                <div className="mb-4">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Flame className="w-4 h-4 text-orange-500" />
+                    <h3 className="text-sm font-semibold">Top this week</h3>
+                    <Badge variant="secondary" className="text-[9px]">Hot in GP Redeem</Badge>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pr-3">
+                    {topThisWeek.map((m) => {
+                      const owned = m.uploader_id === user?.id;
+                      const access = accessibleIds.has(m.id) || owned;
+                      return (
+                        <MaterialCard
+                          key={`top-${m.id}`}
+                          material={m}
+                          isOwner={owned}
+                          hasAccess={access}
+                          trendingCount={trending.get(m.id)}
+                          isWishlisted={wishlistSet.has(m.id)}
+                          onToggleWishlist={() => toggleWishlist.mutate(m.id)}
+                          onOpen={() => setViewerId(m.id)}
+                          onOpenExternal={access ? () => handleOpenExternal(m.id) : undefined}
+                          onRent={() => setRentTarget(m)}
+                        />
+                      );
+                    })}
+                  </div>
+                  <div className="border-b border-border/40 mt-4" />
+                </div>
+              )}
+
               {isLoading ? (
                 <p className="text-sm text-muted-foreground p-8 text-center">Loading…</p>
               ) : filtered.length === 0 ? (
@@ -199,6 +247,41 @@ export default function GroupingMarketplace() {
                         material={m}
                         isOwner={owned}
                         hasAccess={access}
+                        trendingCount={trending.get(m.id)}
+                        isWishlisted={wishlistSet.has(m.id)}
+                        onToggleWishlist={() => toggleWishlist.mutate(m.id)}
+                        onOpen={() => setViewerId(m.id)}
+                        onOpenExternal={access ? () => handleOpenExternal(m.id) : undefined}
+                        onRent={() => setRentTarget(m)}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+            </ScrollArea>
+          </TabsContent>
+
+          <TabsContent value="wishlist" className="flex-1 overflow-hidden mt-3">
+            <ScrollArea className="h-[calc(100vh-260px)]">
+              {wishlistMaterials.length === 0 ? (
+                <div className="text-center p-8">
+                  <Heart className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">Tap the heart on any material in GP Redeem to save it here.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pr-3">
+                  {wishlistMaterials.map((m) => {
+                    const owned = m.uploader_id === user?.id;
+                    const access = accessibleIds.has(m.id) || owned;
+                    return (
+                      <MaterialCard
+                        key={m.id}
+                        material={m}
+                        isOwner={owned}
+                        hasAccess={access}
+                        trendingCount={trending.get(m.id)}
+                        isWishlisted
+                        onToggleWishlist={() => toggleWishlist.mutate(m.id)}
                         onOpen={() => setViewerId(m.id)}
                         onOpenExternal={access ? () => handleOpenExternal(m.id) : undefined}
                         onRent={() => setRentTarget(m)}
