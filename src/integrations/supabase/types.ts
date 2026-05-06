@@ -987,6 +987,42 @@ export type Database = {
         }
         Relationships: []
       }
+      marketplace_wishlist: {
+        Row: {
+          created_at: string
+          id: string
+          material_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          material_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          material_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_wishlist_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_materials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketplace_wishlist_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_materials_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       member_skills: {
         Row: {
           assigned_by: string
