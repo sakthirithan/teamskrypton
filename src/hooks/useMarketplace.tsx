@@ -326,5 +326,8 @@ export function useMarketplace(searchQuery?: string) {
     suggestMeta,
     useMaterialReviews,
     submitReview,
+    wishlist: wishlist.data || [],
+    toggleWishlist,
+    trending: trending.data || new Map<string, number>(),
   };
 }
