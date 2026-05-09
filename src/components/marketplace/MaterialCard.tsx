@@ -203,27 +203,31 @@ export function MaterialCard({
         {/* Actions */}
         <div className="flex items-center gap-1.5 flex-wrap">
           {isOwner ? (
-            <>
-              <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" onClick={onOpen}>
+            <div className="flex items-center gap-1.5 flex-wrap w-full" onClick={(e) => e.stopPropagation()}>
+              <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" onClick={(e) => { e.stopPropagation(); onOpen(); }}>
                 <Eye className="w-3.5 h-3.5 mr-1" /> Preview
               </Button>
               {onOpenExternal && (
-                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={onOpenExternal} title="Open in new tab">
+                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={(e) => { e.stopPropagation(); onOpenExternal(); }} title="Open in new tab">
                   <ExternalLink className="w-3.5 h-3.5" />
                 </Button>
               )}
               {onTogglePause && (
-                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={onTogglePause} title={isPaused ? 'Resume' : 'Pause'}>
+                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={(e) => { e.stopPropagation(); onTogglePause(); }} title={isPaused ? 'Resume' : 'Pause'}>
                   {isPaused ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
                 </Button>
               )}
-              <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={onEdit} title="Edit">
-                <Edit className="w-3.5 h-3.5" />
-              </Button>
-              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive hover:text-destructive" onClick={onDelete} title="Delete">
-                <Trash2 className="w-3.5 h-3.5" />
-              </Button>
-            </>
+              {onEdit && (
+                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={(e) => { e.stopPropagation(); onEdit(); }} title="Edit">
+                  <Edit className="w-3.5 h-3.5" />
+                </Button>
+              )}
+              {onDelete && (
+                <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); onDelete(); }} title="Delete">
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
+              )}
+            </div>
           ) : accessible ? (
             <>
               <Button size="sm" className="flex-1 h-8 text-xs" onClick={onOpen}>

@@ -44,6 +44,7 @@ import { SkillQuestDashboard } from '@/components/grouping/SkillQuestDashboard';
 import { SkillActivityFeed } from '@/components/grouping/SkillActivityFeed';
 import { TeamAnalyticsReport } from '@/components/grouping/TeamAnalyticsReport';
 import { MemberSkillsBadges } from '@/components/grouping/MemberSkillsBadges';
+import { SkillsAndIndicatorsGrid } from '@/components/grouping/SkillsAndIndicatorsGrid';
 import { SkillAssignmentPanel } from '@/components/grouping/SkillAssignmentPanel';
 import { DailyStudyBoard } from '@/components/grouping/DailyStudyBoard';
 import { BalancePointsCard } from '@/components/grouping/BalancePointsCard';
@@ -550,7 +551,7 @@ const GroupingMe = () => {
                   )}
                 </div>
                 <div className="flex items-center gap-2 mt-0.5">
-                  {viewingUserId && <MemberSkillsBadges userId={viewingUserId} />}
+                  {viewingUserId && <SkillsAndIndicatorsGrid userId={viewingUserId} className="mb-2" />}
                   {isViewingOther && !isTL && (
                     <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                       <Eye className="w-3 h-3" /> View Only
