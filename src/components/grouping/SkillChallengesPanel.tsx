@@ -603,9 +603,22 @@ export function SkillChallengesPanel({ sessionId }: SkillChallengesPanelProps) {
                                     </p>
                                   )}
                                 </div>
-                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400 shrink-0 ml-2">
-                                  + {challenge.xp_reward} XP
-                                </Badge>
+                                <div className="flex items-center gap-1 shrink-0 ml-2">
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                                    + {challenge.xp_reward} XP
+                                  </Badge>
+                                  {isLeadership && (
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-7 w-7 text-amber-600 hover:bg-amber-500/15"
+                                      onClick={() => handleCancelApproval(comp.id, challenge.xp_reward, comp.user_id, challenge.title)}
+                                      title="Cancel approval (revert XP & GP)"
+                                    >
+                                      <XCircle className="w-4 h-4" />
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
                             ))}
                           </div>
