@@ -231,9 +231,88 @@ export function SkillChallengesPanel({ sessionId }: SkillChallengesPanelProps) {
     }
   };
 
-  const handleReject = async (completionId: string) => {
-    await approveCompletion.mutateAsync({ completionId, approve: false });
-    toast({ title: 'Rejected' });
+  /**
+   * Reverse an already-approved completion:
+   *  - subtract challenge XP from skill_levels (recompute level)
+   *  - subtract auto-awarded GP (xp / 10) via performOperation
+   *  - insert reverse skill_xp_log entry (completion_id=null so unique constraint holds)
+   *  - flip completion status to 'cancelled'
+   *  - notify member
+   */
+  const handleCancelApproval = async (
+    completionId: string,
+    challengeXp: number,
+    completionUserId: string,
+    challengeTitle: string,
+  ) => {
+    if (!user) return;
+    try {
+      // 1. flip status
+      const { error: updErr } = await supabase
+        .from('skill_challenge_completions' as any)
+        .update({ status: 'cancelled', approved_by: user.id } as any)
+        .eq('id', completionId);
+      if (updErr) throw updErr;
+
+      // 2. revert skill_levels for this user/session
+      const { data: levelData } = await supabase
+        .from('skill_levels' as any)
+        .select('*')
+        .eq('session_id', sessionId)
+        .eq('user_id', completionUserId)
+        .maybeSingle();
+      if (levelData) {
+        const currentXp = (levelData as any).xp || 0;
+        const newXp = Math.max(0, currentXp - challengeXp);
+        const newLevel = getLevelFromXp(newXp);
+        await supabase
+          .from('skill_levels' as any)
+          .update({ xp: newXp, level: newLevel, updated_at: new Date().toISOString() } as any)
+          .eq('id', (levelData as any).id);
+      }
+
+      // 3. log reversal (no completion_id to avoid unique conflict)
+      await supabase.from('skill_xp_log' as any).insert({
+        user_id: completionUserId,
+        session_id: sessionId,
+        xp_amount: -challengeXp,
+        activity_type: 'challenge_cancelled',
+        description: `Approval reversed for "${challengeTitle}"`,
+      } as any);
+
+      // 4. claw back Golden Points
+      const goldenPoints = Math.floor(challengeXp / 10);
+      if (goldenPoints > 0) {
+        await performOperation.mutateAsync({
+          userId: completionUserId,
+          operation: 'subtract',
+          value: goldenPoints,
+          reason: `Skill Challenge approval reversed: "${challengeTitle}" (-${challengeXp} XP)`,
+        });
+      }
+
+      // 5. invalidate caches
+      queryClient.invalidateQueries({ queryKey: ['skill-level'] });
+      queryClient.invalidateQueries({ queryKey: ['skill-xp-log'] });
+      queryClient.invalidateQueries({ queryKey: ['skill-leaderboard'] });
+      queryClient.invalidateQueries({ queryKey: ['skill-challenge-completions'] });
+      queryClient.invalidateQueries({ queryKey: ['skills-grid:xp-by-user'] });
+
+      // 6. notify member
+      await supabase.from('grouping_notifications').insert({
+        sender_id: user.id,
+        recipient_id: completionUserId,
+        title: 'Skill Challenge approval reversed',
+        message: `Your approval for "${challengeTitle}" was cancelled. -${challengeXp} XP${goldenPoints > 0 ? ` and -${goldenPoints} Golden Points` : ''} reverted.`,
+        type: 'challenge',
+        session_id: sessionId,
+      });
+
+      toast({ title: 'Approval cancelled', description: `Reverted -${challengeXp} XP${goldenPoints > 0 ? ` & -${goldenPoints} GP` : ''}.` });
+    } catch (err: any) {
+      console.error('Cancel approval error:', err);
+      toast({ variant: 'destructive', title: 'Could not cancel', description: err.message });
+    }
   };
 
   const difficultyConfig: Record<string, { icon: any; color: string; label: string }> = {
