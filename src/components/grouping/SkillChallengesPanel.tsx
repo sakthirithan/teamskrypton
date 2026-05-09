@@ -231,6 +231,11 @@ export function SkillChallengesPanel({ sessionId }: SkillChallengesPanelProps) {
     }
   };
 
+  const handleReject = async (completionId: string) => {
+    await approveCompletion.mutateAsync({ completionId, approve: false });
+    toast({ title: 'Rejected' });
+  };
+
   /**
    * Reverse an already-approved completion:
    *  - subtract challenge XP from skill_levels (recompute level)
