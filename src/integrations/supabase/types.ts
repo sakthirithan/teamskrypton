@@ -175,6 +175,7 @@ export type Database = {
           created_at: string
           expires_at: string
           id: string
+          image_url: string | null
           is_completed: boolean
           is_pinned: boolean
           item_type: string
@@ -189,6 +190,7 @@ export type Database = {
           created_at?: string
           expires_at?: string
           id?: string
+          image_url?: string | null
           is_completed?: boolean
           is_pinned?: boolean
           item_type?: string
@@ -203,6 +205,7 @@ export type Database = {
           created_at?: string
           expires_at?: string
           id?: string
+          image_url?: string | null
           is_completed?: boolean
           is_pinned?: boolean
           item_type?: string
@@ -1732,6 +1735,7 @@ export type Database = {
           difficulty: string
           expires_at: string | null
           id: string
+          image_url: string | null
           session_id: string
           title: string
           xp_reward: number
@@ -1743,6 +1747,7 @@ export type Database = {
           difficulty?: string
           expires_at?: string | null
           id?: string
+          image_url?: string | null
           session_id: string
           title: string
           xp_reward?: number
@@ -1754,6 +1759,7 @@ export type Database = {
           difficulty?: string
           expires_at?: string | null
           id?: string
+          image_url?: string | null
           session_id?: string
           title?: string
           xp_reward?: number
