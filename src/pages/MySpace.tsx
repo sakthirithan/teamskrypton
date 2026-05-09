@@ -21,6 +21,7 @@ import { TestModeSettingsPanel } from '@/components/guest/TestModeSettingsPanel'
 import { PointsDisplay } from '@/components/points/PointsDisplay';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { CheckCircle, Clock, BarChart3, ExternalLink, Trash2, RotateCcw, Download } from 'lucide-react';
+import { SkillsAndIndicatorsGrid } from '@/components/grouping/SkillsAndIndicatorsGrid';
 import { format, parseISO } from 'date-fns';
 import { TaskStatus, KryptonRole } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
@@ -427,6 +428,8 @@ const MySpace = () => {
 
           {/* Main Content */}
           <div className="lg:col-span-3 space-y-6">
+            {/* Skills and indicators — image-4 style cards */}
+            <SkillsAndIndicatorsGrid userId={user.id} />
             {/* Role-Specific Dashboard - UNIQUE per role */}
             {isCaptainOrVice ? (
               <CaptainDashboard 
