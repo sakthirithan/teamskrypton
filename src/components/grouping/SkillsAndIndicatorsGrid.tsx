@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
+import { Trophy, Target, Zap, Coins } from 'lucide-react';
 import type { SkillType } from '@/hooks/useMemberSkills';
 
 interface Props {
@@ -59,114 +60,150 @@ export function SkillsAndIndicatorsGrid({ userId, className, compact }: Props) {
     enabled: !!userId,
   });
 
-  // All members' skills (for rank computation across the team)
-  const allSkillsQ = useQuery({
-    queryKey: ['skills-grid:all-skills'],
+  // PS score per user (completed entries)
+  const psQ = useQuery({
+    queryKey: ['skills-grid:ps-by-user'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('member_skills')
-        .select('user_id, skill_name');
+        .from('ps_daily_entries')
+        .select('user_id, reward_points, status')
+        .eq('status', 'completed');
       if (error) throw error;
-      return data as Array<{ user_id: string; skill_name: string }>;
+      const m = new Map<string, number>();
+      (data || []).forEach((r: any) => m.set(r.user_id, (m.get(r.user_id) || 0) + (r.reward_points || 0)));
+      return m;
     },
+    staleTime: 60_000,
   });
 
-  // Lifetime XP per user (any session)
-  const xpByUserQ = useQuery({
-    queryKey: ['skills-grid:xp-by-user'],
+  // Activity points per user
+  const apQ = useQuery({
+    queryKey: ['skills-grid:ap-by-user'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('skill_xp_log' as any)
-        .select('user_id, xp_amount');
+      const { data, error } = await supabase.from('activity_points').select('user_id, points');
       if (error) throw error;
-      const sums = new Map<string, number>();
-      (data as any[]).forEach((r) => {
-        sums.set(r.user_id, (sums.get(r.user_id) || 0) + (r.xp_amount || 0));
-      });
-      return sums;
+      const m = new Map<string, number>();
+      (data || []).forEach((r: any) => m.set(r.user_id, (m.get(r.user_id) || 0) + (r.points || 0)));
+      return m;
+    },
+    staleTime: 60_000,
+  });
+
+  // Golden points per user
+  const gpQ = useQuery({
+    queryKey: ['skills-grid:gp-by-user'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('user_points').select('user_id, points');
+      if (error) throw error;
+      const m = new Map<string, number>();
+      (data || []).forEach((r: any) => m.set(r.user_id, r.points || 0));
+      return m;
     },
     staleTime: 60_000,
   });
 
   const skills = skillsQ.data || [];
-  const xpByUser = xpByUserQ.data || new Map<string, number>();
-  const myXp = xpByUser.get(userId) || 0;
 
-  /** rank for (this user, this skill_name) — dense rank among all users that share it */
-  const rankFor = useMemo(() => {
-    const fn = (skillName: string): number | null => {
-      const peers = (allSkillsQ.data || []).filter((r) => r.skill_name === skillName);
-      if (peers.length === 0) return null;
-      const peerIds = Array.from(new Set(peers.map((p) => p.user_id)));
-      const scored = peerIds
-        .map((uid) => ({ uid, xp: xpByUser.get(uid) || 0 }))
-        .sort((a, b) => b.xp - a.xp);
-      // dense rank
-      let rank = 0;
-      let lastXp: number | null = null;
-      for (const s of scored) {
-        if (s.xp !== lastXp) {
-          rank += 1;
-          lastXp = s.xp;
-        }
-        if (s.uid === userId) return rank;
-      }
-      return null;
-    };
-    return fn;
-  }, [allSkillsQ.data, xpByUser, userId]);
+  /** Dense rank of userId within a map of user_id -> score */
+  const computeRank = (m: Map<string, number>): { rank: number | null; points: number } => {
+    const points = m.get(userId) || 0;
+    if (m.size === 0) return { rank: null, points };
+    const scored = Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
+    let rank = 0;
+    let last: number | null = null;
+    for (const [uid, val] of scored) {
+      if (val !== last) { rank += 1; last = val; }
+      if (uid === userId) return { rank, points };
+    }
+    // user not in map
+    return { rank: scored.length + 1, points };
+  };
+
+  const psRank = useMemo(() => computeRank(psQ.data || new Map()), [psQ.data, userId]);
+  const apRank = useMemo(() => computeRank(apQ.data || new Map()), [apQ.data, userId]);
+  const gpRank = useMemo(() => computeRank(gpQ.data || new Map()), [gpQ.data, userId]);
 
   if (skillsQ.isLoading) {
     return <div className={className}><div className="h-20 rounded-xl bg-muted/40 animate-pulse" /></div>;
   }
-  if (skills.length === 0) {
-    return (
-      <div className={className}>
-        <Card className="p-4 text-center">
-          <p className="text-xs text-muted-foreground">No skills assigned yet.</p>
-        </Card>
-      </div>
-    );
-  }
 
-  // Sort: primary → specialization → secondary, alphabetical inside (matches image-4 grouping vibe)
+  // Sort: primary → specialization → secondary, alphabetical inside
   const order: SkillType[] = ['primary', 'secondary', 'specialization'];
   const sorted = [...skills].sort((a, b) => {
     const o = order.indexOf(a.skill_type) - order.indexOf(b.skill_type);
     return o !== 0 ? o : a.skill_name.localeCompare(b.skill_name);
   });
 
+  const rankItems = [
+    { key: 'ps', label: 'PS Score', icon: Target, color: 'text-sky-600 dark:text-sky-400', bg: 'bg-sky-500/10', data: psRank },
+    { key: 'ap', label: 'Activity Points', icon: Zap, color: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-500/10', data: apRank },
+    { key: 'gp', label: 'Golden Points', icon: Coins, color: 'text-amber-600 dark:text-amber-500', bg: 'bg-amber-500/10', data: gpRank },
+  ];
+
   return (
     <div className={className}>
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-sm font-semibold tracking-tight">Skills and indicators</h3>
-        <span className="text-[10px] text-muted-foreground tabular-nums">
-          {sorted.length} skill{sorted.length === 1 ? '' : 's'}
-        </span>
+        {sorted.length > 0 && (
+          <span className="text-[10px] text-muted-foreground tabular-nums">
+            {sorted.length} skill{sorted.length === 1 ? '' : 's'}
+          </span>
+        )}
       </div>
-      <div className={`grid gap-2.5 ${compact ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-6'}`}>
-        {sorted.map((s) => {
-          const accent = TYPE_ACCENT[s.skill_type];
-          const rank = rankFor(s.skill_name);
-          return (
-            <Card
-              key={s.id}
-              className={`relative p-3 border-l-4 ${accent.ring} hover:shadow-md transition-shadow`}
-            >
-              <span className={`inline-block text-[9px] font-bold tracking-widest px-1.5 py-0.5 rounded ${accent.chip}`}>
-                {TYPE_LABEL[s.skill_type]}
-              </span>
-              <p className="mt-1.5 text-xs font-semibold leading-tight line-clamp-2 min-h-[2rem]">
-                {s.skill_name}
-              </p>
-              <p className={`mt-1 text-2xl font-bold tabular-nums ${accent.text}`}>{myXp}</p>
-              <p className="text-[10px] text-muted-foreground tabular-nums">
-                {rank ? `Rank #${rank}` : 'Unranked'}
-              </p>
+
+      {sorted.length === 0 ? (
+        <Card className="p-4 text-center">
+          <p className="text-xs text-muted-foreground">No skills assigned yet.</p>
+        </Card>
+      ) : (
+        <div className={`grid gap-2.5 ${compact ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-6'}`}>
+          {sorted.map((s) => {
+            const accent = TYPE_ACCENT[s.skill_type];
+            return (
+              <Card
+                key={s.id}
+                className={`relative p-3 border-l-4 ${accent.ring} hover:shadow-md transition-shadow`}
+              >
+                <span className={`inline-block text-[9px] font-bold tracking-widest px-1.5 py-0.5 rounded ${accent.chip}`}>
+                  {TYPE_LABEL[s.skill_type]}
+                </span>
+                <p className="mt-1.5 text-xs font-semibold leading-tight line-clamp-2 min-h-[2rem]">
+                  {s.skill_name}
+                </p>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Leaderboard ranks */}
+      <div className="mt-4">
+        <div className="flex items-center gap-1.5 mb-2">
+          <Trophy className="w-3.5 h-3.5 text-amber-500" />
+          <h4 className="text-xs font-semibold tracking-tight">Leaderboard Ranks</h4>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          {rankItems.map(({ key, label, icon: Icon, color, bg, data }) => (
+            <Card key={key} className="p-3 flex items-center gap-3 hover:shadow-md transition-shadow">
+              <div className={`w-9 h-9 rounded-lg ${bg} ${color} flex items-center justify-center shrink-0`}>
+                <Icon className="w-4 h-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider truncate">{label}</p>
+                <div className="flex items-baseline gap-1.5">
+                  <span className={`text-lg font-bold tabular-nums ${color}`}>
+                    {data.rank ? `#${data.rank}` : '—'}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground tabular-nums">
+                    · {data.points.toLocaleString()} pts
+                  </span>
+                </div>
+              </div>
             </Card>
-          );
-        })}
+          ))}
+        </div>
       </div>
     </div>
   );
 }
+
