@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
+import { Trophy, Target, Zap, Coins } from 'lucide-react';
 import type { SkillType } from '@/hooks/useMemberSkills';
 
 interface Props {
