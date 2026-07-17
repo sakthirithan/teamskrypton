@@ -225,6 +225,54 @@ export type Database = {
           },
         ]
       }
+      email_delivery_log: {
+        Row: {
+          attempts: number
+          created_at: string
+          error_message: string | null
+          id: string
+          message: string | null
+          provider_message_id: string | null
+          recipient_email: string
+          recipient_id: string | null
+          sender_id: string
+          status: string
+          title: string
+          type: string | null
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          message?: string | null
+          provider_message_id?: string | null
+          recipient_email: string
+          recipient_id?: string | null
+          sender_id: string
+          status?: string
+          title: string
+          type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          message?: string | null
+          provider_message_id?: string | null
+          recipient_email?: string
+          recipient_id?: string | null
+          sender_id?: string
+          status?: string
+          title?: string
+          type?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       global_todo_completions: {
         Row: {
           completed_at: string
