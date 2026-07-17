@@ -84,6 +84,16 @@ export function SendNotificationDialog({ trigger }: Props) {
       )
     );
 
+    // Fire-and-forget email delivery via Gmail connector
+    supabase.functions.invoke('send-notification-email', {
+      body: {
+        recipient_ids: form.recipient_ids,
+        title: form.title,
+        message: form.message || undefined,
+        type: form.type,
+      },
+    }).catch((err) => console.error('Email dispatch failed:', err));
+
     setForm({
       recipient_ids: [],
       title: '',
