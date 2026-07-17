@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bell, Check, CheckCheck, Trash2, AlertTriangle, Info, Send } from 'lucide-react';
+import { Bell, Check, CheckCheck, Trash2, AlertTriangle, Info, Send, Mail } from 'lucide-react';
 import { LinkifyText } from '@/components/ui/linkify-text';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,13 +8,17 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useGroupingNotifications } from '@/hooks/useGroupingNotifications';
+import { useAuth } from '@/hooks/useAuth';
 import { formatDistanceToNow } from 'date-fns';
 import { SendNotificationDialog } from './SendNotificationDialog';
+import { EmailDeliveryLogPanel } from './EmailDeliveryLogPanel';
 
 export function NotificationBell() {
   const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useGroupingNotifications();
+  const { isLeadership } = useAuth();
   const [open, setOpen] = useState(false);
 
   const getIcon = (type: string) => {
@@ -63,6 +67,26 @@ export function NotificationBell() {
                 </Button>
               }
             />
+            {isLeadership && (
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 rounded-full border-primary/20 hover:bg-primary/10 hover:text-primary"
+                    title="Email Delivery Log"
+                  >
+                    <Mail className="w-3.5 h-3.5" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>Email Delivery Log</DialogTitle>
+                  </DialogHeader>
+                  <EmailDeliveryLogPanel />
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </div>
         <ScrollArea className="h-[22rem]">

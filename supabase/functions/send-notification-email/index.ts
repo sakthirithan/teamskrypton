@@ -61,6 +61,26 @@ function buildRaw(to: string, subject: string, html: string) {
   return b64url(headers);
 }
 
+async function sendOnce(to: string, subject: string, html: string, LOVABLE_KEY: string, GMAIL_KEY: string) {
+  const raw = buildRaw(to, subject, html);
+  const res = await fetch(GATEWAY, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${LOVABLE_KEY}`,
+      'X-Connection-Api-Key': GMAIL_KEY,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ raw }),
+  });
+  const text = await res.text();
+  let providerId: string | null = null;
+  try {
+    const j = JSON.parse(text);
+    providerId = j?.id ?? null;
+  } catch (_) {}
+  return { ok: res.ok, status: res.status, text, providerId };
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -83,6 +103,7 @@ Deno.serve(async (req) => {
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    const senderId = claims.claims.sub as string;
 
     const payload: EmailPayload = await req.json();
     if (!payload.recipient_ids?.length || !payload.title) {
@@ -91,22 +112,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Use service role to read emails from auth.users
     const admin = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
 
-    const emails: string[] = [];
+    const recipients: { id: string; email: string }[] = [];
     for (const uid of payload.recipient_ids) {
       const { data } = await admin.auth.admin.getUserById(uid);
-      if (data?.user?.email) emails.push(data.user.email);
-    }
-
-    if (!emails.length) {
-      return new Response(JSON.stringify({ sent: 0, skipped: 'no-emails' }), {
-        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      if (data?.user?.email) recipients.push({ id: uid, email: data.user.email });
     }
 
     const LOVABLE_KEY = Deno.env.get('LOVABLE_API_KEY');
@@ -119,27 +133,66 @@ Deno.serve(async (req) => {
 
     const html = buildHtml(payload.title, payload.message || '', payload.type || 'info', payload.sender_name || 'Teamskrypton');
 
-    let sent = 0;
-    const errors: string[] = [];
-    for (const to of emails) {
-      const raw = buildRaw(to, payload.title, html);
-      const res = await fetch(GATEWAY, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${LOVABLE_KEY}`,
-          'X-Connection-Api-Key': GMAIL_KEY,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ raw }),
-      });
-      if (res.ok) sent++;
-      else {
-        const t = await res.text();
-        errors.push(`${to}: ${res.status} ${t.slice(0, 200)}`);
+    let sentCount = 0;
+    let failedCount = 0;
+
+    for (const r of recipients) {
+      // Create pending log row
+      const { data: logRow } = await admin
+        .from('email_delivery_log')
+        .insert({
+          sender_id: senderId,
+          recipient_id: r.id,
+          recipient_email: r.email,
+          title: payload.title,
+          message: payload.message || null,
+          type: payload.type || 'info',
+          status: 'pending',
+          attempts: 0,
+        })
+        .select('id')
+        .single();
+
+      // Try up to 2 attempts (initial + 1 retry)
+      let lastErr: string | null = null;
+      let providerId: string | null = null;
+      let success = false;
+      let attempts = 0;
+      for (let i = 0; i < 2; i++) {
+        attempts++;
+        const result = await sendOnce(r.email, payload.title, html, LOVABLE_KEY, GMAIL_KEY);
+        if (result.ok) {
+          success = true;
+          providerId = result.providerId;
+          break;
+        }
+        lastErr = `${result.status}: ${result.text.slice(0, 300)}`;
+        // Only retry on transient (5xx / 429)
+        if (result.status < 500 && result.status !== 429) break;
+        await new Promise((r) => setTimeout(r, 400));
       }
+
+      if (logRow?.id) {
+        await admin
+          .from('email_delivery_log')
+          .update({
+            status: success ? 'sent' : 'failed',
+            error_message: success ? null : lastErr,
+            provider_message_id: providerId,
+            attempts,
+          })
+          .eq('id', logRow.id);
+      }
+
+      if (success) sentCount++;
+      else failedCount++;
     }
 
-    return new Response(JSON.stringify({ sent, total: emails.length, errors }), {
+    return new Response(JSON.stringify({
+      sent: sentCount,
+      failed: failedCount,
+      total: recipients.length,
+    }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e: any) {
