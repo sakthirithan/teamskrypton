@@ -1,132 +1,47 @@
-## Goals
+## Goal
 
-1. Let uploaders set/edit a **thumbnail image** for each material.
-2. Make the **Edit upload** dialog correctly prefill all previously saved values.
-3. Add high-impact rental-marketplace features to **GP Redeem** that nudge users to rent (inspired by Airbnb / Udemy / Skillshare / Kindle Unlimited).
+When a user sends notifications through the Notification tab, deliver both an in-app notification AND an email (via Gmail App connector) to each selected recipient, using a clean Todoist-style template.
 
----
+## Approach
 
-## 1. Thumbnails for uploads
+Use the **Gmail App connector** (workspace-owned Gmail account, free, ~500/day, sends to any address). All notification emails go out from your connected Gmail as the "Krypton Space" sender.
 
-`marketplace_materials.thumbnail_url` already exists in the type. We will use a public **Lovable Cloud storage bucket** so any user can upload an image for their own material.
+## Steps
 
-**Migration**
+1. **Link Gmail App connector**
+  - Connect via `standard_connectors--connect` (connector_id: `google_mail`) with scope `gmail.send`.
+  - This exposes `LOVABLE_API_KEY` + `GOOGLE_MAIL_API_KEY` in edge functions and routes through the Lovable gateway (auto token refresh).
+2. **New edge function `send-notification-email**` (`verify_jwt = false`, service-role client)
+  - Input: `{ recipients: [{ user_id, title, message, type }] }` or a single recipient shape.
+  - For each recipient:
+    - Look up email via `auth.admin.getUserById` (service role) + full_name from `profiles`.
+    - Build RFC-2822 MIME message with a Todoist-style HTML template (see below), base64url-encode.
+    - POST to `https://connector-gateway.lovable.dev/google_mail/gmail/v1/users/me/messages/send` with gateway auth headers.
+  - Sends run in parallel with `Promise.allSettled`; returns per-recipient success/failure.
+  - Uses shared CORS headers; validates input with zod.
+3. **Todoist-style HTML template** (inline styles, single file inside the edge function)
+  - White background, max-width 560px card, subtle border.
+  - Header: small "Krypton Space" wordmark + type badge (info/success/warning colored pill).
+  - Body: bold title (Segoe UI/Inter), message paragraph, muted meta line ("Sent by {sender} • {date}").
+  - CTA button "Open Krypton Space" → published URL.
+  - Footer: small muted text with app name and a note that this is an automated message. No unsubscribe link (internal team app).
+4. **Wire `SendNotificationDialog**`
+  - After the existing in-app insert into `grouping_notifications` succeeds for the selected recipients, call `supabase.functions.invoke('send-notification-email', { body: { recipients: [...] } })` in the background (non-blocking).
+  - Toast still shows "Notification sent" immediately; a second toast reports email delivery count once resolved (e.g. "Emailed 4/5 recipients").
+  - Failures are logged but do not block the in-app notification.
+5. **Sender identity**
+  - `From: "Krypton Space" <your-connected-gmail@gmail.com>` (Gmail forces the connected account address; display name is customizable).
+  - `Reply-To` set to the sender's own email so replies go to the human who triggered it.
 
-- Create public bucket `marketplace-thumbnails`.
-- RLS on `storage.objects`:
-  - `select`: public (bucket is public).
-  - `insert / update / delete`: only `auth.uid()` matching the file's first folder segment (`{user_id}/...`).
+## Technical notes
 
-`**UploadMaterialDialog.tsx**`
+- Gmail App connector = builder's Gmail sends on behalf of the app (matches the free-plan requirement, no domain needed).
+- Gateway auth: `Authorization: Bearer ${LOVABLE_API_KEY}` + `X-Connection-Api-Key: ${GOOGLE_MAIL_API_KEY}`.
+- No new tables; no schema changes.
+- No changes to `send-notification` (Resend function) — leaves the registration approval flow intact.
 
-- Add a "Thumbnail" field with:
-  - File picker (image/* only, max ~2 MB, downscaled client-side via canvas to 800px wide WebP).
-  - Live preview, "Remove" button, fallback to type-icon banner if empty.
-  - On submit: upload to `marketplace-thumbnails/{user_id}/{materialId-or-uuid}.webp`, save `getPublicUrl()` into `thumbnail_url`.
-- Auto-suggest: when AI Assist runs on YouTube links, also pull `https://img.youtube.com/vi/{id}/hqdefault.jpg` as a default thumbnail.
+## Confirm before I build
 
-`**MaterialCard.tsx**`
-
-- If `material.thumbnail_url` exists → render it as a 16:9 cover image in the header band; type-icon shrinks to a corner chip. Otherwise keep current gradient + big icon.
-
----
-
-## 2. Edit dialog must show last-saved values
-
-Current bug: `useState` defaults are initialized once when the dialog file mounts; opening Edit for a different row, or after a save, can show stale values.
-
-Fix in `UploadMaterialDialog.tsx`:
-
-- Wrap field state init in a `useEffect([editing, open])` that resets every field from the latest `editing` row when the dialog opens (including `thumbnail_url`, `domain`, `discount_pct_7d`, `discount_pct_30d`, `min_days`, `max_days`, `keywords`, etc.).
-- On close, clear local state so a subsequent "Upload" opens clean.
-- Keep `source_url` disabled in edit mode (already done) but show it.
-
----
-
-## 3. GP Redeem — features to drive rentals
-
-### a. Trust & social proof on every card
-
-- ⭐ Average rating + review count (already partly there) — show as `4.8 ★ (23)`; add tooltip "Top rated this week" if avg ≥ 4.5 and ≥ 5 reviews.
-- 🔥 **Trending badge** when `purchase_count` in last 7 days ≥ threshold (computed in hook from a lightweight query on `marketplace_purchases`).
-- 👤 **Uploader chip** (avatar + name) clickable → opens their public profile.
-- 🆕 "New" pill for materials created within 72 h.
-
-### b. Urgency & savings
-
-- **Discount ribbon**: if `discount_pct_7d > 0` show a corner ribbon "Save {n}% on 7-day rent". Same for 30 d.
-- **Live "X people rented this week"** counter under the title.
-- "Only Y GP — less than a coffee" microcopy under price.
-
-### c. Risk-reversal CTAs
-
-- Free **30-second preview** button on viewer (no GP charge, watermarked, locked after 30 s) — reuses `marketplace-access` with `action: 'preview'`; backend issues a 30 s temp grant. (Light implementation; if blocked iframe, fall back to "Open external preview").
-- Show "Cancel anytime — no auto-renew" line in the Purchase dialog.
-
-### d. Personalization
-
-- **"Recommended for you"** strip at the top of Browse: filter by user's tracked skill domains (from `member_skills`) ordered by rating × popularity.
-- **"Continue learning"** strip: active rentals in My Library that are < 24 h from expiry, with one-click *Extend +7 d* (auto-applies discount).
-- **Wishlist / Save for later** ❤️ icon on each card — new table `marketplace_wishlist (user_id, material_id, created_at)` with simple RLS (owner-only).
-
-### e. Gamification
-
-- **Rental streak** chip in the hero: "3-day study streak — rent 1 more material this week to keep it." (Counts active rentals/day.)
-- **First rental bonus**: if user has 0 rentals ever, show banner "Get 10 GP back on your first rent" (refund handled by `marketplace-purchase` edge fn checking purchase count).
-- **Milestone toasts**: "🎉 5th rental this month — earned a 'Knowledge Seeker' badge."
-
-### f. Discovery
-
-- **Category chips row** below hero (DSA, Web, ML, System Design, Aptitude…) computed from existing `domain` values; clicking sets `filterType`/domain.
-- **"Top this week" carousel** in Browse — top 5 by recent purchases, larger cards with cover image.
-- **Smart search**: client-side highlight of matching keywords in title/description.
-
-### g. Hero polish
-
-- Replace static GP chip with a small ring showing "GP balance / cost of cheapest active material" so user instantly sees what they can afford.
-- CTA "What's hot →" smooth-scrolls to the Top this week carousel.
-
----
-
-## Technical details
-
-### Files to edit
-
-- `src/components/marketplace/UploadMaterialDialog.tsx` — thumbnail picker + reset effect.
-- `src/components/marketplace/MaterialCard.tsx` — cover image, ribbons, trending/new badges, uploader chip, wishlist heart.
-- `src/pages/GroupingMarketplace.tsx` — recommended/continue/top strips, category chips, hero ring.
-- `src/hooks/useMarketplace.tsx` — add `wishlist`, `recommended`, `trending`, `weeklyRentals` queries; `toggleWishlist` mutation.
-- `src/components/marketplace/PurchaseDialog.tsx` — "no auto-renew" copy, first-rental bonus hint.
-- `src/components/marketplace/MaterialViewer.tsx` — 30 s preview mode.
-- `supabase/functions/marketplace-access/index.ts` — accept `action: 'preview'`, issue 30 s grant without GP charge.
-- `supabase/functions/marketplace-purchase/index.ts` — apply 10 GP refund on user's first successful rental.
-
-### Migrations
-
-1. Create public storage bucket `marketplace-thumbnails` + RLS.
-2. New table `marketplace_wishlist (id, user_id, material_id, created_at)` + RLS (user CRUD own rows; uniqueness on `user_id,material_id`).
-3. Index `marketplace_purchases (created_at desc)` for trending query.
-
-### Design tokens
-
-Stick to existing yellow/amber GP palette + emerald (active) + rose (expired). No new global tokens.
-
-### Out of scope
-
-- Real money payments, refunds beyond GP, multi-image galleries.  
-  
-🎨 UI/UX Improvements
-  # 1. Hover Video Preview
-  Like:
-  - Netflix
-  - Udemy
-  Hover card:
-  - auto-play 5s preview GIF/video or Description visibility through AI or Uploader's Description
-  Massive conversion boost.
-  ---
-  # 2. Skeleton Loading
-  For:
-  - cards
-  - thumbnails
-  - carousels
-  Makes app feel premium.
+- OK to use the **Gmail App connector** (your Gmail account as the sender for all app notifications)? okkey
+- Sender display name: **"Teamskrypton"** — good, or different?  
+also: Sender name
