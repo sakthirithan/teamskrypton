@@ -64,13 +64,19 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
       });
 
       // Send notification to assigned lead
+      const title = '📋 Assigned as Project Lead';
+      const message = `You've been assigned as the lead for project "${form.name}". You have full management access to plan milestones, assign tasks, and drive the team.${form.deadline ? ` Deadline: ${form.deadline}.` : ''}`;
       await supabase.from('grouping_notifications').insert({
         sender_id: user.id,
         recipient_id: form.lead_id,
-        title: '📋 Assigned as Project Lead',
-        message: `You've been assigned as the lead for project "${form.name}". You have full management access.`,
+        title,
+        message,
         type: 'assignment',
       });
+      // Fire-and-forget email
+      supabase.functions.invoke('send-notification-email', {
+        body: { recipient_ids: [form.lead_id], title, message, type: 'assignment' },
+      }).catch((err) => console.error('Email dispatch failed:', err));
     }
 
     setForm({ name: '', description: '', priority: 'medium', start_date: new Date().toISOString().split('T')[0], deadline: '', lead_id: '' });
