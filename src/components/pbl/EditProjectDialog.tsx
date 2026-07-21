@@ -104,13 +104,18 @@ export function EditProjectDialog({ open, onOpenChange, project, onDeleted }: Ed
       await addMember.mutateAsync({ project_id: project.id, user_id: form.lead_id, role: 'lead' });
       // Notify new lead
       if (user) {
+        const title = '📋 Assigned as Project Lead';
+        const message = `You've been assigned as the lead for project "${form.name}". You now have full management access to this project.${form.deadline ? ` Deadline: ${form.deadline}.` : ''}`;
         await supabase.from('grouping_notifications').insert({
           sender_id: user.id,
           recipient_id: form.lead_id,
-          title: '📋 Assigned as Project Lead',
-          message: `You've been assigned as the lead for project "${form.name}".`,
+          title,
+          message,
           type: 'assignment',
         });
+        supabase.functions.invoke('send-notification-email', {
+          body: { recipient_ids: [form.lead_id], title, message, type: 'assignment' },
+        }).catch((err) => console.error('Email dispatch failed:', err));
       }
       queryClient.invalidateQueries({ queryKey: ['project-members', project.id] });
     }
