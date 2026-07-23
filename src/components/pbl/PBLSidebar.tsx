@@ -11,6 +11,7 @@ import {
   Bell,
   ListChecks,
   User,
+  Vote,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -33,6 +34,7 @@ const mainNavItems = [
   { title: 'Dashboard', url: '/pbl/dashboard', icon: LayoutDashboard },
   { title: 'My Space', url: '/pbl/my-space', icon: User },
   { title: 'Projects', url: '/pbl/projects', icon: FolderKanban },
+  { title: 'Polls', url: '/pbl/polls', icon: Vote },
   { title: 'Documentation', url: '/pbl/docs', icon: FileText },
   { title: 'To-Do List', url: '/pbl/todos', icon: ListChecks },
   { title: 'Notifications', url: '/pbl/notifications', icon: Bell },
