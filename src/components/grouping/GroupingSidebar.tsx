@@ -24,6 +24,7 @@ import {
   Send,
   ListChecks,
   Coins,
+  Vote,
 } from 'lucide-react';
 import {
   Sidebar,
