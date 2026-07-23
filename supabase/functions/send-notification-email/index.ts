@@ -50,7 +50,8 @@ function buildHtml(title: string, message: string, type: string, senderName: str
 function buildRaw(to: string, subject: string, html: string) {
   const headers = [
     `To: ${to}`,
-    `From: Teamskrypton <me>`,
+    `From: Teamskrypton <teamskrypton@gmail.com>`,
+    `Reply-To: teamskrypton@gmail.com`,
     `Subject: ${subject}`,
     'MIME-Version: 1.0',
     'Content-Type: text/html; charset="UTF-8"',
