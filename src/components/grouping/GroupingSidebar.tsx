@@ -24,6 +24,7 @@ import {
   Send,
   ListChecks,
   Coins,
+  Vote,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -315,6 +316,18 @@ export function GroupingSidebar() {
                   >
                     <Coins className="h-4 w-4 shrink-0 text-yellow-500" />
                     {!collapsed && <span>GP Redeem</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isActive('/grouping/polls')}>
+                  <NavLink
+                    to="/grouping/polls"
+                    className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-sidebar-accent"
+                    activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                  >
+                    <Vote className="h-4 w-4 shrink-0" />
+                    {!collapsed && <span>Polls</span>}
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>

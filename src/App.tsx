@@ -32,6 +32,8 @@ import PBLDocumentation from "./pages/PBLDocumentation";
 import PBLNotifications from "./pages/PBLNotifications";
 import PBLMySpace from "./pages/PBLMySpace";
 import PBLTodos from "./pages/PBLTodos";
+import GroupingPolls from "./pages/GroupingPolls";
+import PBLPolls from "./pages/PBLPolls";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -75,6 +77,7 @@ const App = () => (
               <Route path="/grouping/leaderboard" element={<GroupingLeaderboard />} />
               <Route path="/grouping/management/points" element={<GroupingPointManagement />} />
               <Route path="/grouping/marketplace" element={<GroupingMarketplace />} />
+              <Route path="/grouping/polls" element={<GroupingPolls />} />
               {/* PBL Mode Routes */}
               <Route path="/pbl/dashboard" element={<PBLDashboard />} />
               <Route path="/pbl/my-space" element={<PBLMySpace />} />
@@ -84,6 +87,7 @@ const App = () => (
               <Route path="/pbl/docs" element={<PBLDocumentation />} />
               <Route path="/pbl/notifications" element={<PBLNotifications />} />
               <Route path="/pbl/todos" element={<PBLTodos />} />
+              <Route path="/pbl/polls" element={<PBLPolls />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
