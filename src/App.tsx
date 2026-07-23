@@ -32,6 +32,8 @@ import PBLDocumentation from "./pages/PBLDocumentation";
 import PBLNotifications from "./pages/PBLNotifications";
 import PBLMySpace from "./pages/PBLMySpace";
 import PBLTodos from "./pages/PBLTodos";
+import GroupingPolls from "./pages/GroupingPolls";
+import PBLPolls from "./pages/PBLPolls";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
