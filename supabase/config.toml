@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.fetch-google-sheet]
 verify_jwt = false
+
+[functions.poll-vote]
+verify_jwt = false
