@@ -96,7 +96,15 @@ export function CreatePollDialog({ mode, trigger }: Props) {
             <div className="grid grid-cols-2 gap-3">
               <div className="flex items-center gap-2 border rounded-md px-3 py-2">
                 <Switch checked={multi} onCheckedChange={setMulti} id="multi" />
-                <Label htmlFor="multi" className="cursor-pointer text-sm">Allow multiple choices</Label>
+                <Label htmlFor="multi" className="cursor-pointer text-sm">Multiple / ranked</Label>
+              </div>
+              <div className="flex items-center gap-2 border rounded-md px-3 py-2">
+                <Switch checked={anonymous} onCheckedChange={setAnonymous} id="anon" />
+                <Label htmlFor="anon" className="cursor-pointer text-sm">Anonymous voting</Label>
+              </div>
+              <div className="flex items-center gap-2 border rounded-md px-3 py-2">
+                <Switch checked={sendEmail} onCheckedChange={setSendEmail} id="mail" />
+                <Label htmlFor="mail" className="cursor-pointer text-sm">Notify by email</Label>
               </div>
               <div>
                 <Label className="text-xs">Deadline (optional)</Label>
