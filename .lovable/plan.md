@@ -1,47 +1,57 @@
-## Goal
+## 1. Fix "Send Notification" RLS error for members
 
-When a user sends notifications through the Notification tab, deliver both an in-app notification AND an email (via Gmail App connector) to each selected recipient, using a clean Todoist-style template.
+Root cause: `grouping_notifications` currently has multiple overlapping INSERT policies, including a stale `"allow sending notifications"` policy that requires `auth.uid() = sender_id`. When the client insert races the trigger `set_sender_id` (or sends no `sender_id`), evaluation of that policy fails for non-leaders. There's also a leftover `"DEBUG insert"` policy that shouldn't be in production.
 
-## Approach
+Migration:
+- Drop stale/overlapping INSERT policies: `"DEBUG insert"`, `"Insert notifications"`, `"allow sending notifications"`, `"Authenticated users send notifications"`.
+- Recreate a single clean INSERT policy: any authenticated user may send to any recipient (`auth.uid() IS NOT NULL AND recipient_id IS NOT NULL`).
+- Ensure `set_sender_id` trigger exists as `BEFORE INSERT` so `sender_id` is always populated from `auth.uid()`.
 
-Use the **Gmail App connector** (workspace-owned Gmail account, free, ~500/day, sends to any address). All notification emails go out from your connected Gmail as the "Krypton Space" sender.
+## 2. Confirm notification triggers email
 
-## Steps
+`SendNotificationDialog` already invokes `send-notification-email` after `sendNotification`. No change needed to that flow, but I'll verify the edge function still targets `teamskrypton@gmail.com` and add a small client-side toast on failure so it's visible.
 
-1. **Link Gmail App connector**
-  - Connect via `standard_connectors--connect` (connector_id: `google_mail`) with scope `gmail.send`.
-  - This exposes `LOVABLE_API_KEY` + `GOOGLE_MAIL_API_KEY` in edge functions and routes through the Lovable gateway (auto token refresh).
-2. **New edge function `send-notification-email**` (`verify_jwt = false`, service-role client)
-  - Input: `{ recipients: [{ user_id, title, message, type }] }` or a single recipient shape.
-  - For each recipient:
-    - Look up email via `auth.admin.getUserById` (service role) + full_name from `profiles`.
-    - Build RFC-2822 MIME message with a Todoist-style HTML template (see below), base64url-encode.
-    - POST to `https://connector-gateway.lovable.dev/google_mail/gmail/v1/users/me/messages/send` with gateway auth headers.
-  - Sends run in parallel with `Promise.allSettled`; returns per-recipient success/failure.
-  - Uses shared CORS headers; validates input with zod.
-3. **Todoist-style HTML template** (inline styles, single file inside the edge function)
-  - White background, max-width 560px card, subtle border.
-  - Header: small "Krypton Space" wordmark + type badge (info/success/warning colored pill).
-  - Body: bold title (Segoe UI/Inter), message paragraph, muted meta line ("Sent by {sender} • {date}").
-  - CTA button "Open Krypton Space" → published URL.
-  - Footer: small muted text with app name and a note that this is an automated message. No unsubscribe link (internal team app).
-4. **Wire `SendNotificationDialog**`
-  - After the existing in-app insert into `grouping_notifications` succeeds for the selected recipients, call `supabase.functions.invoke('send-notification-email', { body: { recipients: [...] } })` in the background (non-blocking).
-  - Toast still shows "Notification sent" immediately; a second toast reports email delivery count once resolved (e.g. "Emailed 4/5 recipients").
-  - Failures are logged but do not block the in-app notification.
-5. **Sender identity**
-  - `From: "Krypton Space" <your-connected-gmail@gmail.com>` (Gmail forces the connected account address; display name is customizable).
-  - `Reply-To` set to the sender's own email so replies go to the human who triggered it.
+## 3. Email Delivery Log — show failures only
 
-## Technical notes
+- `EmailDeliveryLogPanel.tsx`: filter query to `status IN ('failed','pending')` (exclude `'sent'`).
+- Update header copy to "Email Delivery Issues", stats grid to Failed / Pending / Retries only, empty-state to "No delivery issues — all emails sent successfully."
+- Keep the 15s refetch and leadership-only visibility.
 
-- Gmail App connector = builder's Gmail sends on behalf of the app (matches the free-plan requirement, no domain needed).
-- Gateway auth: `Authorization: Bearer ${LOVABLE_API_KEY}` + `X-Connection-Api-Key: ${GOOGLE_MAIL_API_KEY}`.
-- No new tables; no schema changes.
-- No changes to `send-notification` (Resend function) — leaves the registration approval flow intact.
+## 4. Polls — show team members after division
 
-## Confirm before I build
+`PollCard.tsx` teams section already maps members but only renders the count. Update it to fetch profile names (reuse the profiles map already loaded in `TeamDivisionDialog`) and render a compact vertical member list per team card with avatar-initial chip + full name.
 
-- OK to use the **Gmail App connector** (your Gmail account as the sender for all app notifications)? okkey
-- Sender display name: **"Teamskrypton"** — good, or different?  
-also: Sender name
+## 5. Polls — new features
+
+### 5a. Ranked-preference team allocation (user-specified algorithm)
+- Add `max_team_size` to the Team Division dialog (Number of teams + Max team size inputs).
+- Extend `poll_votes` semantics: for multi-choice polls, ordering of a voter's votes by `created_at` already encodes rank (first click = Rank 1, etc.). No schema change needed.
+- Rewrite `allocate()` in `TeamDivisionDialog.tsx`:
+  1. Build voter → ranked preference list (ordered by vote `created_at`).
+  2. Create N teams, each named after the top-N options (or `Team i` if `N > options`), capacity = `max_team_size`.
+  3. Round-robin by rank: iterate rank 1..K; for each voter with an unplaced status, try to place into the team matching their current-rank option if that team has capacity.
+  4. Any voter still unplaced after all ranks → assign to smallest team with remaining capacity (respect cap).
+  5. If total voters exceed `N * max_team_size`, warn "capacity exceeded" and refuse to save.
+
+### 5b. Re-shuffle / Regenerate
+- Add a "Regenerate" button in the dialog that re-runs the algorithm with a different tiebreaker seed (deterministic shuffle of voter order) so leads can preview alternate balanced arrangements before saving.
+
+### 5c. Export teams CSV
+- Add "Export CSV" button on `PollCard.tsx` (visible when `teams.length > 0`). Builds `team_name,member_name,email` rows from teams/members/profile map and triggers a download.
+
+### 5d. Anonymous voting
+- Migration: add `polls.anonymous BOOLEAN DEFAULT false`.
+- `CreatePollDialog.tsx`: add "Anonymous voting" switch.
+- `PollCard.tsx`/algorithm: when anonymous, hide voter identity in any UI that would surface it (currently only counts are shown, so this is a display flag for future member lists in team teams; team allocation still uses real user IDs server-side but the poll card doesn't show who voted for what). Team division member names remain visible (assignments are the point).
+
+### 5e. Optional email toggle per poll
+- `CreatePollDialog.tsx`: replace unconditional email dispatch with a "Send email notification" switch (default on). When off, skip the `poll-notify` invocation but still create the poll.
+
+## Files touched
+
+- `supabase/migrations/<new>.sql` — RLS cleanup + `polls.anonymous`.
+- `src/components/grouping/EmailDeliveryLogPanel.tsx` — failures-only view.
+- `src/components/polls/TeamDivisionDialog.tsx` — ranked allocation + max size + regenerate + member names.
+- `src/components/polls/PollCard.tsx` — render member names in teams + CSV export.
+- `src/components/polls/CreatePollDialog.tsx` — anonymous + email toggle.
+- `src/hooks/usePolls.tsx` — pass `anonymous` and `notify` flag through create.
