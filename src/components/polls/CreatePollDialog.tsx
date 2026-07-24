@@ -125,30 +125,32 @@ export function CreatePollDialog({ mode, trigger }: Props) {
                 <Button variant="outline" size="sm" onClick={() => setOptions([...options, ''])}><Plus className="w-3 h-3 mr-1" />Add option</Button>
               </div>
             </div>
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <Label>Notify by email ({selected.size} selected)</Label>
-                <label className="flex items-center gap-2 text-xs cursor-pointer">
-                  <Checkbox checked={selectAll} onCheckedChange={(v) => setSelectAll(!!v)} />
-                  Select all
-                </label>
-              </div>
-              <div className="border rounded-md max-h-48 overflow-auto p-2 space-y-1">
-                {members.map((m: any) => (
-                  <label key={m.user_id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-muted/50 cursor-pointer text-sm">
-                    <Checkbox checked={selected.has(m.user_id)} onCheckedChange={() => toggle(m.user_id)} />
-                    <span className="flex-1">{m.full_name}</span>
-                    <span className="text-xs text-muted-foreground">{m.email}</span>
+            {sendEmail && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <Label>Notify by email ({selected.size} selected)</Label>
+                  <label className="flex items-center gap-2 text-xs cursor-pointer">
+                    <Checkbox checked={selectAll} onCheckedChange={(v) => setSelectAll(!!v)} />
+                    Select all
                   </label>
-                ))}
+                </div>
+                <div className="border rounded-md max-h-48 overflow-auto p-2 space-y-1">
+                  {members.map((m: any) => (
+                    <label key={m.user_id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-muted/50 cursor-pointer text-sm">
+                      <Checkbox checked={selected.has(m.user_id)} onCheckedChange={() => toggle(m.user_id)} />
+                      <span className="flex-1">{m.full_name}</span>
+                      <span className="text-xs text-muted-foreground">{m.email}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </ScrollArea>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
           <Button onClick={submit} disabled={createPoll.isPending || !title.trim() || options.filter((o) => o.trim()).length < 2}>
-            {createPoll.isPending ? 'Creating...' : 'Create & Notify'}
+            {createPoll.isPending ? 'Creating...' : (sendEmail ? 'Create & Notify' : 'Create Poll')}
           </Button>
         </DialogFooter>
       </DialogContent>
