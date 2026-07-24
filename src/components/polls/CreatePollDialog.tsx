@@ -25,6 +25,8 @@ export function CreatePollDialog({ mode, trigger }: Props) {
   const [title, setTitle] = useState('');
   const [desc, setDesc] = useState('');
   const [multi, setMulti] = useState(false);
+  const [anonymous, setAnonymous] = useState(false);
+  const [sendEmail, setSendEmail] = useState(true);
   const [deadline, setDeadline] = useState('');
   const [options, setOptions] = useState<string[]>(['', '']);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -59,13 +61,16 @@ export function CreatePollDialog({ mode, trigger }: Props) {
       title: title.trim(),
       description: desc.trim() || undefined,
       allow_multiple: multi,
+      anonymous,
       deadline: deadline ? new Date(deadline).toISOString() : null,
       options: clean,
-      notify_recipient_ids: Array.from(selected),
+      notify_recipient_ids: sendEmail ? Array.from(selected) : [],
+      send_email: sendEmail,
       sender_name: profile?.full_name || 'Teamskrypton',
     });
     setOpen(false);
-    setTitle(''); setDesc(''); setMulti(false); setDeadline(''); setOptions(['', '']);
+    setTitle(''); setDesc(''); setMulti(false); setAnonymous(false); setSendEmail(true);
+    setDeadline(''); setOptions(['', '']);
     setSelected(new Set()); setSelectAll(true);
   };
 
