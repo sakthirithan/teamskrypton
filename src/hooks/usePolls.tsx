@@ -15,6 +15,7 @@ export interface Poll {
   title: string;
   description: string | null;
   allow_multiple: boolean;
+  anonymous: boolean;
   deadline: string | null;
   status: 'open' | 'closed';
   results_published: boolean;
