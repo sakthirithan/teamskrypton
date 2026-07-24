@@ -98,11 +98,13 @@ export function usePolls(mode: PollMode) {
       title: string;
       description?: string;
       allow_multiple: boolean;
+      anonymous?: boolean;
       deadline?: string | null;
       options: string[];
       session_id?: string | null;
       project_id?: string | null;
       notify_recipient_ids?: string[];
+      send_email?: boolean;
       sender_name?: string;
     }) => {
       if (!user) throw new Error('Not signed in');
@@ -114,10 +116,11 @@ export function usePolls(mode: PollMode) {
           title: input.title,
           description: input.description || null,
           allow_multiple: input.allow_multiple,
+          anonymous: input.anonymous ?? false,
           deadline: input.deadline || null,
           session_id: input.session_id || null,
           project_id: input.project_id || null,
-        })
+        } as any)
         .select()
         .single();
       if (error) throw error;
@@ -128,7 +131,7 @@ export function usePolls(mode: PollMode) {
       const { error: optErr } = await supabase.from('poll_options').insert(rows);
       if (optErr) throw optErr;
 
-      if (input.notify_recipient_ids?.length) {
+      if (input.send_email !== false && input.notify_recipient_ids?.length) {
         await supabase.functions.invoke('poll-notify', {
           body: {
             poll_id: poll.id,
