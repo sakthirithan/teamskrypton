@@ -22,11 +22,12 @@ export function EmailDeliveryLogPanel() {
   const { isLeadership } = useAuth();
 
   const { data, isLoading, refetch, isFetching } = useQuery({
-    queryKey: ['email-delivery-log'],
+    queryKey: ['email-delivery-log', 'issues-only'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('email_delivery_log')
         .select('id, recipient_email, title, type, status, error_message, attempts, created_at')
+        .in('status', ['failed', 'pending'])
         .order('created_at', { ascending: false })
         .limit(200);
       if (error) throw error;
@@ -40,10 +41,9 @@ export function EmailDeliveryLogPanel() {
 
   const rows = data || [];
   const stats = {
-    total: rows.length,
-    sent: rows.filter(r => r.status === 'sent').length,
     failed: rows.filter(r => r.status === 'failed').length,
     pending: rows.filter(r => r.status === 'pending').length,
+    retries: rows.filter(r => (r.attempts ?? 0) > 1).length,
   };
 
   const statusBadge = (s: string) => {
@@ -57,7 +57,7 @@ export function EmailDeliveryLogPanel() {
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle className="flex items-center gap-2 font-display">
           <Mail className="w-5 h-5" />
-          Email Delivery Log
+          Email Delivery Issues
         </CardTitle>
         <button
           onClick={() => refetch()}
@@ -68,15 +68,7 @@ export function EmailDeliveryLogPanel() {
         </button>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-4 gap-2 mb-4">
-          <div className="rounded-lg border bg-card/50 p-3 text-center">
-            <div className="text-xl font-bold">{stats.total}</div>
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total</div>
-          </div>
-          <div className="rounded-lg border bg-emerald-500/5 border-emerald-500/20 p-3 text-center">
-            <div className="text-xl font-bold text-emerald-600">{stats.sent}</div>
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Sent</div>
-          </div>
+        <div className="grid grid-cols-3 gap-2 mb-4">
           <div className="rounded-lg border bg-red-500/5 border-red-500/20 p-3 text-center">
             <div className="text-xl font-bold text-red-600">{stats.failed}</div>
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Failed</div>
@@ -85,14 +77,18 @@ export function EmailDeliveryLogPanel() {
             <div className="text-xl font-bold text-amber-600">{stats.pending}</div>
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Pending</div>
           </div>
+          <div className="rounded-lg border bg-orange-500/5 border-orange-500/20 p-3 text-center">
+            <div className="text-xl font-bold text-orange-600">{stats.retries}</div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Retries</div>
+          </div>
         </div>
 
         {isLoading ? (
           <div className="text-center py-8 text-sm text-muted-foreground">Loading...</div>
         ) : rows.length === 0 ? (
           <div className="text-center py-8 text-sm text-muted-foreground">
-            <Mail className="w-8 h-8 mx-auto mb-2 opacity-40" />
-            No email deliveries yet.
+            <CheckCircle2 className="w-8 h-8 mx-auto mb-2 opacity-40 text-emerald-500" />
+            No delivery issues — all emails sent successfully.
           </div>
         ) : (
           <ScrollArea className="h-[420px] pr-2">

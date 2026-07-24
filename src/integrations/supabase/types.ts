@@ -1364,6 +1364,7 @@ export type Database = {
       polls: {
         Row: {
           allow_multiple: boolean
+          anonymous: boolean
           created_at: string
           creator_id: string
           deadline: string | null
@@ -1379,6 +1380,7 @@ export type Database = {
         }
         Insert: {
           allow_multiple?: boolean
+          anonymous?: boolean
           created_at?: string
           creator_id: string
           deadline?: string | null
@@ -1394,6 +1396,7 @@ export type Database = {
         }
         Update: {
           allow_multiple?: boolean
+          anonymous?: boolean
           created_at?: string
           creator_id?: string
           deadline?: string | null
