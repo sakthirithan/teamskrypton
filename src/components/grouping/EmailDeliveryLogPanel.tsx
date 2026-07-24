@@ -22,11 +22,12 @@ export function EmailDeliveryLogPanel() {
   const { isLeadership } = useAuth();
 
   const { data, isLoading, refetch, isFetching } = useQuery({
-    queryKey: ['email-delivery-log'],
+    queryKey: ['email-delivery-log', 'issues-only'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('email_delivery_log')
         .select('id, recipient_email, title, type, status, error_message, attempts, created_at')
+        .in('status', ['failed', 'pending'])
         .order('created_at', { ascending: false })
         .limit(200);
       if (error) throw error;
@@ -40,10 +41,9 @@ export function EmailDeliveryLogPanel() {
 
   const rows = data || [];
   const stats = {
-    total: rows.length,
-    sent: rows.filter(r => r.status === 'sent').length,
     failed: rows.filter(r => r.status === 'failed').length,
     pending: rows.filter(r => r.status === 'pending').length,
+    retries: rows.filter(r => (r.attempts ?? 0) > 1).length,
   };
 
   const statusBadge = (s: string) => {
