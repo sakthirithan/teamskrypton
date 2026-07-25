@@ -50,6 +50,12 @@ const queryClient = new QueryClient({
   },
 });
 
+function NativePushBootstrap() {
+  const { user } = useAuth();
+  useEffect(() => { if (user) initNativePush(); }, [user]);
+  return null;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -57,6 +63,7 @@ const App = () => (
       <Sonner />
       <AuthProvider>
         <AppModeProvider>
+          <NativePushBootstrap />
           <PWAInstallPrompt />
           <BrowserRouter>
             <Routes>
