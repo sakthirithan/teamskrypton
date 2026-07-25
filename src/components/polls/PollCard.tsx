@@ -156,7 +156,7 @@ export function PollCard({ poll, options, votes }: Props) {
 
       <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">
         <span>{totalVoters} voter{totalVoters !== 1 ? 's' : ''} · {formatDistanceToNow(new Date(poll.created_at), { addSuffix: true })}</span>
-        {isCreator && isClosed && totalVoters >= 2 && (
+        {isCreator && totalVoters >= 1 && (
           <TeamDivisionDialog poll={poll} options={options} votes={votes} />
         )}
       </div>

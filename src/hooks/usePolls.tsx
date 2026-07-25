@@ -228,7 +228,6 @@ export function usePollTeams(pollId: string | null) {
   });
   const saveDivision = useMutation({
     mutationFn: async ({ pollId, teams: t }: { pollId: string; teams: { name: string; based_on_option_id: string | null; members: string[] }[] }) => {
-      // wipe existing teams for this poll
       await supabase.from('poll_teams').delete().eq('poll_id', pollId);
       for (const team of t) {
         const { data: created, error } = await supabase
@@ -238,16 +237,22 @@ export function usePollTeams(pollId: string | null) {
         if (error) throw error;
         if (team.members.length) {
           const rows = team.members.map((uid) => ({ team_id: created.id, user_id: uid }));
-          await supabase.from('poll_team_members').insert(rows);
+          const { error: mErr } = await supabase.from('poll_team_members').insert(rows);
+          if (mErr) throw mErr;
         }
       }
+      return pollId;
     },
-    onSuccess: () => {
+    onSuccess: async (pid) => {
+      await Promise.all([
+        qc.refetchQueries({ queryKey: ['poll_teams', pid] }),
+        qc.refetchQueries({ queryKey: ['poll_team_members', pid] }),
+      ]);
       qc.invalidateQueries({ queryKey: ['poll_teams'] });
       qc.invalidateQueries({ queryKey: ['poll_team_members'] });
       toast.success('Teams created');
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: any) => toast.error(e.message || 'Failed to save teams'),
   });
   return { teams: teams.data ?? [], members: members.data ?? [], saveDivision };
 }

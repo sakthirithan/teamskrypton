@@ -1,11 +1,13 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/hooks/useAuth";
+import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { AppModeProvider } from "@/hooks/useAppMode";
 import { PWAInstallPrompt } from "@/components/pwa/PWAInstallPrompt";
+import { initNativePush } from "@/lib/push";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Team from "./pages/Team";
@@ -48,6 +50,12 @@ const queryClient = new QueryClient({
   },
 });
 
+function NativePushBootstrap() {
+  const { user } = useAuth();
+  useEffect(() => { if (user) initNativePush(); }, [user]);
+  return null;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -55,6 +63,7 @@ const App = () => (
       <Sonner />
       <AuthProvider>
         <AppModeProvider>
+          <NativePushBootstrap />
           <PWAInstallPrompt />
           <BrowserRouter>
             <Routes>

@@ -1,57 +1,61 @@
-## 1. Fix "Send Notification" RLS error for members
+## Part 1 — Fix "Generate Team" blank page
 
-Root cause: `grouping_notifications` currently has multiple overlapping INSERT policies, including a stale `"allow sending notifications"` policy that requires `auth.uid() = sender_id`. When the client insert races the trigger `set_sender_id` (or sends no `sender_id`), evaluation of that policy fails for non-leaders. There's also a leftover `"DEBUG insert"` policy that shouldn't be in production.
+**Diagnosis (unconfirmed until we reproduce):** The most likely causes for the dialog going blank and members not appearing are:
+- `usePollTeams` is called both in `PollCard` and inside `TeamDivisionDialog`, but after `saveDivision` runs it invalidates `['poll_teams']` without the poll id, so members can arrive before teams and render mismatched rows.
+- The `allocate()` function throws on edge cases (0 voters, numTeams < options, `maxRank` spread on empty array under strict lint), unmounting the dialog subtree.
+- No error boundary around the dialog, so any runtime error blanks the whole panel.
 
-Migration:
-- Drop stale/overlapping INSERT policies: `"DEBUG insert"`, `"Insert notifications"`, `"allow sending notifications"`, `"Authenticated users send notifications"`.
-- Recreate a single clean INSERT policy: any authenticated user may send to any recipient (`auth.uid() IS NOT NULL AND recipient_id IS NOT NULL`).
-- Ensure `set_sender_id` trigger exists as `BEFORE INSERT` so `sender_id` is always populated from `auth.uid()`.
+**Fixes:**
+1. Wrap `TeamDivisionDialog` body in a local error boundary that shows the error text instead of unmounting the page.
+2. Harden `allocate()`:
+   - Guard `voters.length === 0` → return teams with a friendly "No voters yet" flag.
+   - Replace `Math.max(1, ...voters.map(...))` with a safe reduce.
+   - Coerce `numTeams`/`maxSize` to sane integers at entry.
+3. Keep `usePollTeams(poll.id)` query keys scoped to `['poll_teams', pollId]` and `['poll_team_members', pollId]`, and invalidate both **with the poll id** in `saveDivision.onSuccess`. Also refetch immediately after save so team member rows appear without waiting on realtime.
+4. In `PollCard`, render teams from a single source: after save, force a `queryClient.refetchQueries` for both keys so member names show up right away.
+5. Make the "Divide Teams" trigger visible to the creator as soon as the poll has ≥1 voter (not gated on `isClosed`), with a warning banner if the poll is still open — the current gate is probably why some users think it "doesn't work".
+6. Show an inline empty state inside the dialog when `voterCount === 0` instead of running the allocator.
 
-## 2. Confirm notification triggers email
+**Files touched (frontend only):**
+- `src/components/polls/TeamDivisionDialog.tsx` — hardened allocator, empty state, error boundary wrapper.
+- `src/hooks/usePolls.tsx` — scope team invalidations by pollId, refetch on save.
+- `src/components/polls/PollCard.tsx` — relax trigger gate, force refetch after save.
 
-`SendNotificationDialog` already invokes `send-notification-email` after `sendNotification`. No change needed to that flow, but I'll verify the edge function still targets `teamskrypton@gmail.com` and add a small client-side toast on failure so it's visible.
+## Part 2 — Android APK with FCM push + background service
 
-## 3. Email Delivery Log — show failures only
+Feasible with the existing Capacitor setup. Route: **Capacitor + Firebase Cloud Messaging (FCM)**.
 
-- `EmailDeliveryLogPanel.tsx`: filter query to `status IN ('failed','pending')` (exclude `'sent'`).
-- Update header copy to "Email Delivery Issues", stats grid to Failed / Pending / Retries only, empty-state to "No delivery issues — all emails sent successfully."
-- Keep the 15s refetch and leadership-only visibility.
+**What I'll add in this project (code + backend):**
+1. Install `@capacitor/push-notifications` and `@capacitor-firebase/messaging`.
+2. `src/lib/push.ts` — on native app boot: request permission, register with FCM, receive token, upsert to a new `device_tokens` table (`user_id`, `token`, `platform`, `last_seen`), and register foreground/background handlers to route taps to the right route (poll, notification, project).
+3. New table `public.device_tokens` with RLS (owner-only insert/update/delete; service_role read).
+4. New edge function `send-push`: takes `{ user_ids, title, body, data }`, looks up tokens, sends via FCM HTTP v1 using a service-account secret.
+5. Wire existing notification insert paths (poll-notify, project lead assignment, `SendNotificationDialog`, alerts) to also invoke `send-push` alongside the email path — same recipient list, no duplication in the UI.
+6. `capacitor.config.ts` — add `PushNotifications` plugin config; keep the hot-reload `server.url` block but document the production toggle.
+7. Background support: FCM data-only messages wake the app via the Android messaging service (registered by the plugin). No extra native Java code needed for standard notification delivery; app icon + notification channel added via a small `res/` note in `docs/MOBILE_BUILD.md`.
 
-## 4. Polls — show team members after division
+**What you'll do locally (unchanged from the Capacitor flow already documented):**
+1. `git pull`, `npm install`.
+2. Create a Firebase project → add Android app with `applicationId = app.lovable.9f6c516d2ea644d189f41b98f40586c1` → download `google-services.json` → place in `android/app/`.
+3. Generate a Firebase service-account JSON → paste into a new secret `FCM_SERVICE_ACCOUNT_JSON` via the secret form I'll open after you confirm this plan.
+4. `npx cap add android`, `npm run build`, `npx cap sync`, `npx cap open android`, then Build → Build APK(s).
 
-`PollCard.tsx` teams section already maps members but only renders the count. Update it to fetch profile names (reuse the profiles map already loaded in `TeamDivisionDialog`) and render a compact vertical member list per team card with avatar-initial chip + full name.
+**Files touched (backend + native wiring):**
+- New migration: `device_tokens` table with GRANTs, RLS, and index on `user_id`.
+- New edge function: `supabase/functions/send-push/index.ts`.
+- New client util: `src/lib/push.ts` + init call from `src/App.tsx` guarded by `Capacitor.isNativePlatform()`.
+- `capacitor.config.ts` — add PushNotifications plugin block.
+- `package.json` — add the two plugins.
+- `docs/MOBILE_BUILD.md` — expand with the FCM setup steps.
 
-## 5. Polls — new features
+**Technical notes:**
+- Notifications continue to work in the browser via the existing in-app bell + email. Native push is additive.
+- iOS is deliberately out of scope for this pass (needs APNs + Apple dev account). Structure is compatible when you add it later.
+- No client-side FCM secrets — the service-account JSON stays server-side in the edge function.
 
-### 5a. Ranked-preference team allocation (user-specified algorithm)
-- Add `max_team_size` to the Team Division dialog (Number of teams + Max team size inputs).
-- Extend `poll_votes` semantics: for multi-choice polls, ordering of a voter's votes by `created_at` already encodes rank (first click = Rank 1, etc.). No schema change needed.
-- Rewrite `allocate()` in `TeamDivisionDialog.tsx`:
-  1. Build voter → ranked preference list (ordered by vote `created_at`).
-  2. Create N teams, each named after the top-N options (or `Team i` if `N > options`), capacity = `max_team_size`.
-  3. Round-robin by rank: iterate rank 1..K; for each voter with an unplaced status, try to place into the team matching their current-rank option if that team has capacity.
-  4. Any voter still unplaced after all ranks → assign to smallest team with remaining capacity (respect cap).
-  5. If total voters exceed `N * max_team_size`, warn "capacity exceeded" and refuse to save.
+**Not doing:**
+- No changes to email templates, RLS beyond the new `device_tokens` table, or the existing poll allocation semantics beyond the hardening above.
+- No iOS build.
+- No offline PWA changes.
 
-### 5b. Re-shuffle / Regenerate
-- Add a "Regenerate" button in the dialog that re-runs the algorithm with a different tiebreaker seed (deterministic shuffle of voter order) so leads can preview alternate balanced arrangements before saving.
-
-### 5c. Export teams CSV
-- Add "Export CSV" button on `PollCard.tsx` (visible when `teams.length > 0`). Builds `team_name,member_name,email` rows from teams/members/profile map and triggers a download.
-
-### 5d. Anonymous voting
-- Migration: add `polls.anonymous BOOLEAN DEFAULT false`.
-- `CreatePollDialog.tsx`: add "Anonymous voting" switch.
-- `PollCard.tsx`/algorithm: when anonymous, hide voter identity in any UI that would surface it (currently only counts are shown, so this is a display flag for future member lists in team teams; team allocation still uses real user IDs server-side but the poll card doesn't show who voted for what). Team division member names remain visible (assignments are the point).
-
-### 5e. Optional email toggle per poll
-- `CreatePollDialog.tsx`: replace unconditional email dispatch with a "Send email notification" switch (default on). When off, skip the `poll-notify` invocation but still create the poll.
-
-## Files touched
-
-- `supabase/migrations/<new>.sql` — RLS cleanup + `polls.anonymous`.
-- `src/components/grouping/EmailDeliveryLogPanel.tsx` — failures-only view.
-- `src/components/polls/TeamDivisionDialog.tsx` — ranked allocation + max size + regenerate + member names.
-- `src/components/polls/PollCard.tsx` — render member names in teams + CSV export.
-- `src/components/polls/CreatePollDialog.tsx` — anonymous + email toggle.
-- `src/hooks/usePolls.tsx` — pass `anonymous` and `notify` flag through create.
+Approve to proceed and I'll switch to build mode, run the migration, and open the secret form for `FCM_SERVICE_ACCOUNT_JSON`.
