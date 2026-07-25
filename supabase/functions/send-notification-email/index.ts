@@ -189,6 +189,18 @@ Deno.serve(async (req) => {
       else failedCount++;
     }
 
+    // Fire-and-forget native push to same recipients
+    try {
+      await admin.functions.invoke('send-push', {
+        body: {
+          user_ids: payload.recipient_ids,
+          title: payload.title,
+          body: payload.message || '',
+          data: { type: payload.type || 'info', path: '/grouping/home' },
+        },
+      });
+    } catch (_) { /* ignore */ }
+
     return new Response(JSON.stringify({
       sent: sentCount,
       failed: failedCount,
