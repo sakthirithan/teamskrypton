@@ -1030,6 +1030,17 @@ export const UserListPanel = memo(function UserListPanel({ onClose }: UserListPa
           </div>
         </DialogContent>
       </Dialog>
+
+      {disableTarget && (
+        <DisableUserDialog
+          open={!!disableTarget}
+          onOpenChange={(o) => { if (!o) setDisableTarget(null); }}
+          targetUserId={disableTarget.user_id}
+          targetUserName={disableTarget.full_name}
+          currentlyDisabled={disableTarget.is_disabled}
+          onDone={() => { setDisableTarget(null); fetchUsers(); }}
+        />
+      )}
     </>
   );
 });
