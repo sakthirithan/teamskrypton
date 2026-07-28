@@ -93,6 +93,7 @@ export const UserListPanel = memo(function UserListPanel({ onClose }: UserListPa
   // Dialog states
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [dialogType, setDialogType] = useState<'delete' | 'password' | null>(null);
+  const [disableTarget, setDisableTarget] = useState<UserData | null>(null);
   
   // Password reset state
   const [newPassword, setNewPassword] = useState('');
