@@ -87,3 +87,38 @@ Team Captain and Vice Captain can access Test Session mode:
 - Creates isolated test data
 - Won't affect production data
 - Automatically cleaned up when session ends
+
+## Push Notifications (Android, FCM)
+
+The app registers native FCM tokens and stores them in the `device_tokens` table. The `send-push` edge function reads tokens by user id and delivers via Firebase HTTP v1 in the background.
+
+### One-time Firebase setup
+
+1. Create a Firebase project at https://console.firebase.google.com.
+2. Add an Android app with the applicationId `app.lovable.9f6c516d2ea644d189f41b98f40586c1`.
+3. Download `google-services.json` and place it at `android/app/google-services.json`.
+4. In the Firebase console, Project Settings → Service accounts → Generate new private key → download the JSON. Paste the full JSON string into the project secret `FCM_SERVICE_ACCOUNT_JSON` (already requested by Lovable).
+
+### Build & run
+
+```bash
+git pull
+npm install
+npx cap add android            # first time only
+npm run build
+npx cap sync android
+npx cap open android
+```
+
+In Android Studio: Build → Build Bundle(s)/APK(s) → Build APK(s).
+
+### How it works
+
+- On first native launch (after login), the app asks for notification permission, receives an FCM token, and upserts it to `device_tokens` (unique per `user_id + token`).
+- Any notification that flows through `send-notification-email` (bell notifications, polls, project lead assignment, alerts) also fan-outs to `send-push`, which sends a native push in parallel to email.
+- Background delivery is handled by the FCM Android messaging service registered by `@capacitor/push-notifications`. No extra native Java is required.
+- Tapping a push with a `data.path` field navigates the app to that route.
+
+### Production toggle
+
+For a store build, remove the `server.url` block in `capacitor.config.ts` so the APK bundles the built web assets instead of loading the Lovable preview.
