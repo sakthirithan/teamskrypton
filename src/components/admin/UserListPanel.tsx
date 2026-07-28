@@ -661,6 +661,17 @@ export const UserListPanel = memo(function UserListPanel({ onClose }: UserListPa
                             <Button
                               size="sm"
                               variant="ghost"
+                              onClick={() => setDisableTarget(u)}
+                              disabled={u.user_id === user?.id}
+                              className={u.is_disabled ? 'text-green-600 hover:text-green-700' : 'hover:text-amber-600'}
+                              title={u.is_disabled ? 'Enable Profile' : 'Disable Profile'}
+                            >
+                              {u.is_disabled ? <ShieldOff className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
+                            </Button>
+
+                            <Button
+                              size="sm"
+                              variant="ghost"
                               onClick={() => {
                                 setSelectedUser(u);
                                 setDialogType('delete');
