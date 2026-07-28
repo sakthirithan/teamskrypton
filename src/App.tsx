@@ -1,12 +1,13 @@
-import { useEffect } from "react";
+import { useEffect, useState, ReactNode } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { AppModeProvider } from "@/hooks/useAppMode";
 import { PWAInstallPrompt } from "@/components/pwa/PWAInstallPrompt";
+import { SuspensionScreen } from "@/components/auth/SuspensionScreen";
 import { initNativePush } from "@/lib/push";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -25,7 +26,6 @@ import GroupingHabits from "./pages/GroupingHabits";
 import GroupingTodos from "./pages/GroupingTodos";
 import GroupingLeaderboard from "./pages/GroupingLeaderboard";
 import GroupingPointManagement from "./pages/GroupingPointManagement";
-import GroupingMarketplace from "./pages/GroupingMarketplace";
 import PBLDashboard from "./pages/PBLDashboard";
 import PBLProjects from "./pages/PBLProjects";
 import PBLAnalytics from "./pages/PBLAnalytics";
@@ -56,6 +56,28 @@ function NativePushBootstrap() {
   return null;
 }
 
+function SuspensionGate({ children }: { children: ReactNode }) {
+  const { isDisabled, disabledMode, isLoading } = useAuth();
+  const location = useLocation();
+  const [continueReadOnly, setContinueReadOnly] = useState(false);
+
+  // Always allow /auth to render (so the suspended user can sign out cleanly)
+  if (isLoading) return <>{children}</>;
+  if (location.pathname === '/auth') return <>{children}</>;
+  if (!isDisabled) return <>{children}</>;
+
+  // Read-only mode: user may opt to continue into the app in view-only.
+  if (disabledMode === 'read_only' && continueReadOnly) {
+    return <>{children}</>;
+  }
+
+  return (
+    <SuspensionScreen
+      onContinueReadOnly={disabledMode === 'read_only' ? () => setContinueReadOnly(true) : undefined}
+    />
+  );
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -66,39 +88,40 @@ const App = () => (
           <NativePushBootstrap />
           <PWAInstallPrompt />
           <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/team" element={<Team />} />
-              <Route path="/my-space" element={<MySpace />} />
-              <Route path="/member/:userId" element={<MemberProfile />} />
-              <Route path="/profile/:userId" element={<MemberPublicProfile />} />
-              {/* Grouping Mode Routes */}
-              <Route path="/grouping/home" element={<GroupingHome />} />
-              <Route path="/grouping/me" element={<GroupingMe />} />
-              <Route path="/grouping/skills" element={<GroupingSkills />} />
-              <Route path="/grouping/ps" element={<GroupingPS />} />
-              <Route path="/grouping/reflections" element={<GroupingReflections />} />
-              <Route path="/grouping/notes" element={<GroupingNotes />} />
-              <Route path="/grouping/sessions" element={<GroupingSessions />} />
-              <Route path="/grouping/habits" element={<GroupingHabits />} />
-              <Route path="/grouping/todos" element={<GroupingTodos />} />
-              <Route path="/grouping/leaderboard" element={<GroupingLeaderboard />} />
-              <Route path="/grouping/management/points" element={<GroupingPointManagement />} />
-              <Route path="/grouping/marketplace" element={<GroupingMarketplace />} />
-              <Route path="/grouping/polls" element={<GroupingPolls />} />
-              {/* PBL Mode Routes */}
-              <Route path="/pbl/dashboard" element={<PBLDashboard />} />
-              <Route path="/pbl/my-space" element={<PBLMySpace />} />
-              <Route path="/pbl/projects" element={<PBLProjects />} />
-              <Route path="/pbl/projects/:projectId" element={<ProjectDetail />} />
-              <Route path="/pbl/analytics" element={<PBLAnalytics />} />
-              <Route path="/pbl/docs" element={<PBLDocumentation />} />
-              <Route path="/pbl/notifications" element={<PBLNotifications />} />
-              <Route path="/pbl/todos" element={<PBLTodos />} />
-              <Route path="/pbl/polls" element={<PBLPolls />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+            <SuspensionGate>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/team" element={<Team />} />
+                <Route path="/my-space" element={<MySpace />} />
+                <Route path="/member/:userId" element={<MemberProfile />} />
+                <Route path="/profile/:userId" element={<MemberPublicProfile />} />
+                {/* Grouping Mode Routes */}
+                <Route path="/grouping/home" element={<GroupingHome />} />
+                <Route path="/grouping/me" element={<GroupingMe />} />
+                <Route path="/grouping/skills" element={<GroupingSkills />} />
+                <Route path="/grouping/ps" element={<GroupingPS />} />
+                <Route path="/grouping/reflections" element={<GroupingReflections />} />
+                <Route path="/grouping/notes" element={<GroupingNotes />} />
+                <Route path="/grouping/sessions" element={<GroupingSessions />} />
+                <Route path="/grouping/habits" element={<GroupingHabits />} />
+                <Route path="/grouping/todos" element={<GroupingTodos />} />
+                <Route path="/grouping/leaderboard" element={<GroupingLeaderboard />} />
+                <Route path="/grouping/management/points" element={<GroupingPointManagement />} />
+                <Route path="/grouping/polls" element={<GroupingPolls />} />
+                {/* PBL Mode Routes */}
+                <Route path="/pbl/dashboard" element={<PBLDashboard />} />
+                <Route path="/pbl/my-space" element={<PBLMySpace />} />
+                <Route path="/pbl/projects" element={<PBLProjects />} />
+                <Route path="/pbl/projects/:projectId" element={<ProjectDetail />} />
+                <Route path="/pbl/analytics" element={<PBLAnalytics />} />
+                <Route path="/pbl/docs" element={<PBLDocumentation />} />
+                <Route path="/pbl/notifications" element={<PBLNotifications />} />
+                <Route path="/pbl/todos" element={<PBLTodos />} />
+                <Route path="/pbl/polls" element={<PBLPolls />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </SuspensionGate>
           </BrowserRouter>
         </AppModeProvider>
       </AuthProvider>

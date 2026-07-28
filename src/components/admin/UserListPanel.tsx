@@ -28,11 +28,13 @@ import {
   Send,
   Zap,
   Shield,
+  ShieldOff,
   EyeOff,
   UserPlus,
   Check,
   FlaskConical
 } from 'lucide-react';
+import { DisableUserDialog } from '@/components/admin/DisableUserDialog';
 import {
   Dialog,
   DialogContent,
@@ -52,6 +54,10 @@ interface UserData {
   phone_number: string | null;
   current_status: TaskStatus | null;
   role: KryptonRole | null;
+  is_disabled: boolean;
+  disabled_mode: 'hidden' | 'read_only' | null;
+  disabled_reason: string | null;
+  disabled_until: string | null;
 }
 
 interface RegistrationRequest {
@@ -87,6 +93,7 @@ export const UserListPanel = memo(function UserListPanel({ onClose }: UserListPa
   // Dialog states
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [dialogType, setDialogType] = useState<'delete' | 'password' | null>(null);
+  const [disableTarget, setDisableTarget] = useState<UserData | null>(null);
   
   // Password reset state
   const [newPassword, setNewPassword] = useState('');
@@ -116,7 +123,7 @@ export const UserListPanel = memo(function UserListPanel({ onClose }: UserListPa
         (rolesRes.data || []).map(r => [r.user_id, r.role as KryptonRole])
       );
 
-      const userData: UserData[] = (profilesRes.data || []).map(p => ({
+      const userData: UserData[] = (profilesRes.data || []).map((p: any) => ({
         id: p.id,
         user_id: p.user_id,
         full_name: p.full_name,
@@ -124,7 +131,11 @@ export const UserListPanel = memo(function UserListPanel({ onClose }: UserListPa
         department: p.department,
         phone_number: p.phone_number,
         current_status: p.current_status as TaskStatus | null,
-        role: roleMap.get(p.user_id) || null
+        role: roleMap.get(p.user_id) || null,
+        is_disabled: !!p.is_disabled && (!p.disabled_until || new Date(p.disabled_until) > new Date()),
+        disabled_mode: p.disabled_mode ?? null,
+        disabled_reason: p.disabled_reason ?? null,
+        disabled_until: p.disabled_until ?? null,
       }));
 
       setUsers(userData);
@@ -568,6 +579,12 @@ export const UserListPanel = memo(function UserListPanel({ onClose }: UserListPa
                                 </span>
                               )}
                               {getStatusBadge(u.current_status)}
+                              {u.is_disabled && (
+                                <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4 gap-1">
+                                  {u.disabled_mode === 'read_only' ? <Eye className="w-2.5 h-2.5" /> : <EyeOff className="w-2.5 h-2.5" />}
+                                  {u.disabled_mode === 'read_only' ? 'Read-Only' : 'Hidden'}
+                                </Badge>
+                              )}
                             </div>
                             
                             <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
@@ -647,6 +664,17 @@ export const UserListPanel = memo(function UserListPanel({ onClose }: UserListPa
                               <Key className="w-4 h-4" />
                             </Button>
                             
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setDisableTarget(u)}
+                              disabled={u.user_id === user?.id}
+                              className={u.is_disabled ? 'text-green-600 hover:text-green-700' : 'hover:text-amber-600'}
+                              title={u.is_disabled ? 'Enable Profile' : 'Disable Profile'}
+                            >
+                              {u.is_disabled ? <ShieldOff className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
+                            </Button>
+
                             <Button
                               size="sm"
                               variant="ghost"
@@ -1002,6 +1030,17 @@ export const UserListPanel = memo(function UserListPanel({ onClose }: UserListPa
           </div>
         </DialogContent>
       </Dialog>
+
+      {disableTarget && (
+        <DisableUserDialog
+          open={!!disableTarget}
+          onOpenChange={(o) => { if (!o) setDisableTarget(null); }}
+          targetUserId={disableTarget.user_id}
+          targetUserName={disableTarget.full_name}
+          currentlyDisabled={disableTarget.is_disabled}
+          onDone={() => { setDisableTarget(null); fetchUsers(); }}
+        />
+      )}
     </>
   );
 });

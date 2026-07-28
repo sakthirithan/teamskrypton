@@ -837,273 +837,6 @@ export type Database = {
           },
         ]
       }
-      marketplace_access_log: {
-        Row: {
-          action: string
-          created_at: string
-          id: string
-          material_id: string
-          user_id: string
-        }
-        Insert: {
-          action: string
-          created_at?: string
-          id?: string
-          material_id: string
-          user_id: string
-        }
-        Update: {
-          action?: string
-          created_at?: string
-          id?: string
-          material_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "marketplace_access_log_material_id_fkey"
-            columns: ["material_id"]
-            isOneToOne: false
-            referencedRelation: "marketplace_materials"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "marketplace_access_log_material_id_fkey"
-            columns: ["material_id"]
-            isOneToOne: false
-            referencedRelation: "marketplace_materials_public"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      marketplace_materials: {
-        Row: {
-          created_at: string
-          description: string | null
-          discount_pct_30d: number
-          discount_pct_7d: number
-          domain: string | null
-          featured_until: string | null
-          id: string
-          keywords: string[]
-          material_type: Database["public"]["Enums"]["marketplace_material_type"]
-          max_days: number
-          min_days: number
-          price_per_day: number
-          purchase_count: number
-          rating_count: number
-          rating_sum: number
-          search_vec: unknown
-          source_url: string
-          status: Database["public"]["Enums"]["marketplace_material_status"]
-          thumbnail_url: string | null
-          title: string
-          updated_at: string
-          uploader_id: string
-          view_count: number
-        }
-        Insert: {
-          created_at?: string
-          description?: string | null
-          discount_pct_30d?: number
-          discount_pct_7d?: number
-          domain?: string | null
-          featured_until?: string | null
-          id?: string
-          keywords?: string[]
-          material_type: Database["public"]["Enums"]["marketplace_material_type"]
-          max_days?: number
-          min_days?: number
-          price_per_day?: number
-          purchase_count?: number
-          rating_count?: number
-          rating_sum?: number
-          search_vec?: unknown
-          source_url: string
-          status?: Database["public"]["Enums"]["marketplace_material_status"]
-          thumbnail_url?: string | null
-          title: string
-          updated_at?: string
-          uploader_id: string
-          view_count?: number
-        }
-        Update: {
-          created_at?: string
-          description?: string | null
-          discount_pct_30d?: number
-          discount_pct_7d?: number
-          domain?: string | null
-          featured_until?: string | null
-          id?: string
-          keywords?: string[]
-          material_type?: Database["public"]["Enums"]["marketplace_material_type"]
-          max_days?: number
-          min_days?: number
-          price_per_day?: number
-          purchase_count?: number
-          rating_count?: number
-          rating_sum?: number
-          search_vec?: unknown
-          source_url?: string
-          status?: Database["public"]["Enums"]["marketplace_material_status"]
-          thumbnail_url?: string | null
-          title?: string
-          updated_at?: string
-          uploader_id?: string
-          view_count?: number
-        }
-        Relationships: []
-      }
-      marketplace_purchases: {
-        Row: {
-          buyer_id: string
-          created_at: string
-          days_purchased: number
-          expires_at: string
-          gp_paid: number
-          id: string
-          material_id: string
-          status: Database["public"]["Enums"]["marketplace_purchase_status"]
-          uploader_id: string
-        }
-        Insert: {
-          buyer_id: string
-          created_at?: string
-          days_purchased: number
-          expires_at: string
-          gp_paid: number
-          id?: string
-          material_id: string
-          status?: Database["public"]["Enums"]["marketplace_purchase_status"]
-          uploader_id: string
-        }
-        Update: {
-          buyer_id?: string
-          created_at?: string
-          days_purchased?: number
-          expires_at?: string
-          gp_paid?: number
-          id?: string
-          material_id?: string
-          status?: Database["public"]["Enums"]["marketplace_purchase_status"]
-          uploader_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "marketplace_purchases_material_id_fkey"
-            columns: ["material_id"]
-            isOneToOne: false
-            referencedRelation: "marketplace_materials"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "marketplace_purchases_material_id_fkey"
-            columns: ["material_id"]
-            isOneToOne: false
-            referencedRelation: "marketplace_materials_public"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      marketplace_reviews: {
-        Row: {
-          buyer_id: string
-          comment: string | null
-          created_at: string
-          id: string
-          material_id: string
-          rating: number
-        }
-        Insert: {
-          buyer_id: string
-          comment?: string | null
-          created_at?: string
-          id?: string
-          material_id: string
-          rating: number
-        }
-        Update: {
-          buyer_id?: string
-          comment?: string | null
-          created_at?: string
-          id?: string
-          material_id?: string
-          rating?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "marketplace_reviews_material_id_fkey"
-            columns: ["material_id"]
-            isOneToOne: false
-            referencedRelation: "marketplace_materials"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "marketplace_reviews_material_id_fkey"
-            columns: ["material_id"]
-            isOneToOne: false
-            referencedRelation: "marketplace_materials_public"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      marketplace_treasury: {
-        Row: {
-          balance: number
-          id: number
-          total_collected: number
-          updated_at: string
-        }
-        Insert: {
-          balance?: number
-          id?: number
-          total_collected?: number
-          updated_at?: string
-        }
-        Update: {
-          balance?: number
-          id?: number
-          total_collected?: number
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      marketplace_wishlist: {
-        Row: {
-          created_at: string
-          id: string
-          material_id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          material_id: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          material_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "marketplace_wishlist_material_id_fkey"
-            columns: ["material_id"]
-            isOneToOne: false
-            referencedRelation: "marketplace_materials"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "marketplace_wishlist_material_id_fkey"
-            columns: ["material_id"]
-            isOneToOne: false
-            referencedRelation: "marketplace_materials_public"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       member_skills: {
         Row: {
           assigned_by: string
@@ -1442,6 +1175,39 @@ export type Database = {
         }
         Relationships: []
       }
+      profile_status_history: {
+        Row: {
+          action: string
+          created_at: string
+          disabled_until: string | null
+          id: string
+          mode: string | null
+          performed_by: string | null
+          profile_user_id: string
+          reason: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          disabled_until?: string | null
+          id?: string
+          mode?: string | null
+          performed_by?: string | null
+          profile_user_id: string
+          reason?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          disabled_until?: string | null
+          id?: string
+          mode?: string | null
+          performed_by?: string | null
+          profile_user_id?: string
+          reason?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -1449,11 +1215,17 @@ export type Database = {
           created_by_tl: string | null
           current_status: Database["public"]["Enums"]["task_status"] | null
           department: string
+          disabled_at: string | null
+          disabled_by: string | null
+          disabled_mode: string | null
+          disabled_reason: string | null
+          disabled_until: string | null
           email: string
           expires_at: string | null
           full_name: string
           id: string
           is_direct_access: boolean | null
+          is_disabled: boolean
           is_test: boolean | null
           phone_number: string | null
           register_number: string | null
@@ -1468,11 +1240,17 @@ export type Database = {
           created_by_tl?: string | null
           current_status?: Database["public"]["Enums"]["task_status"] | null
           department: string
+          disabled_at?: string | null
+          disabled_by?: string | null
+          disabled_mode?: string | null
+          disabled_reason?: string | null
+          disabled_until?: string | null
           email: string
           expires_at?: string | null
           full_name: string
           id?: string
           is_direct_access?: boolean | null
+          is_disabled?: boolean
           is_test?: boolean | null
           phone_number?: string | null
           register_number?: string | null
@@ -1487,11 +1265,17 @@ export type Database = {
           created_by_tl?: string | null
           current_status?: Database["public"]["Enums"]["task_status"] | null
           department?: string
+          disabled_at?: string | null
+          disabled_by?: string | null
+          disabled_mode?: string | null
+          disabled_reason?: string | null
+          disabled_until?: string | null
           email?: string
           expires_at?: string | null
           full_name?: string
           id?: string
           is_direct_access?: boolean | null
+          is_disabled?: boolean
           is_test?: boolean | null
           phone_number?: string | null
           register_number?: string | null
@@ -2677,94 +2461,12 @@ export type Database = {
       }
     }
     Views: {
-      marketplace_materials_public: {
-        Row: {
-          created_at: string | null
-          description: string | null
-          discount_pct_30d: number | null
-          discount_pct_7d: number | null
-          domain: string | null
-          featured_until: string | null
-          id: string | null
-          keywords: string[] | null
-          material_type:
-            | Database["public"]["Enums"]["marketplace_material_type"]
-            | null
-          max_days: number | null
-          min_days: number | null
-          price_per_day: number | null
-          purchase_count: number | null
-          rating_count: number | null
-          rating_sum: number | null
-          status:
-            | Database["public"]["Enums"]["marketplace_material_status"]
-            | null
-          thumbnail_url: string | null
-          title: string | null
-          updated_at: string | null
-          uploader_id: string | null
-          view_count: number | null
-        }
-        Insert: {
-          created_at?: string | null
-          description?: string | null
-          discount_pct_30d?: number | null
-          discount_pct_7d?: number | null
-          domain?: string | null
-          featured_until?: string | null
-          id?: string | null
-          keywords?: string[] | null
-          material_type?:
-            | Database["public"]["Enums"]["marketplace_material_type"]
-            | null
-          max_days?: number | null
-          min_days?: number | null
-          price_per_day?: number | null
-          purchase_count?: number | null
-          rating_count?: number | null
-          rating_sum?: number | null
-          status?:
-            | Database["public"]["Enums"]["marketplace_material_status"]
-            | null
-          thumbnail_url?: string | null
-          title?: string | null
-          updated_at?: string | null
-          uploader_id?: string | null
-          view_count?: number | null
-        }
-        Update: {
-          created_at?: string | null
-          description?: string | null
-          discount_pct_30d?: number | null
-          discount_pct_7d?: number | null
-          domain?: string | null
-          featured_until?: string | null
-          id?: string | null
-          keywords?: string[] | null
-          material_type?:
-            | Database["public"]["Enums"]["marketplace_material_type"]
-            | null
-          max_days?: number | null
-          min_days?: number | null
-          price_per_day?: number | null
-          purchase_count?: number | null
-          rating_count?: number | null
-          rating_sum?: number | null
-          status?:
-            | Database["public"]["Enums"]["marketplace_material_status"]
-            | null
-          thumbnail_url?: string | null
-          title?: string | null
-          updated_at?: string | null
-          uploader_id?: string | null
-          view_count?: number | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       cleanup_expired_study_items: { Args: never; Returns: undefined }
       cleanup_old_login_activity: { Args: never; Returns: undefined }
+      get_disabled_mode: { Args: { _user_id: string }; Returns: string }
       get_simulated_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["krypton_role"]
@@ -2772,10 +2474,6 @@ export type Database = {
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["krypton_role"]
-      }
-      has_active_rental: {
-        Args: { _material_id: string; _user_id: string }
-        Returns: boolean
       }
       has_role: {
         Args: {
@@ -2793,11 +2491,22 @@ export type Database = {
       }
       is_leadership: { Args: { _user_id: string }; Returns: boolean }
       is_primary_test_user: { Args: { _user_id: string }; Returns: boolean }
+      is_profile_active: { Args: { _user_id: string }; Returns: boolean }
       is_project_lead: {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
       }
       is_team_member_only: { Args: { _user_id: string }; Returns: boolean }
+      toggle_profile_status: {
+        Args: {
+          _disable: boolean
+          _disabled_until?: string
+          _mode?: string
+          _reason?: string
+          _target_user_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       approval_status: "pending" | "approved" | "rejected"
@@ -2814,15 +2523,6 @@ export type Database = {
         | "strategist"
         | "team_manager"
         | "team_member"
-      marketplace_material_status: "active" | "paused" | "removed"
-      marketplace_material_type:
-        | "pdf"
-        | "drive"
-        | "youtube"
-        | "github"
-        | "url"
-        | "image"
-      marketplace_purchase_status: "active" | "expired" | "refunded"
       milestone_status: "not_started" | "in_progress" | "completed" | "overdue"
       priority_level: "low" | "medium" | "high" | "critical"
       project_status:
@@ -2985,16 +2685,6 @@ export const Constants = {
         "team_manager",
         "team_member",
       ],
-      marketplace_material_status: ["active", "paused", "removed"],
-      marketplace_material_type: [
-        "pdf",
-        "drive",
-        "youtube",
-        "github",
-        "url",
-        "image",
-      ],
-      marketplace_purchase_status: ["active", "expired", "refunded"],
       milestone_status: ["not_started", "in_progress", "completed", "overdue"],
       priority_level: ["low", "medium", "high", "critical"],
       project_status: [

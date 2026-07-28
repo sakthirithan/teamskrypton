@@ -12,6 +12,11 @@ interface AuthContextType {
   isLoading: boolean;
   isLeadership: boolean;
   isCaptainOrVice: boolean;
+  isDisabled: boolean;
+  isReadOnly: boolean;
+  disabledMode: 'hidden' | 'read_only' | null;
+  disabledReason: string | null;
+  disabledUntil: string | null;
   signOut: () => Promise<void>;
 }
 
@@ -25,9 +30,19 @@ interface Profile {
   current_status: string;
   created_at: string;
   is_direct_access: boolean;
+  is_disabled?: boolean;
+  disabled_mode?: 'hidden' | 'read_only' | null;
+  disabled_reason?: string | null;
+  disabled_until?: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+function isActiveNow(p: Profile | null): boolean {
+  if (!p?.is_disabled) return true;
+  if (p.disabled_until && new Date(p.disabled_until).getTime() <= Date.now()) return true;
+  return false;
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -39,9 +54,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isLeadership = role ? LEADERSHIP_ROLES.includes(role) : false;
   const isCaptainOrVice = role ? CAPTAIN_ROLES.includes(role) : false;
 
+  const active = isActiveNow(profile);
+  const isDisabled = !!profile && !active;
+  const disabledMode = isDisabled ? (profile?.disabled_mode ?? null) : null;
+  const isReadOnly = disabledMode === 'read_only';
+  const disabledReason = isDisabled ? (profile?.disabled_reason ?? null) : null;
+  const disabledUntil = isDisabled ? (profile?.disabled_until ?? null) : null;
+
   const fetchUserData = async (userId: string) => {
     try {
-      // Fetch profile
       const { data: profileData } = await supabase
         .from('profiles')
         .select('*')
@@ -52,7 +73,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfile(profileData as Profile);
       }
 
-      // Fetch role
       const { data: roleData } = await supabase
         .from('user_roles')
         .select('role')
@@ -68,14 +88,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        
+
         if (session?.user) {
-          // Defer data fetching to avoid deadlock
           setTimeout(() => {
             fetchUserData(session.user.id);
           }, 0);
@@ -87,11 +105,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      
+
       if (session?.user) {
         fetchUserData(session.user.id);
       }
@@ -102,9 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = async () => {
-    // Clear localStorage session data
     localStorage.removeItem('krypton_session_info');
-    
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
@@ -113,7 +128,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, role, isLoading, isLeadership, isCaptainOrVice, signOut }}>
+    <AuthContext.Provider value={{
+      user, session, profile, role, isLoading,
+      isLeadership, isCaptainOrVice,
+      isDisabled, isReadOnly, disabledMode, disabledReason, disabledUntil,
+      signOut,
+    }}>
       {children}
     </AuthContext.Provider>
   );
