@@ -77,12 +77,17 @@ const Team = () => {
   }, [user, isLoading, navigate]);
 
   const fetchMembers = async () => {
-    // Fetch profiles
-    const { data: profiles } = await supabase
+    // Fetch profiles (exclude currently-disabled users; auto-restore expired ones)
+    const nowIso = new Date().toISOString();
+    let query = supabase
       .from('profiles')
       .select('*')
       .eq('is_test', false)
       .order('full_name');
+    // Hide disabled users unless their disabled_until has passed
+    query = query.or(`is_disabled.is.false,is_disabled.is.null,disabled_until.lt.${nowIso}`);
+    const { data: profiles } = await query;
+
 
     // Fetch roles
     const { data: roles } = await supabase
