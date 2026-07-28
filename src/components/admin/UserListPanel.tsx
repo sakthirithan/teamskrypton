@@ -579,6 +579,12 @@ export const UserListPanel = memo(function UserListPanel({ onClose }: UserListPa
                                 </span>
                               )}
                               {getStatusBadge(u.current_status)}
+                              {u.is_disabled && (
+                                <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4 gap-1">
+                                  {u.disabled_mode === 'read_only' ? <Eye className="w-2.5 h-2.5" /> : <EyeOff className="w-2.5 h-2.5" />}
+                                  {u.disabled_mode === 'read_only' ? 'Read-Only' : 'Hidden'}
+                                </Badge>
+                              )}
                             </div>
                             
                             <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
