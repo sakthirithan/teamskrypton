@@ -28,11 +28,13 @@ import {
   Send,
   Zap,
   Shield,
+  ShieldOff,
   EyeOff,
   UserPlus,
   Check,
   FlaskConical
 } from 'lucide-react';
+import { DisableUserDialog } from '@/components/admin/DisableUserDialog';
 import {
   Dialog,
   DialogContent,
@@ -52,6 +54,10 @@ interface UserData {
   phone_number: string | null;
   current_status: TaskStatus | null;
   role: KryptonRole | null;
+  is_disabled: boolean;
+  disabled_mode: 'hidden' | 'read_only' | null;
+  disabled_reason: string | null;
+  disabled_until: string | null;
 }
 
 interface RegistrationRequest {
@@ -116,7 +122,7 @@ export const UserListPanel = memo(function UserListPanel({ onClose }: UserListPa
         (rolesRes.data || []).map(r => [r.user_id, r.role as KryptonRole])
       );
 
-      const userData: UserData[] = (profilesRes.data || []).map(p => ({
+      const userData: UserData[] = (profilesRes.data || []).map((p: any) => ({
         id: p.id,
         user_id: p.user_id,
         full_name: p.full_name,
@@ -124,7 +130,11 @@ export const UserListPanel = memo(function UserListPanel({ onClose }: UserListPa
         department: p.department,
         phone_number: p.phone_number,
         current_status: p.current_status as TaskStatus | null,
-        role: roleMap.get(p.user_id) || null
+        role: roleMap.get(p.user_id) || null,
+        is_disabled: !!p.is_disabled && (!p.disabled_until || new Date(p.disabled_until) > new Date()),
+        disabled_mode: p.disabled_mode ?? null,
+        disabled_reason: p.disabled_reason ?? null,
+        disabled_until: p.disabled_until ?? null,
       }));
 
       setUsers(userData);
