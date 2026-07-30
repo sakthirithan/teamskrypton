@@ -51,7 +51,7 @@ const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
       refetchOnMount: false,
       refetchOnReconnect: true,
-524      structuralSharing: true,
+structuralSharing: true,
     },
   },
 });
