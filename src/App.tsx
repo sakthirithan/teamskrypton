@@ -39,6 +39,7 @@ const PBLDocumentation = lazy(() => import("./pages/PBLDocumentation"));
 const PBLNotifications = lazy(() => import("./pages/PBLNotifications"));
 const PBLMySpace = lazy(() => import("./pages/PBLMySpace"));
 const PBLTodos = lazy(() => import("./pages/PBLTodos"));
+const PBLPolls = lazy(() => import("./pages/PBLPolls"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
