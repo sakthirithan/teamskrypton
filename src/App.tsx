@@ -107,6 +107,7 @@ const App = () => (
           <PWAInstallPrompt />
           <BrowserRouter>
             <SuspensionGate>
+              <Suspense fallback={<RouteFallback />}>
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<Auth />} />
