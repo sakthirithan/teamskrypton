@@ -162,16 +162,16 @@ export function GroupingSidebar() {
       <SidebarMenuButton asChild>
         <NavLink
           to={item.url}
-          className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors
+          className={`relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-all duration-200
             ${
               active
-                ? 'bg-primary text-white font-medium'
-                : 'hover:bg-sidebar-accent'
+                ? 'bg-sidebar-primary/15 text-sidebar-accent-foreground font-medium before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-sidebar-primary'
+                : 'text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
             }
           `}
         >
-          <item.icon className="h-4 w-4 shrink-0" />
-          {!collapsed && <span>{item.title}</span>}
+          <item.icon className={`h-4 w-4 shrink-0 ${active ? 'text-sidebar-primary' : ''}`} />
+          {!collapsed && <span className="truncate">{item.title}</span>}
         </NavLink>
       </SidebarMenuButton>
     </SidebarMenuItem>
@@ -287,8 +287,8 @@ export function GroupingSidebar() {
                 <SidebarMenuButton asChild isActive={isActive('/grouping/home')}>
                   <NavLink
                     to="/grouping/home"
-                    className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-sidebar-accent"
-                    activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                    className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-sidebar-foreground/75 transition-all duration-200 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                    activeClassName="bg-sidebar-primary/15 text-sidebar-accent-foreground font-medium before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-sidebar-primary"
                   >
                     <LayoutDashboard className="h-4 w-4 shrink-0" />
                     {!collapsed && <span>Dashboard</span>}
@@ -299,8 +299,8 @@ export function GroupingSidebar() {
                 <SidebarMenuButton asChild isActive={isActive('/grouping/leaderboard')}>
                   <NavLink
                     to="/grouping/leaderboard"
-                    className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-sidebar-accent"
-                    activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                    className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-sidebar-foreground/75 transition-all duration-200 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                    activeClassName="bg-sidebar-primary/15 text-sidebar-accent-foreground font-medium before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-sidebar-primary"
                   >
                     <TrendingUp className="h-4 w-4 shrink-0" />
                     {!collapsed && <span>Leaderboard</span>}
@@ -311,8 +311,8 @@ export function GroupingSidebar() {
                 <SidebarMenuButton asChild isActive={isActive('/grouping/polls')}>
                   <NavLink
                     to="/grouping/polls"
-                    className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-sidebar-accent"
-                    activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                    className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-sidebar-foreground/75 transition-all duration-200 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                    activeClassName="bg-sidebar-primary/15 text-sidebar-accent-foreground font-medium before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-sidebar-primary"
                   >
                     <Vote className="h-4 w-4 shrink-0" />
                     {!collapsed && <span>Polls</span>}
@@ -324,8 +324,8 @@ export function GroupingSidebar() {
                   <SidebarMenuButton asChild isActive={isActive('/grouping/management/points')}>
                     <NavLink
                       to="/grouping/management/points"
-                      className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-sidebar-accent cursor-pointer"
-                      activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                      className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-sidebar-foreground/75 transition-all duration-200 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer"
+                      activeClassName="bg-sidebar-primary/15 text-sidebar-accent-foreground font-medium before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-sidebar-primary"
                     >
                       <Target className="h-4 w-4 shrink-0" />
                       {!collapsed && <span>Point Management</span>}

@@ -1,4 +1,4 @@
-import { useEffect, useState, ReactNode } from "react";
+import { useEffect, useState, ReactNode, lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,46 +9,64 @@ import { AppModeProvider } from "@/hooks/useAppMode";
 import { PWAInstallPrompt } from "@/components/pwa/PWAInstallPrompt";
 import { SuspensionScreen } from "@/components/auth/SuspensionScreen";
 import { initNativePush } from "@/lib/push";
+
+// Eager: entry routes needed on first paint
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
-import Team from "./pages/Team";
-import MySpace from "./pages/MySpace";
-import MemberProfile from "./pages/MemberProfile";
-import MemberPublicProfile from "./pages/MemberPublicProfile";
-import GroupingHome from "./pages/GroupingHome";
-import GroupingMe from "./pages/GroupingMe";
-import GroupingSkills from "./pages/GroupingSkills";
-import GroupingPS from "./pages/GroupingPS";
-import GroupingReflections from "./pages/GroupingReflections";
-import GroupingNotes from "./pages/GroupingNotes";
-import GroupingSessions from "./pages/GroupingSessions";
-import GroupingHabits from "./pages/GroupingHabits";
-import GroupingTodos from "./pages/GroupingTodos";
-import GroupingLeaderboard from "./pages/GroupingLeaderboard";
-import GroupingPointManagement from "./pages/GroupingPointManagement";
-import PBLDashboard from "./pages/PBLDashboard";
-import PBLProjects from "./pages/PBLProjects";
-import PBLAnalytics from "./pages/PBLAnalytics";
-import ProjectDetail from "./pages/ProjectDetail";
-import PBLDocumentation from "./pages/PBLDocumentation";
-import PBLNotifications from "./pages/PBLNotifications";
-import PBLMySpace from "./pages/PBLMySpace";
-import PBLTodos from "./pages/PBLTodos";
-import GroupingPolls from "./pages/GroupingPolls";
-import PBLPolls from "./pages/PBLPolls";
-import NotFound from "./pages/NotFound";
+
+// Lazy: everything else is split per-route to shrink the initial bundle
+const Team = lazy(() => import("./pages/Team"));
+const MySpace = lazy(() => import("./pages/MySpace"));
+const MemberProfile = lazy(() => import("./pages/MemberProfile"));
+const MemberPublicProfile = lazy(() => import("./pages/MemberPublicProfile"));
+const GroupingHome = lazy(() => import("./pages/GroupingHome"));
+const GroupingMe = lazy(() => import("./pages/GroupingMe"));
+const GroupingSkills = lazy(() => import("./pages/GroupingSkills"));
+const GroupingPS = lazy(() => import("./pages/GroupingPS"));
+const GroupingReflections = lazy(() => import("./pages/GroupingReflections"));
+const GroupingNotes = lazy(() => import("./pages/GroupingNotes"));
+const GroupingSessions = lazy(() => import("./pages/GroupingSessions"));
+const GroupingHabits = lazy(() => import("./pages/GroupingHabits"));
+const GroupingTodos = lazy(() => import("./pages/GroupingTodos"));
+const GroupingLeaderboard = lazy(() => import("./pages/GroupingLeaderboard"));
+const GroupingPointManagement = lazy(() => import("./pages/GroupingPointManagement"));
+const GroupingPolls = lazy(() => import("./pages/GroupingPolls"));
+const PBLDashboard = lazy(() => import("./pages/PBLDashboard"));
+const PBLProjects = lazy(() => import("./pages/PBLProjects"));
+const PBLAnalytics = lazy(() => import("./pages/PBLAnalytics"));
+const ProjectDetail = lazy(() => import("./pages/ProjectDetail"));
+const PBLDocumentation = lazy(() => import("./pages/PBLDocumentation"));
+const PBLNotifications = lazy(() => import("./pages/PBLNotifications"));
+const PBLMySpace = lazy(() => import("./pages/PBLMySpace"));
+const PBLTodos = lazy(() => import("./pages/PBLTodos"));
+const PBLPolls = lazy(() => import("./pages/PBLPolls"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 30 * 1000,
-      gcTime: 10 * 60 * 1000,
-      retry: 2,
+      staleTime: 2 * 60 * 1000,
+      gcTime: 15 * 60 * 1000,
+      retry: 1,
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
       refetchOnWindowFocus: false,
+      refetchOnMount: false,
+      refetchOnReconnect: true,
+structuralSharing: true,
     },
   },
 });
+
+function RouteFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-3">
+        <div className="h-8 w-8 rounded-full border-2 border-primary/25 border-t-primary animate-spin" />
+        <p className="text-xs text-muted-foreground">Loading…</p>
+      </div>
+    </div>
+  );
+}
 
 function NativePushBootstrap() {
   const { user } = useAuth();
@@ -89,6 +107,7 @@ const App = () => (
           <PWAInstallPrompt />
           <BrowserRouter>
             <SuspensionGate>
+              <Suspense fallback={<RouteFallback />}>
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<Auth />} />
@@ -121,6 +140,7 @@ const App = () => (
                 <Route path="/pbl/polls" element={<PBLPolls />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
+              </Suspense>
             </SuspensionGate>
           </BrowserRouter>
         </AppModeProvider>

@@ -58,7 +58,7 @@ export function PBLSidebar() {
         {!collapsed && (
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-gradient-primary shadow-glow flex items-center justify-center">
                 <span className="text-primary-foreground font-bold text-sm">TK</span>
               </div>
               <div>
@@ -78,7 +78,7 @@ export function PBLSidebar() {
         )}
         {collapsed && (
           <div className="flex justify-center">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center cursor-pointer" onClick={toggleSidebar}>
+            <div className="w-8 h-8 rounded-lg bg-gradient-primary shadow-glow flex items-center justify-center cursor-pointer" onClick={toggleSidebar}>
               <span className="text-primary-foreground font-bold text-sm">TK</span>
             </div>
           </div>
@@ -96,8 +96,8 @@ export function PBLSidebar() {
                     <NavLink
                       to={item.url}
                       end={item.url === '/'}
-                      className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-sidebar-accent"
-                      activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                      className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-sidebar-foreground/75 transition-all duration-200 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      activeClassName="bg-sidebar-primary/15 text-sidebar-accent-foreground font-medium before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-sidebar-primary"
                     >
                       <item.icon className="h-4 w-4 shrink-0" />
                       {!collapsed && <span>{item.title}</span>}
