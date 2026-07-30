@@ -140,6 +140,7 @@ const App = () => (
                 <Route path="/pbl/polls" element={<PBLPolls />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
+              </Suspense>
             </SuspensionGate>
           </BrowserRouter>
         </AppModeProvider>
