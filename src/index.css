@@ -247,7 +247,12 @@
 
   /* Glass Effect */
   .glass-card {
-    @apply bg-background/60 backdrop-blur-xl border border-border/40 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)];
+    @apply bg-card/70 backdrop-blur-xl border border-border/50 rounded-2xl;
+    box-shadow: var(--shadow-md);
+  }
+
+  .glass-panel {
+    @apply bg-card/60 backdrop-blur-md border border-border/40 rounded-xl;
   }
 
   /* Gradient text */
@@ -265,9 +270,31 @@
 
   /* Stat Card */
   .stat-card {
-    @apply p-4 rounded-lg bg-card border border-border/50;
+    @apply relative overflow-hidden p-4 rounded-xl bg-card border border-border/60 transition-colors duration-200;
     box-shadow: var(--shadow-xs);
   }
+
+  .stat-card:hover {
+    border-color: hsl(var(--primary) / 0.3);
+  }
+
+  /* Hero band used at the top of major tabs */
+  .hero-band {
+    @apply relative overflow-hidden rounded-2xl p-5 sm:p-6 text-primary-foreground;
+    background: var(--gradient-midnight);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .hero-band::after {
+    content: '';
+    @apply absolute inset-0 pointer-events-none opacity-70;
+    background: radial-gradient(600px circle at 85% -20%, hsl(243 75% 59% / 0.55), transparent 60%);
+  }
+
+  .hero-band > * {
+    @apply relative z-10;
+  }
+
 
   /* Input Modern */
   .input-modern {
