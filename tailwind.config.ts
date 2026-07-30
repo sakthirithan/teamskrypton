@@ -70,29 +70,10 @@ export default {
           ring: "hsl(var(--sidebar-ring))",
         },
       },
-      fontFamily: {
-        sans: ["Figtree", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "sans-serif"],
-        display: ["Outfit", "Figtree", "sans-serif"],
-      },
-      backgroundImage: {
-        "gradient-primary": "var(--gradient-primary)",
-        "gradient-accent": "var(--gradient-accent)",
-        "gradient-midnight": "var(--gradient-midnight)",
-        "gradient-success": "var(--gradient-success)",
-      },
-      boxShadow: {
-        xs: "var(--shadow-xs)",
-        soft: "var(--shadow-sm)",
-        card: "var(--shadow-md)",
-        elevated: "var(--shadow-lg)",
-        floating: "var(--shadow-xl)",
-        glow: "var(--shadow-glow)",
-      },
       borderRadius: {
-        xl: "calc(var(--radius) + 4px)",
         lg: "var(--radius)",
-        md: "calc(var(--radius) - 4px)",
-        sm: "calc(var(--radius) - 6px)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
       },
       keyframes: {
         "accordion-down": {
