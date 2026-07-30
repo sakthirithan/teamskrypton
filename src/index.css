@@ -175,23 +175,40 @@
 @layer components {
   /* Card Styles */
   .krypton-card {
-    @apply bg-card rounded-lg border border-border/60 transition-all duration-200;
+    @apply bg-card rounded-xl border border-border/70 transition-all duration-200;
     box-shadow: var(--shadow-sm);
   }
 
   .krypton-card:hover {
     box-shadow: var(--shadow-md);
+    border-color: hsl(var(--primary) / 0.28);
   }
 
   .krypton-card-elevated {
-    @apply bg-card rounded-lg border border-border/40;
-    box-shadow: var(--shadow-md);
+    @apply bg-card rounded-xl border border-border/50;
+    box-shadow: var(--shadow-lg);
   }
 
   /* Gradient Header */
   .krypton-gradient {
     background: var(--gradient-primary);
   }
+
+  .krypton-midnight {
+    background: var(--gradient-midnight);
+    color: hsl(var(--primary-foreground));
+  }
+
+  /* Section heading rule */
+  .section-title {
+    @apply text-sm font-semibold tracking-tight text-foreground;
+  }
+
+  /* Pill tabs — shared tab chrome */
+  .pill-tabs {
+    @apply inline-flex items-center gap-1 rounded-xl border border-border/60 bg-muted/50 p-1;
+  }
+
 
   /* Status Badges */
   .status-badge {
