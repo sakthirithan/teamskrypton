@@ -3,6 +3,7 @@ import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { PBLSidebar } from './PBLSidebar';
 import { NotificationBell } from '@/components/grouping/NotificationBell';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
+import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppMode } from '@/hooks/useAppMode';
 import { Header } from '@/components/layout/Header';
@@ -129,9 +130,10 @@ export function PBLLayout({ children, title }: PBLLayoutProps) {
           </header>
 
           {/* Main Content */}
-          <main className="flex-1 overflow-auto p-4 sm:p-6 page-enter">
+          <main className="flex-1 overflow-auto p-4 sm:p-6 page-enter pb-16 md:pb-6">
             {children}
           </main>
+          <MobileBottomNav />
         </div>
       </div>
 

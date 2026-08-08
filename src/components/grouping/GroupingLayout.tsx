@@ -17,6 +17,7 @@ import { UserListPanel } from '@/components/admin/UserListPanel';
 import { PointsManagementPanel } from '@/components/admin/PointsManagementPanel';
 import { NotificationBell } from '@/components/grouping/NotificationBell';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
+import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -126,9 +127,10 @@ export function GroupingLayout({ children, title }: GroupingLayoutProps) {
           </header>
 
           {/* Main Content */}
-          <main className="flex-1 overflow-auto p-4 sm:p-6 page-enter">
+          <main className="flex-1 overflow-auto p-4 sm:p-6 page-enter pb-16 md:pb-6">
             {children}
           </main>
+          <MobileBottomNav />
         </div>
       </div>
 
