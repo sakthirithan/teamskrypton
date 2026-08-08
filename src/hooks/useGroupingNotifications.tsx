@@ -211,7 +211,13 @@ export function useGroupingNotifications() {
         is_broadcast: !!params.is_24h_broadcast,
       }));
 
-      const { error } = await supabase.from('grouping_notifications').insert(rows as any);
+      let { error } = await supabase.from('grouping_notifications').insert(rows as any);
+      if (error && error.message?.includes('expires_at')) {
+        console.warn('[notifications] PostgREST schema cache fallback for expires_at. Retrying base insert...');
+        const fallbackRows = rows.map(({ expires_at, target_audience, is_broadcast, metadata, ...rest }) => rest);
+        const retry = await supabase.from('grouping_notifications').insert(fallbackRows as any);
+        error = retry.error;
+      }
       if (error) throw error;
 
       // Invoke FCM push for background mobile delivery

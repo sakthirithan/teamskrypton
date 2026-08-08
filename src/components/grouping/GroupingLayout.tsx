@@ -62,8 +62,8 @@ export function GroupingLayout({ children, title }: GroupingLayoutProps) {
         <GroupingSidebar />
 
         <div className="flex-1 flex flex-col min-w-0">
-          {/* Top Bar */}
-          <header className="h-14 flex items-center justify-between border-b border-border bg-card px-4 sticky top-0 z-40">
+          {/* Top Bar with Safe Area Support */}
+          <header className="min-h-[3.5rem] flex items-center justify-between border-b border-border bg-card/95 backdrop-blur px-3 sm:px-4 sticky top-0 z-40 pt-[env(safe-area-inset-top)]">
             <div className="flex items-center gap-3">
               <SidebarTrigger className="text-muted-foreground" />
               {title && (

@@ -560,34 +560,46 @@ export type Database = {
       grouping_notifications: {
         Row: {
           created_at: string
+          expires_at: string | null
           id: string
+          is_broadcast: boolean
           is_read: boolean
           message: string | null
+          metadata: Json | null
           recipient_id: string
           sender_id: string
           session_id: string | null
+          target_audience: string
           title: string
           type: string
         }
         Insert: {
           created_at?: string
+          expires_at?: string | null
           id?: string
+          is_broadcast?: boolean
           is_read?: boolean
           message?: string | null
+          metadata?: Json | null
           recipient_id: string
           sender_id?: string
           session_id?: string | null
+          target_audience?: string
           title: string
           type?: string
         }
         Update: {
           created_at?: string
+          expires_at?: string | null
           id?: string
+          is_broadcast?: boolean
           is_read?: boolean
           message?: string | null
+          metadata?: Json | null
           recipient_id?: string
           sender_id?: string
           session_id?: string | null
+          target_audience?: string
           title?: string
           type?: string
         }
