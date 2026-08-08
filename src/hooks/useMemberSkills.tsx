@@ -3,8 +3,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 
+import { DOMAIN_OPTIONS, SKILL_DOMAIN_LABELS, SKILL_TO_DOMAIN_MAP, getEffectiveDomain } from '@/lib/skillDomains';
+
 export type SkillType = 'primary' | 'secondary' | 'specialization';
-export type SkillDomain = 'ai_data' | 'software_dev' | 'research' | 'ui_ux' | 'general';
+export type SkillDomain = string;
+export { DOMAIN_OPTIONS, SKILL_DOMAIN_LABELS, SKILL_TO_DOMAIN_MAP, getEffectiveDomain };
 
 export interface MemberSkill {
   id: string;
@@ -28,14 +31,6 @@ export const SKILL_TYPE_LIMITS: Record<SkillType, { min: number; max: number }> 
   primary: { min: 0, max: 2 },
   secondary: { min: 0, max: 2 },
   specialization: { min: 0, max: 3 },
-};
-
-export const SKILL_DOMAIN_LABELS: Record<SkillDomain, string> = {
-  ai_data: 'AI / Data',
-  software_dev: 'Software Dev',
-  research: 'Research',
-  ui_ux: 'UI / UX',
-  general: 'General',
 };
 
 export function useMemberSkills(userId?: string) {
@@ -100,17 +95,34 @@ export function useMemberSkills(userId?: string) {
   });
 
   const updateSkill = useMutation({
-    mutationFn: async (params: { id: string; skill_name?: string; skill_type?: SkillType; domain?: SkillDomain }) => {
-      const { id, ...updates } = params;
-      const { error } = await supabase
+    mutationFn: async (params: { 
+      id: string; 
+      user_id?: string; 
+      skill_name?: string; 
+      skill_type?: SkillType; 
+      domain?: SkillDomain; 
+      custom_domain?: string | null; 
+    }) => {
+      const { id, user_id, ...updates } = params;
+      const { data, error } = await supabase
         .from('member_skills')
-        .update(updates)
-        .eq('id', id);
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString(),
+        } as any)
+        .eq('id', id)
+        .select()
+        .single();
       if (error) throw error;
+      return data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['member-skills', userId] });
+    onSuccess: (data, vars) => {
+      const targetUserId = vars.user_id || userId;
+      if (targetUserId) {
+        queryClient.invalidateQueries({ queryKey: ['member-skills', targetUserId] });
+      }
       queryClient.invalidateQueries({ queryKey: ['all-member-skills'] });
+      toast({ title: 'Skill updated', description: `${vars.skill_name || 'Skill'} updated successfully.` });
     },
     onError: (e: Error) => toast({ variant: 'destructive', title: 'Error', description: e.message }),
   });

@@ -151,7 +151,6 @@ export function GroupingSidebar() {
     ...(isCaptainOrVice
       ? [{ title: 'Sessions', url: '/grouping/sessions', icon: Calendar }]
       : []),
-    { title: 'Team', url: '/team', icon: Users },
   ];
 
   const renderNavItem = (item: NavItem) => {
@@ -248,6 +247,16 @@ export function GroupingSidebar() {
     );
   };
 
+  const [isDashboardOpen, setIsDashboardOpen] = useState(
+    location.pathname === '/grouping/sessions'
+  );
+
+  useEffect(() => {
+    if (location.pathname === '/grouping/sessions') {
+      setIsDashboardOpen(true);
+    }
+  }, [location.pathname]);
+
   return (
     <Sidebar collapsible={isMobile ? 'offcanvas' : 'icon'} className="border-r border-sidebar-border">
       <SidebarHeader className="p-3">
@@ -279,22 +288,65 @@ export function GroupingSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        {/* Dashboard - always visible */}
+        {/* Dashboard - collapsible with Sessions */}
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive('/grouping/home')}>
+                <div className="flex flex-col w-full">
+                  <div className="flex items-center justify-between w-full">
+                    <SidebarMenuButton asChild isActive={isActive('/grouping/home')}>
+                      <NavLink
+                        to="/grouping/home"
+                        className="flex-1 flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-sidebar-accent"
+                        activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                      >
+                        <LayoutDashboard className="h-4 w-4 shrink-0" />
+                        {!collapsed && <span>Dashboard</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                    {isCaptainOrVice && !collapsed && (
+                      <button
+                        type="button"
+                        onClick={() => setIsDashboardOpen(!isDashboardOpen)}
+                        className="p-1 hover:bg-sidebar-accent rounded transition-colors mr-1"
+                        title="Toggle Sessions"
+                      >
+                        <ChevronRight className={`h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ${isDashboardOpen ? 'rotate-90' : ''}`} />
+                      </button>
+                    )}
+                  </div>
+
+                  {isCaptainOrVice && (isDashboardOpen || isActive('/grouping/sessions')) && !collapsed && (
+                    <div className="pl-6 pt-1 space-y-1">
+                      <SidebarMenuButton asChild isActive={isActive('/grouping/sessions')}>
+                        <NavLink
+                          to="/grouping/sessions"
+                          className="flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors hover:bg-sidebar-accent"
+                          activeClassName="bg-primary/10 text-primary font-medium"
+                        >
+                          <Calendar className="h-3.5 w-3.5 shrink-0" />
+                          <span>Sessions</span>
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </div>
+                  )}
+                </div>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isActive('/team')}>
                   <NavLink
-                    to="/grouping/home"
+                    to="/team"
                     className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-sidebar-accent"
                     activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
                   >
-                    <LayoutDashboard className="h-4 w-4 shrink-0" />
-                    {!collapsed && <span>Dashboard</span>}
+                    <Users className="h-4 w-4 shrink-0" />
+                    {!collapsed && <span>Team</span>}
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={isActive('/grouping/leaderboard')}>
                   <NavLink
@@ -307,32 +359,6 @@ export function GroupingSidebar() {
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive('/grouping/polls')}>
-                  <NavLink
-                    to="/grouping/polls"
-                    className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-sidebar-accent"
-                    activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                  >
-                    <Vote className="h-4 w-4 shrink-0" />
-                    {!collapsed && <span>Polls</span>}
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              {canManagePoints && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={isActive('/grouping/management/points')}>
-                    <NavLink
-                      to="/grouping/management/points"
-                      className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-sidebar-accent cursor-pointer"
-                      activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                    >
-                      <Target className="h-4 w-4 shrink-0" />
-                      {!collapsed && <span>Point Management</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -348,13 +374,6 @@ export function GroupingSidebar() {
 
         {/* Workspace */}
         {renderCollapsibleSection('workspace', 'Workspace', workspaceItems)}
-
-        {/* Management */}
-        {renderCollapsibleSection(
-          'management',
-          'Management',
-          managementItems,
-        )}
       </SidebarContent>
 
       <SidebarFooter className="p-3">

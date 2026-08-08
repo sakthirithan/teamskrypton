@@ -9,7 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { User, Search, Filter, Layers, Users, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAppMode } from '@/hooks/useAppMode';
-import { MemberSkill, SkillType, SKILL_TYPE_LABELS, SKILL_DOMAIN_LABELS, SkillDomain } from '@/hooks/useMemberSkills';
+import { MemberSkill, SkillType, SKILL_TYPE_LABELS, DOMAIN_OPTIONS, getEffectiveDomain } from '@/hooks/useMemberSkills';
 
 function getSkillTypeColor(type: SkillType): string {
   switch (type) {
@@ -58,21 +58,27 @@ export function SkillWiseMemberList() {
   const skillGroups = useMemo(() => {
     let filtered = allSkills;
     if (filterType !== 'all') filtered = filtered.filter(s => s.skill_type === filterType);
-    if (filterDomain !== 'all') filtered = filtered.filter(s => s.domain === filterDomain);
+    if (filterDomain !== 'all') {
+      filtered = filtered.filter(s => 
+        getEffectiveDomain(s.skill_name, s.domain, s.custom_domain).toLowerCase() === filterDomain.toLowerCase()
+      );
+    }
     if (search) {
       const q = search.toLowerCase();
       filtered = filtered.filter(s =>
         s.skill_name.toLowerCase().includes(q) ||
+        getEffectiveDomain(s.skill_name, s.domain, s.custom_domain).toLowerCase().includes(q) ||
         profileMap.get(s.user_id)?.full_name.toLowerCase().includes(q)
       );
     }
 
-    const groups = new Map<string, { type: SkillType; domain: SkillDomain; members: { userId: string; name: string; department: string }[] }>();
+    const groups = new Map<string, { type: SkillType; domain: string; members: { userId: string; name: string; department: string }[] }>();
     filtered.forEach(skill => {
       const profile = profileMap.get(skill.user_id);
       if (!profile) return;
       const key = `${skill.skill_name}__${skill.skill_type}`;
-      if (!groups.has(key)) groups.set(key, { type: skill.skill_type, domain: skill.domain, members: [] });
+      const effectiveDomain = getEffectiveDomain(skill.skill_name, skill.domain, skill.custom_domain);
+      if (!groups.has(key)) groups.set(key, { type: skill.skill_type, domain: effectiveDomain, members: [] });
       const existing = groups.get(key)!;
       if (!existing.members.some(m => m.userId === skill.user_id)) {
         existing.members.push({ userId: skill.user_id, name: profile.full_name, department: profile.department });
@@ -168,10 +174,10 @@ export function SkillWiseMemberList() {
                 <Layers className="w-3 h-3 mr-1" />
                 <SelectValue placeholder="Domain" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-h-[240px]">
                 <SelectItem value="all">All Domains</SelectItem>
-                {Object.entries(SKILL_DOMAIN_LABELS).map(([key, label]) => (
-                  <SelectItem key={key} value={key}>{label}</SelectItem>
+                {DOMAIN_OPTIONS.map((opt) => (
+                  <SelectItem key={opt} value={opt}>{opt}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

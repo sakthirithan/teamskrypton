@@ -22,6 +22,15 @@ import { validateExportDateRange, getTodayString } from '@/lib/exportValidation'
 import { calculateTargetStatus, calculateDaysRemaining, calculateSessionDays, TARGET_STATUS_LABELS } from '@/lib/groupingConstants';
 import * as XLSX from 'xlsx';
 
+import { SKILL_TYPE_LABELS, SKILL_DOMAIN_LABELS, getEffectiveDomain, SkillType, SkillDomain } from '@/hooks/useMemberSkills';
+
+interface MemberSkillSummary {
+  skill_name: string;
+  skill_type: SkillType;
+  domain: string;
+  custom_domain: string | null;
+}
+
 interface TeamMember {
   profile: {
     user_id: string;
@@ -40,6 +49,7 @@ interface TeamMember {
     completed: number;
     inProgress: boolean;
   };
+  skills: MemberSkillSummary[];
 }
 
 const Team = () => {
@@ -88,7 +98,6 @@ const Team = () => {
     query = query.or(`is_disabled.is.false,is_disabled.is.null,disabled_until.lt.${nowIso}`);
     const { data: profiles } = await query;
 
-
     // Fetch roles
     const { data: roles } = await supabase
       .from('user_roles')
@@ -99,6 +108,11 @@ const Team = () => {
       .from('tasks')
       .select('assigned_to, status')
       .eq('is_test', false);
+
+    // Fetch member skills
+    const { data: memberSkills } = await supabase
+      .from('member_skills')
+      .select('user_id, skill_name, skill_type, domain, custom_domain');
 
     if (profiles) {
       const roleMap = new Map(roles?.map(r => [r.user_id, r.role as KryptonRole]) || []);
@@ -116,6 +130,20 @@ const Team = () => {
         if (t.status === 'working') stats.inProgress = true;
       });
 
+      // Build skills map
+      const skillsMap = new Map<string, MemberSkillSummary[]>();
+      memberSkills?.forEach(s => {
+        if (!skillsMap.has(s.user_id)) {
+          skillsMap.set(s.user_id, []);
+        }
+        skillsMap.get(s.user_id)!.push({
+          skill_name: s.skill_name,
+          skill_type: s.skill_type as SkillType,
+          domain: s.domain,
+          custom_domain: s.custom_domain,
+        });
+      });
+
       const teamMembers: TeamMember[] = profiles.map(p => ({
         profile: {
           user_id: p.user_id,
@@ -130,6 +158,7 @@ const Team = () => {
         },
         role: roleMap.get(p.user_id) || null,
         taskStats: taskStatsMap.get(p.user_id) || { total: 0, completed: 0, inProgress: false },
+        skills: skillsMap.get(p.user_id) || [],
       }));
 
       // Sort: Leadership first, then alphabetically
@@ -222,80 +251,182 @@ const Team = () => {
 
       if (entriesError) throw entriesError;
 
-      // 4. Build per-member data
-      const roleMap = new Map(members.map(m => [m.profile.user_id, m.role]));
+      // 4. Fetch ALL completed PS entries for leaderboard PS rank calculation
+      const { data: allCompletedPs } = await supabase
+        .from('ps_daily_entries')
+        .select('user_id, reward_points')
+        .eq('status', 'completed');
+
+      const psScoreMap = new Map<string, number>();
+      (allCompletedPs || []).forEach(r => {
+        psScoreMap.set(r.user_id, (psScoreMap.get(r.user_id) || 0) + (r.reward_points || 0));
+      });
+
+      // 5. Fetch Activity points for leaderboard AP rank calculation
+      const { data: allActivityPoints } = await supabase
+        .from('activity_points')
+        .select('user_id, points');
+
+      const apScoreMap = new Map<string, number>();
+      (allActivityPoints || []).forEach(r => {
+        apScoreMap.set(r.user_id, (apScoreMap.get(r.user_id) || 0) + (r.points || 0));
+      });
+
+      // 6. Fetch Golden points for leaderboard GP rank calculation
+      const { data: allGoldenPoints } = await supabase
+        .from('user_points')
+        .select('user_id, points');
+
+      const gpScoreMap = new Map<string, number>();
+      (allGoldenPoints || []).forEach(r => {
+        gpScoreMap.set(r.user_id, r.points || 0);
+      });
+
+      // 7. Fetch member skills for skills breakdown & domain export
+      const { data: allSkills } = await supabase
+        .from('member_skills')
+        .select('user_id, skill_name, skill_type, domain, custom_domain');
+
+      // Helper function to calculate dense rank
+      const computeRank = (m: Map<string, number>, targetId: string) => {
+        const points = m.get(targetId) || 0;
+        if (m.size === 0) return { rank: null, points };
+        const scored = Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
+        let rank = 0;
+        let lastVal: number | null = null;
+        for (const [uid, val] of scored) {
+          if (val !== lastVal) {
+            rank += 1;
+            lastVal = val;
+          }
+          if (uid === targetId) return { rank, points };
+        }
+        return { rank: scored.length + 1, points };
+      };
+
+      // 8. Build per-member data
       const groupTarget = targets?.find(t => t.target_scope === 'group');
-      
-      // Calculate session metrics
       const totalDays = calculateSessionDays(activeSession.start_date, activeSession.end_date);
       const daysRemaining = calculateDaysRemaining(activeSession.end_date);
 
       const exportData = members.map(member => {
         const userId = member.profile.user_id;
-        
-        // Get individual target for this user
+
+        // Member Skills
+        const userSkills = (allSkills || []).filter(s => s.user_id === userId);
+        const primarySkills = userSkills.filter(s => s.skill_type === 'primary');
+        const secondarySkills = userSkills.filter(s => s.skill_type === 'secondary');
+        const specSkills = userSkills.filter(s => s.skill_type === 'specialization');
+
+        const primaryStr = primarySkills
+          .map(s => `${s.skill_name} (${getEffectiveDomain(s.skill_name, s.domain, s.custom_domain)})`)
+          .join(', ');
+
+        const secondaryStr = secondarySkills
+          .map(s => `${s.skill_name} (${getEffectiveDomain(s.skill_name, s.domain, s.custom_domain)})`)
+          .join(', ');
+
+        const specStr = specSkills
+          .map(s => `${s.skill_name} (${getEffectiveDomain(s.skill_name, s.domain, s.custom_domain)})`)
+          .join(', ');
+
+        const allSkillsSummaryStr = userSkills
+          .map(s => `[${s.skill_type.toUpperCase()}] ${s.skill_name} (${getEffectiveDomain(s.skill_name, s.domain, s.custom_domain)})`)
+          .join('; ');
+
+        // Leaderboard Ranks & Points
+        const psData = computeRank(psScoreMap, userId);
+        const apData = computeRank(apScoreMap, userId);
+        const gpData = computeRank(gpScoreMap, userId);
+
+        // Session Entries & Target
         const individualTarget = targets?.find(t => t.target_scope === 'individual' && t.user_id === userId);
-        
-        // Filter entries for this user
         const userEntries = psEntries?.filter(e => e.user_id === userId) || [];
         const completedEntries = userEntries.filter(e => e.status === 'completed');
         const pendingEntries = userEntries.filter(e => e.status === 'pending');
-        
-        // Calculate totals
-        const totalPoints = completedEntries.reduce((sum, e) => sum + e.reward_points, 0);
+        const attemptEntries = userEntries.filter(e => e.status === 'attempt');
+
+        const completedPoints = completedEntries.reduce((sum, e) => sum + e.reward_points, 0);
+        const pendingPointsSum = pendingEntries.reduce((sum, e) => sum + e.reward_points, 0);
+        const attemptPointsSum = attemptEntries.reduce((sum, e) => sum + e.reward_points, 0);
         const totalAttempts = userEntries.reduce((sum, e) => sum + e.attempt_count, 0);
-        
-        // Last activity
+
         const lastEntry = userEntries.sort((a, b) => 
           new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
         )[0];
 
-        // Target status calculation
         const targetPoints = individualTarget?.target_points || 0;
         const targetStatus = targetPoints > 0 
-          ? calculateTargetStatus(totalPoints, targetPoints, daysRemaining, totalDays)
+          ? calculateTargetStatus(completedPoints, targetPoints, daysRemaining, totalDays)
           : 'on_track';
 
-        // Progress percentage
         const progressPercent = targetPoints > 0 
-          ? Math.min(100, Math.round((totalPoints / targetPoints) * 100))
+          ? Math.min(100, Math.round((completedPoints / targetPoints) * 100))
           : 0;
 
         return {
-          'Name': member.profile.full_name,
+          'Member Name': member.profile.full_name,
           'Role': member.role ? ROLE_LABELS[member.role] : '-',
           'Department': member.profile.department,
-          'Session ID': activeSession.id,
+          'Email': member.profile.email,
+          'Phone Number': member.profile.phone_number || '-',
+          'Register Number': member.profile.register_number || '-',
+
+          // Skills Breakdown
+          'Primary Skills Count': primarySkills.length,
+          'Primary Skills': primaryStr || '-',
+          'Secondary Skills Count': secondarySkills.length,
+          'Secondary Skills': secondaryStr || '-',
+          'Specialization Count': specSkills.length,
+          'Specialization Skills': specStr || '-',
+          'Total Skills Count': userSkills.length,
+          'All Skills Summary': allSkillsSummaryStr || '-',
+
+          // Leaderboard Ranks & Points
+          'PS Rank': psData.rank ? `#${psData.rank}` : '-',
+          'PS Score (Points)': psData.points,
+          'Activity Rank': apData.rank ? `#${apData.rank}` : '-',
+          'Activity Points': apData.points,
+          'Golden Rank': gpData.rank ? `#${gpData.rank}` : '-',
+          'Golden Points': gpData.points,
+
+          // Sprint / Session Info
           'Session Name': activeSession.name,
           'Session Start': activeSession.start_date,
           'Session End': activeSession.end_date,
+          'Session Status': activeSession.status,
           'Days Remaining': daysRemaining,
-          // Group Target Info
-          'Group Target (Points)': groupTarget?.target_points || 0,
-          'Group Target Achieved': groupTarget?.achieved_points || 0,
-          // Individual Target Info
-          'Individual Target (Points)': individualTarget?.target_points || 0,
-          'Individual Achieved (Points)': totalPoints,
+          'Total Session Days': totalDays,
+
+          // Target & Progress Info
+          'Individual Target (Points)': targetPoints,
+          'Individual Achieved (Points)': completedPoints,
           'Progress (%)': progressPercent,
           'Target Status': TARGET_STATUS_LABELS[targetStatus],
-          // PS Entry Stats
+          'Group Target (Points)': groupTarget?.target_points || 0,
+          'Group Target Achieved': groupTarget?.achieved_points || 0,
+
+          // Entries & Point Summaries
           'Total PS Entries': userEntries.length,
           'Completed Entries': completedEntries.length,
+          'Completed Points': completedPoints,
           'Pending Entries': pendingEntries.length,
-          'Total Reward Points': totalPoints,
+          'Pending Points': pendingPointsSum,
+          'Attempt Entries': attemptEntries.length,
+          'Attempt Points': attemptPointsSum,
           'Total Attempts': totalAttempts,
           'Last Activity': lastEntry ? format(new Date(lastEntry.updated_at), 'yyyy-MM-dd HH:mm') : '-',
         };
       });
 
-      // 5. Generate file
+      // 9. Generate file
       const ws = XLSX.utils.json_to_sheet(exportData);
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Grouping Team Report');
+      XLSX.utils.book_append_sheet(wb, ws, 'Comprehensive Team Report');
 
       const timestamp = format(new Date(), 'yyyy-MM-dd');
       const sessionName = activeSession.name.replace(/[^a-zA-Z0-9]/g, '_');
-      const filename = `Grouping_Team_Report_Session_${sessionName}_${timestamp}.${exportFormat}`;
+      const filename = `Grouping_Team_MySpace_Report_${sessionName}_${timestamp}.${exportFormat}`;
       
       XLSX.writeFile(wb, filename);
       toast({ title: 'Export Complete', description: `Downloaded ${filename}` });
@@ -387,12 +518,55 @@ const Team = () => {
     }
   };
 
-  // Filter members by search
-  const filteredMembers = members.filter(m => 
-    m.profile.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    m.profile.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    m.profile.department.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter members by search across member details, role, skill name, skill type, and skill domain
+  const filteredMembers = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return members;
+
+    return members.filter(m => {
+      // 1. Member Name
+      if (m.profile.full_name.toLowerCase().includes(query)) return true;
+
+      // 2. Email
+      if (m.profile.email.toLowerCase().includes(query)) return true;
+
+      // 3. Department
+      if (m.profile.department.toLowerCase().includes(query)) return true;
+
+      // 4. Role
+      if (m.role) {
+        const roleLabel = ROLE_LABELS[m.role] || m.role;
+        if (roleLabel.toLowerCase().includes(query)) return true;
+      }
+
+      // 5. Skills (Skill Name, Skill Type, Skill Domain)
+      if (m.skills && m.skills.length > 0) {
+        const matchesSkill = m.skills.some(skill => {
+          // Skill name match
+          if (skill.skill_name.toLowerCase().includes(query)) return true;
+
+          // Skill type match
+          if (skill.skill_type.toLowerCase().includes(query)) return true;
+          const typeLabel = SKILL_TYPE_LABELS[skill.skill_type];
+          if (typeLabel && typeLabel.toLowerCase().includes(query)) return true;
+
+          // Skill domain match (effective domain, raw domain, formatted label, custom domain)
+          const effectiveDomain = getEffectiveDomain(skill.skill_name, skill.domain, skill.custom_domain);
+          if (effectiveDomain.toLowerCase().includes(query)) return true;
+          if (skill.domain.toLowerCase().includes(query)) return true;
+          const domainLabel = SKILL_DOMAIN_LABELS[skill.domain as SkillDomain];
+          if (domainLabel && domainLabel.toLowerCase().includes(query)) return true;
+          if (skill.custom_domain && skill.custom_domain.toLowerCase().includes(query)) return true;
+
+          return false;
+        });
+
+        if (matchesSkill) return true;
+      }
+
+      return false;
+    });
+  }, [members, searchQuery]);
 
   if (isLoading || !user) {
     return (
@@ -422,10 +596,10 @@ const Team = () => {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input 
-              placeholder="Search members..."
+              placeholder="Search members, skills, or domains..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 w-[200px]"
+              className="pl-9 w-[240px] sm:w-[320px]"
             />
           </div>
           
@@ -447,7 +621,7 @@ const Team = () => {
         </div>
       ) : filteredMembers.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
-          {searchQuery ? 'No members match your search' : 'No team members found'}
+          {searchQuery ? 'No members found matching your search.' : 'No team members found'}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -513,7 +687,7 @@ const Team = () => {
             </DialogTitle>
             <DialogDescription>
               {isGroupingMode 
-                ? 'Export team performance data for the current active session only.'
+                ? 'Export comprehensive team member information from the current active session.'
                 : 'Export completed task history for all team members.'}
             </DialogDescription>
           </DialogHeader>
@@ -524,17 +698,19 @@ const Team = () => {
                 <div className="bg-muted/50 p-4 rounded-lg space-y-2">
                   <p className="text-sm font-medium">Export includes:</p>
                   <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
-                    <li>Member identity (name, role, department)</li>
-                    <li>Session details (name, dates, days remaining)</li>
-                    <li>Group & individual target progress</li>
-                    <li>PS daily entries (completed, pending counts)</li>
-                    <li>Total reward points & attempts</li>
-                    <li>Target status & completion projection</li>
+                    <li>Member identity and role</li>
+                    <li>Skills and skill domains</li>
+                    <li>Leaderboard ranks and points</li>
+                    <li>Current sprint/session details</li>
+                    <li>Progress and target information</li>
+                    <li>Completed and pending activity</li>
+                    <li>Point summaries</li>
+                    <li>Other My Space information</li>
                   </ul>
                 </div>
                 <div className="bg-amber-500/10 border border-amber-500/30 p-3 rounded-lg">
                   <p className="text-sm text-amber-700 dark:text-amber-400">
-                    <strong>Note:</strong> Only data from the current active session will be exported.
+                    <strong>Note:</strong> Data will be compiled across active session performance, skills, and leaderboard rankings.
                   </p>
                 </div>
               </>
