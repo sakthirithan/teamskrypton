@@ -2,7 +2,6 @@ import { useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 
 const SESSION_KEY = 'krypton_session_info';
-const SESSION_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
 
 interface SessionInfo {
   user_id: string;
@@ -11,47 +10,33 @@ interface SessionInfo {
 }
 
 export function useSessionPersistence() {
-  const { user, role, signOut } = useAuth();
+  const { user, role } = useAuth();
 
-  // Save session info on login
+  // Save persistent session info on login/auth change
   useEffect(() => {
     if (user && role) {
+      const stored = localStorage.getItem(SESSION_KEY);
+      let loginTime = Date.now();
+      
+      if (stored) {
+        try {
+          const existing: SessionInfo = JSON.parse(stored);
+          if (existing.user_id === user.id && existing.login_time) {
+            loginTime = existing.login_time;
+          }
+        } catch (e) {
+          console.warn('Failed to parse existing session info:', e);
+        }
+      }
+
       const sessionInfo: SessionInfo = {
         user_id: user.id,
         role: role,
-        login_time: Date.now(),
+        login_time: loginTime,
       };
       localStorage.setItem(SESSION_KEY, JSON.stringify(sessionInfo));
     }
   }, [user, role]);
-
-  // Check session expiry
-  useEffect(() => {
-    const checkSession = () => {
-      const storedSession = localStorage.getItem(SESSION_KEY);
-      if (storedSession) {
-        try {
-          const sessionInfo: SessionInfo = JSON.parse(storedSession);
-          const elapsed = Date.now() - sessionInfo.login_time;
-          
-          if (elapsed > SESSION_EXPIRY_MS) {
-            // Session expired - clear and sign out
-            clearSession();
-            signOut();
-          }
-        } catch (error) {
-          console.error('Error parsing session:', error);
-          clearSession();
-        }
-      }
-    };
-
-    // Check immediately and then every minute
-    checkSession();
-    const interval = setInterval(checkSession, 60000);
-    
-    return () => clearInterval(interval);
-  }, [signOut]);
 
   const clearSession = useCallback(() => {
     localStorage.removeItem(SESSION_KEY);
@@ -69,18 +54,8 @@ export function useSessionPersistence() {
     return null;
   }, []);
 
-  const getRemainingTime = useCallback((): number => {
-    const sessionInfo = getSessionInfo();
-    if (!sessionInfo) return 0;
-    
-    const elapsed = Date.now() - sessionInfo.login_time;
-    const remaining = SESSION_EXPIRY_MS - elapsed;
-    return Math.max(0, remaining);
-  }, [getSessionInfo]);
-
   return {
     clearSession,
     getSessionInfo,
-    getRemainingTime,
   };
 }
