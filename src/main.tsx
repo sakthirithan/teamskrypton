@@ -35,9 +35,14 @@ class RootErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState
           </div>
           <div>
             <h2 className="text-lg font-bold">Teams Krypton</h2>
-            <p className="text-xs text-muted-foreground mt-1 max-w-xs">
-              An initialization issue occurred during startup.
+            <p className="text-xs text-destructive font-mono mt-1 max-w-xs break-words">
+              {this.state.error?.message || 'An initialization issue occurred during startup.'}
             </p>
+            {this.state.error?.stack && (
+              <div className="mt-2 p-2 bg-muted/80 border border-border rounded text-[10px] font-mono text-left max-w-sm max-h-36 overflow-auto text-muted-foreground">
+                {this.state.error.stack}
+              </div>
+            )}
           </div>
           <button
             onClick={() => window.location.reload()}
