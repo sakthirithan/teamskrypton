@@ -209,21 +209,27 @@ export function SkillsAndIndicatorsGrid({ userId, className }: Props) {
                     <div className="h-[1px] flex-1 bg-border/50" />
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {list.map((s) => {
                       const domainName = s.custom_domain || s.domain;
                       return (
                         <div
                           key={s.id}
-                          className="flex items-center justify-between p-2.5 rounded-xl border border-border/60 bg-muted/30 hover:bg-muted/50 transition-colors text-xs"
+                          className="group relative flex flex-col justify-between p-3 rounded-xl border border-border/80 bg-muted/20 hover:bg-card hover:border-primary/40 shadow-xs hover:shadow-md transition-all duration-200"
                         >
-                          <span className="font-semibold text-foreground truncate">{s.skill_name}</span>
-                          {domainName ? (
-                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 border-primary/30 text-primary font-medium shrink-0 ml-2">
-                              {domainName}
-                            </Badge>
-                          ) : (
-                            <span className="w-2 h-2 rounded-full shrink-0 bg-primary/70 ml-2" />
+                          <div className="flex items-start justify-between gap-2 mb-1.5">
+                            <span className="font-semibold text-xs text-foreground group-hover:text-primary transition-colors leading-snug">
+                              {s.skill_name}
+                            </span>
+                            <span className={`w-2 h-2 rounded-full shrink-0 ${cfg.dotColor} mt-1`} />
+                          </div>
+                          {domainName && (
+                            <div className="flex items-center justify-between pt-1.5 mt-auto border-t border-border/40">
+                              <span className="text-[10px] text-muted-foreground font-medium">Domain</span>
+                              <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 border-primary/30 text-primary font-semibold">
+                                {domainName}
+                              </Badge>
+                            </div>
                           )}
                         </div>
                       );

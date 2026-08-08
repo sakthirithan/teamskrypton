@@ -33,7 +33,7 @@ export function AppLoadingScreen({ isLoading, onTimeoutRetry }: AppLoadingScreen
     };
   }, [isLoading]);
 
-  // Safety timeout & fade out
+  // Safety timeout & fade out with max 3-second force-unmount
   useEffect(() => {
     if (!isLoading) {
       setIsFadingOut(true);
@@ -44,11 +44,13 @@ export function AppLoadingScreen({ isLoading, onTimeoutRetry }: AppLoadingScreen
     setIsFadingOut(false);
     setShouldRender(true);
 
-    const timeoutTimer = setTimeout(() => {
-      setIsTimedOut(true);
-    }, 7000);
+    // Force unmount after 3 seconds so website never hangs on refresh
+    const forceHideTimer = setTimeout(() => {
+      setIsFadingOut(true);
+      setTimeout(() => setShouldRender(false), 400);
+    }, 3000);
 
-    return () => clearTimeout(timeoutTimer);
+    return () => clearTimeout(forceHideTimer);
   }, [isLoading]);
 
   if (!shouldRender) return null;

@@ -84,22 +84,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const initAuth = async () => {
       try {
-        const sessionRes: any = await Promise.race([
-          supabase.auth.getSession(),
-          new Promise((resolve) => setTimeout(() => resolve({ data: { session: null } }), 2500)),
-        ]);
+        const { data: { session } } = await supabase.auth.getSession();
         if (!isMounted) return;
 
-        const session = sessionRes?.data?.session ?? null;
         setSession(session);
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          // Fast safety race (max 2.5s) so network delays never block app startup
-          await Promise.race([
-            fetchUserData(session.user.id),
-            new Promise((resolve) => setTimeout(resolve, 2500)),
-          ]);
+          fetchUserData(session.user.id);
         }
       } catch (e) {
         console.warn('[auth] init error:', e);
