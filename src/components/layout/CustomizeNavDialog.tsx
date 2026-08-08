@@ -1,34 +1,27 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { ArrowUp, ArrowDown, Sliders, Check } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { ArrowUp, ArrowDown, Sliders, Check, Search } from 'lucide-react';
+import {
+  getAvailableNavCategories,
+  getAllAvailableNavItems,
+  NavRouteItem,
+} from '@/lib/navConfig';
+import { usePblProjectLead } from '@/components/grouping/LeaderboardPanel';
 
-export interface NavRouteOption {
-  id: string;
-  label: string;
-  path: string;
-  iconName: string;
-}
-
-export const ALL_NAV_OPTIONS: NavRouteOption[] = [
-  { id: 'dashboard', label: 'Dashboard', path: '/grouping/home', iconName: 'LayoutDashboard' },
-  { id: 'team', label: 'Team', path: '/team', iconName: 'Users' },
-  { id: 'leaderboard', label: 'Leaderboard', path: '/grouping/leaderboard', iconName: 'TrendingUp' },
-  { id: 'notifications', label: 'Notifications', path: '/grouping/notifications', iconName: 'Bell' },
-  { id: 'myspace', label: 'My Space', path: '/grouping/me', iconName: 'User' },
-  { id: 'psportal', label: 'PS Portal', path: '/grouping/ps', iconName: 'FolderKanban' },
-  { id: 'todos', label: 'To-Do List', path: '/grouping/todos', iconName: 'CheckSquare' },
-  { id: 'skills', label: 'Team Skills', path: '/grouping/skills', iconName: 'Zap' },
-  { id: 'notes', label: 'Notes', path: '/grouping/notes', iconName: 'Bookmark' },
-  { id: 'reflections', label: 'Reflections', path: '/grouping/reflections', iconName: 'MessageSquare' },
-  { id: 'habits', label: 'Habits', path: '/grouping/habits', iconName: 'CheckSquare' },
-];
-
-export const DEFAULT_NAV_IDS = ['dashboard', 'team', 'leaderboard', 'notifications'];
+export const DEFAULT_NAV_IDS = ['dashboard', 'team', 'ps-entries', 'notifications'];
 
 export function getUserNavPreferences(userId?: string): string[] {
   if (!userId) return DEFAULT_NAV_IDS;
@@ -53,13 +46,33 @@ interface CustomizeNavDialogProps {
 }
 
 export function CustomizeNavDialog({ open, onOpenChange, onSave }: CustomizeNavDialogProps) {
-  const { user } = useAuth();
+  const { user, isLeadership, isCaptainOrVice } = useAuth();
   const { toast } = useToast();
+  const { data: isProjectLead } = usePblProjectLead(user?.id);
+  const canManagePoints = isLeadership || !!isProjectLead;
+
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const permissions = useMemo(
+    () => ({ isLeadership, isCaptainOrVice, canManagePoints }),
+    [isLeadership, isCaptainOrVice, canManagePoints]
+  );
+
+  const availableCategories = useMemo(
+    () => getAvailableNavCategories(permissions),
+    [permissions]
+  );
+
+  const allItems = useMemo(
+    () => getAllAvailableNavItems(permissions),
+    [permissions]
+  );
 
   useEffect(() => {
     if (open && user) {
       setSelectedIds(getUserNavPreferences(user.id));
+      setSearchTerm('');
     }
   }, [open, user]);
 
@@ -117,28 +130,45 @@ export function CustomizeNavDialog({ open, onOpenChange, onSave }: CustomizeNavD
     onOpenChange(false);
   };
 
+  // Search filtering
+  const filteredCategories = useMemo(() => {
+    if (!searchTerm.trim()) return availableCategories;
+    const q = searchTerm.toLowerCase();
+
+    return availableCategories
+      .map((cat) => ({
+        ...cat,
+        items: cat.items.filter(
+          (item) =>
+            item.label.toLowerCase().includes(q) ||
+            cat.category.toLowerCase().includes(q)
+        ),
+      }))
+      .filter((cat) => cat.items.length > 0);
+  }, [availableCategories, searchTerm]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-md rounded-2xl p-4 sm:p-6 bg-card border-border">
+      <DialogContent className="w-[95vw] max-w-md rounded-2xl p-4 sm:p-6 bg-card border-border max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base font-bold">
             <Sliders className="w-4 h-4 text-primary" />
             Customize Quick Actions
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
-            Select 2 to 5 quick actions for your floating bottom navigation bar.
+            Select 2 to 5 quick actions for your personal floating bottom navigation bar.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
-          {/* Selected & Ordering */}
+        <div className="space-y-4 py-2 overflow-y-auto flex-1 pr-1">
+          {/* Active Quick Actions Ordering List */}
           <div className="space-y-2">
             <Label className="text-[11px] font-bold uppercase tracking-wider text-primary">
               Active Quick Actions ({selectedIds.length}/5)
             </Label>
-            <div className="space-y-1.5 max-h-48 overflow-y-auto p-1 bg-muted/30 rounded-xl border border-border/50">
+            <div className="space-y-1.5 max-h-40 overflow-y-auto p-1 bg-muted/30 rounded-xl border border-border/50">
               {selectedIds.map((id, index) => {
-                const opt = ALL_NAV_OPTIONS.find((o) => o.id === id);
+                const opt = allItems.find((o) => o.id === id);
                 if (!opt) return null;
                 return (
                   <div
@@ -176,34 +206,55 @@ export function CustomizeNavDialog({ open, onOpenChange, onSave }: CustomizeNavD
             </div>
           </div>
 
-          {/* Available Destinations Checkboxes */}
-          <div className="space-y-2">
-            <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-              All Available Destinations
-            </Label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto p-1">
-              {ALL_NAV_OPTIONS.map((opt) => {
-                const isChecked = selectedIds.includes(opt.id);
-                return (
-                  <div
-                    key={opt.id}
-                    onClick={() => toggleSelect(opt.id)}
-                    className={`flex items-center space-x-2.5 p-2 rounded-xl border cursor-pointer transition-colors text-xs ${
-                      isChecked
-                        ? 'border-primary bg-primary/10 text-primary font-semibold'
-                        : 'border-border/60 bg-card hover:bg-muted/50 text-muted-foreground'
-                    }`}
-                  >
-                    <Checkbox checked={isChecked} onCheckedChange={() => toggleSelect(opt.id)} />
-                    <span className="flex-1 truncate">{opt.label}</span>
+          {/* Search Navigation Field */}
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search navigation..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 text-xs h-9"
+            />
+          </div>
+
+          {/* Category-Grouped Destinations List */}
+          <div className="space-y-4">
+            {filteredCategories.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-4">
+                No matching navigation items found.
+              </p>
+            ) : (
+              filteredCategories.map((cat) => (
+                <div key={cat.id} className="space-y-1.5">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground">
+                    {cat.category}
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {cat.items.map((opt) => {
+                      const isChecked = selectedIds.includes(opt.id);
+                      return (
+                        <div
+                          key={opt.id}
+                          onClick={() => toggleSelect(opt.id)}
+                          className={`flex items-center space-x-2.5 p-2 rounded-xl border cursor-pointer transition-colors text-xs ${
+                            isChecked
+                              ? 'border-primary bg-primary/10 text-primary font-semibold'
+                              : 'border-border/60 bg-card hover:bg-muted/50 text-muted-foreground'
+                          }`}
+                        >
+                          <Checkbox checked={isChecked} onCheckedChange={() => toggleSelect(opt.id)} />
+                          <span className="flex-1 truncate">{opt.label}</span>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
-        <DialogFooter className="flex gap-2 sm:justify-end">
+        <DialogFooter className="flex gap-2 sm:justify-end pt-2 border-t border-border">
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} className="text-xs h-9">
             Cancel
           </Button>

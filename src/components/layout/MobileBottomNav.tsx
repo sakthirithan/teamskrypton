@@ -8,49 +8,49 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { Capacitor } from '@capacitor/core';
 import {
   getUserNavPreferences,
-  ALL_NAV_OPTIONS,
   CustomizeNavDialog,
 } from '@/components/layout/CustomizeNavDialog';
 import {
+  getAvailableNavCategories,
+  getAllAvailableNavItems,
+  ICON_COMPONENT_MAP,
+} from '@/lib/navConfig';
+import { usePblProjectLead } from '@/components/grouping/LeaderboardPanel';
+import {
   LayoutDashboard,
-  Users,
-  TrendingUp,
-  Bell,
   MoreHorizontal,
-  User,
-  CheckSquare,
-  Bookmark,
-  MessageSquare,
   RefreshCw,
   LogOut,
-  FolderKanban,
-  Zap,
   Sliders,
 } from 'lucide-react';
-
-const ICON_MAP: Record<string, any> = {
-  LayoutDashboard,
-  Users,
-  TrendingUp,
-  Bell,
-  User,
-  FolderKanban,
-  CheckSquare,
-  Zap,
-  Bookmark,
-  MessageSquare,
-};
 
 export function MobileBottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const { unreadCount } = useGroupingNotifications();
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, isLeadership, isCaptainOrVice, signOut } = useAuth();
   const { mode, setMode } = useAppMode();
+  const { data: isProjectLead } = usePblProjectLead(user?.id);
+  const canManagePoints = isLeadership || !!isProjectLead;
 
   const [moreOpen, setMoreOpen] = useState(false);
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [navPrefIds, setNavPrefIds] = useState<string[]>([]);
+
+  const permissions = useMemo(
+    () => ({ isLeadership, isCaptainOrVice, canManagePoints }),
+    [isLeadership, isCaptainOrVice, canManagePoints]
+  );
+
+  const availableCategories = useMemo(
+    () => getAvailableNavCategories(permissions),
+    [permissions]
+  );
+
+  const allAvailableItems = useMemo(
+    () => getAllAvailableNavItems(permissions),
+    [permissions]
+  );
 
   // Load preferences
   useEffect(() => {
@@ -96,9 +96,9 @@ export function MobileBottomNav() {
   // Compute active quick action objects
   const activeNavItems = useMemo(() => {
     return navPrefIds
-      .map((id) => ALL_NAV_OPTIONS.find((opt) => opt.id === id))
-      .filter(Boolean) as typeof ALL_NAV_OPTIONS;
-  }, [navPrefIds]);
+      .map((id) => allAvailableItems.find((opt) => opt.id === id))
+      .filter(Boolean) as typeof allAvailableItems;
+  }, [navPrefIds, allAvailableItems]);
 
   return (
     <>
@@ -106,7 +106,7 @@ export function MobileBottomNav() {
       <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden pb-[env(safe-area-inset-bottom)] pointer-events-none">
         <div className="w-[calc(100%-1.25rem)] max-w-lg mx-auto mb-2 pointer-events-auto bg-card/90 backdrop-blur-xl border border-border/80 rounded-2xl shadow-xl px-1.5 py-1 flex items-center justify-around">
           {activeNavItems.map((item) => {
-            const IconComponent = ICON_MAP[item.iconName] || LayoutDashboard;
+            const IconComponent = ICON_COMPONENT_MAP[item.iconName] || LayoutDashboard;
             const targetPath = item.id === 'dashboard' && isPbl ? '/pbl/dashboard' : item.path;
             const isNotif = item.id === 'notifications';
 
@@ -143,7 +143,7 @@ export function MobileBottomNav() {
                 <span>More</span>
               </button>
             </SheetTrigger>
-            <SheetContent side="bottom" className="rounded-t-3xl max-h-[85vh] p-4 bg-card border-t border-border">
+            <SheetContent side="bottom" className="rounded-t-3xl max-h-[85vh] p-4 bg-card border-t border-border overflow-y-auto">
               <SheetHeader className="pb-3 border-b border-border">
                 <SheetTitle className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-left">
@@ -170,60 +170,31 @@ export function MobileBottomNav() {
                 </SheetTitle>
               </SheetHeader>
 
-              <div className="grid grid-cols-2 gap-2 py-4 text-xs">
-                <NavLink
-                  to="/grouping/me"
-                  onClick={() => setMoreOpen(false)}
-                  className="flex items-center gap-2.5 p-2.5 rounded-xl border border-border/60 bg-muted/40 hover:bg-muted font-medium"
-                >
-                  <User className="w-4 h-4 text-primary shrink-0" />
-                  My Space
-                </NavLink>
-
-                <NavLink
-                  to="/grouping/todos"
-                  onClick={() => setMoreOpen(false)}
-                  className="flex items-center gap-2.5 p-2.5 rounded-xl border border-border/60 bg-muted/40 hover:bg-muted font-medium"
-                >
-                  <CheckSquare className="w-4 h-4 text-emerald-500 shrink-0" />
-                  To-Do List
-                </NavLink>
-
-                <NavLink
-                  to="/grouping/skills"
-                  onClick={() => setMoreOpen(false)}
-                  className="flex items-center gap-2.5 p-2.5 rounded-xl border border-border/60 bg-muted/40 hover:bg-muted font-medium"
-                >
-                  <Zap className="w-4 h-4 text-amber-500 shrink-0" />
-                  Team Skills
-                </NavLink>
-
-                <NavLink
-                  to="/grouping/ps"
-                  onClick={() => setMoreOpen(false)}
-                  className="flex items-center gap-2.5 p-2.5 rounded-xl border border-border/60 bg-muted/40 hover:bg-muted font-medium"
-                >
-                  <FolderKanban className="w-4 h-4 text-indigo-500 shrink-0" />
-                  PS Portal
-                </NavLink>
-
-                <NavLink
-                  to="/grouping/notes"
-                  onClick={() => setMoreOpen(false)}
-                  className="flex items-center gap-2.5 p-2.5 rounded-xl border border-border/60 bg-muted/40 hover:bg-muted font-medium"
-                >
-                  <Bookmark className="w-4 h-4 text-purple-500 shrink-0" />
-                  Notes
-                </NavLink>
-
-                <NavLink
-                  to="/grouping/reflections"
-                  onClick={() => setMoreOpen(false)}
-                  className="flex items-center gap-2.5 p-2.5 rounded-xl border border-border/60 bg-muted/40 hover:bg-muted font-medium"
-                >
-                  <MessageSquare className="w-4 h-4 text-cyan-500 shrink-0" />
-                  Reflections
-                </NavLink>
+              {/* Categorized More Navigation Sheet */}
+              <div className="space-y-4 py-4">
+                {availableCategories.map((cat) => (
+                  <div key={cat.id} className="space-y-1.5">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground px-1">
+                      {cat.category}
+                    </span>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      {cat.items.map((item) => {
+                        const IconComp = ICON_COMPONENT_MAP[item.iconName] || LayoutDashboard;
+                        return (
+                          <NavLink
+                            key={item.id}
+                            to={item.path}
+                            onClick={() => setMoreOpen(false)}
+                            className="flex items-center gap-2.5 p-2.5 rounded-xl border border-border/60 bg-muted/30 hover:bg-muted font-medium transition-colors"
+                          >
+                            <IconComp className="w-4 h-4 text-primary shrink-0" />
+                            <span className="truncate">{item.label}</span>
+                          </NavLink>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
 
               <div className="pt-2 border-t border-border flex flex-col gap-2">
