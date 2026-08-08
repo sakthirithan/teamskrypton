@@ -4,13 +4,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation, useNavigate, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { AppModeProvider } from "@/hooks/useAppMode";
 import { PWAInstallPrompt } from "@/components/pwa/PWAInstallPrompt";
 import { SuspensionScreen } from "@/components/auth/SuspensionScreen";
 import { AppLoadingScreen } from "@/components/common/AppLoadingScreen";
-import { initNativePush } from "@/lib/push";
+import { initNativePush, setPushNavigationHandler } from "./lib/push";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Team from "./pages/Team";
@@ -72,6 +72,24 @@ function NativePushBootstrap() {
   return null;
 }
 
+function ProtectedRouteGate({ children }: { children: ReactNode }) {
+  const { user, isLoading } = useAuth();
+  const location = useLocation();
+
+  const publicPaths = ['/auth', '/', '/index.html'];
+  const isPublic = publicPaths.includes(location.pathname);
+
+  if (isLoading) {
+    return <>{children}</>;
+  }
+
+  if (!user && !isPublic) {
+    return <Navigate to="/auth" replace state={{ from: location }} />;
+  }
+
+  return <>{children}</>;
+}
+
 function SuspensionGate({ children }: { children: ReactNode }) {
   const { isDisabled, disabledMode, isLoading } = useAuth();
   const location = useLocation();
@@ -111,43 +129,45 @@ const App = () => (
             <PWAInstallPrompt />
             <BrowserRouter>
               <NativePushBootstrap />
-              <SuspensionGate>
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/index.html" element={<Index />} />
-                  <Route path="/auth" element={<Auth />} />
-                  <Route path="/team" element={<Team />} />
-                  <Route path="/my-space" element={<MySpace />} />
-                  <Route path="/member/:userId" element={<MemberProfile />} />
-                  <Route path="/profile/:userId" element={<MemberPublicProfile />} />
-                  {/* Grouping Mode Routes */}
-                  <Route path="/grouping/home" element={<GroupingHome />} />
-                  <Route path="/grouping/me" element={<GroupingMe />} />
-                  <Route path="/grouping/skills" element={<GroupingSkills />} />
-                  <Route path="/grouping/ps" element={<GroupingPS />} />
-                  <Route path="/grouping/reflections" element={<GroupingReflections />} />
-                  <Route path="/grouping/notes" element={<GroupingNotes />} />
-                  <Route path="/grouping/sessions" element={<GroupingSessions />} />
-                  <Route path="/grouping/habits" element={<GroupingHabits />} />
-                  <Route path="/grouping/todos" element={<GroupingTodos />} />
-                  <Route path="/grouping/leaderboard" element={<GroupingLeaderboard />} />
-                  <Route path="/grouping/management/points" element={<GroupingPointManagement />} />
-                  <Route path="/grouping/polls" element={<GroupingPolls />} />
-                  <Route path="/grouping/notifications" element={<NotificationsPage />} />
-                  <Route path="/notifications" element={<NotificationsPage />} />
-                  {/* PBL Mode Routes */}
-                  <Route path="/pbl/dashboard" element={<PBLDashboard />} />
-                  <Route path="/pbl/my-space" element={<PBLMySpace />} />
-                  <Route path="/pbl/projects" element={<PBLProjects />} />
-                  <Route path="/pbl/projects/:projectId" element={<ProjectDetail />} />
-                  <Route path="/pbl/analytics" element={<PBLAnalytics />} />
-                  <Route path="/pbl/docs" element={<PBLDocumentation />} />
-                  <Route path="/pbl/notifications" element={<PBLNotifications />} />
-                  <Route path="/pbl/todos" element={<PBLTodos />} />
-                  <Route path="/pbl/polls" element={<PBLPolls />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </SuspensionGate>
+              <ProtectedRouteGate>
+                <SuspensionGate>
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/index.html" element={<Index />} />
+                    <Route path="/auth" element={<Auth />} />
+                    <Route path="/team" element={<Team />} />
+                    <Route path="/my-space" element={<MySpace />} />
+                    <Route path="/member/:userId" element={<MemberProfile />} />
+                    <Route path="/profile/:userId" element={<MemberPublicProfile />} />
+                    {/* Grouping Mode Routes */}
+                    <Route path="/grouping/home" element={<GroupingHome />} />
+                    <Route path="/grouping/me" element={<GroupingMe />} />
+                    <Route path="/grouping/skills" element={<GroupingSkills />} />
+                    <Route path="/grouping/ps" element={<GroupingPS />} />
+                    <Route path="/grouping/reflections" element={<GroupingReflections />} />
+                    <Route path="/grouping/notes" element={<GroupingNotes />} />
+                    <Route path="/grouping/sessions" element={<GroupingSessions />} />
+                    <Route path="/grouping/habits" element={<GroupingHabits />} />
+                    <Route path="/grouping/todos" element={<GroupingTodos />} />
+                    <Route path="/grouping/leaderboard" element={<GroupingLeaderboard />} />
+                    <Route path="/grouping/management/points" element={<GroupingPointManagement />} />
+                    <Route path="/grouping/polls" element={<GroupingPolls />} />
+                    <Route path="/grouping/notifications" element={<NotificationsPage />} />
+                    <Route path="/notifications" element={<NotificationsPage />} />
+                    {/* PBL Mode Routes */}
+                    <Route path="/pbl/dashboard" element={<PBLDashboard />} />
+                    <Route path="/pbl/my-space" element={<PBLMySpace />} />
+                    <Route path="/pbl/projects" element={<PBLProjects />} />
+                    <Route path="/pbl/projects/:projectId" element={<ProjectDetail />} />
+                    <Route path="/pbl/analytics" element={<PBLAnalytics />} />
+                    <Route path="/pbl/docs" element={<PBLDocumentation />} />
+                    <Route path="/pbl/notifications" element={<PBLNotifications />} />
+                    <Route path="/pbl/todos" element={<PBLTodos />} />
+                    <Route path="/pbl/polls" element={<PBLPolls />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </SuspensionGate>
+              </ProtectedRouteGate>
             </BrowserRouter>
           </AppModeProvider>
         </AuthProvider>
