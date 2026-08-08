@@ -27,7 +27,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { useGroupingNotifications } from '@/hooks/useGroupingNotifications';
+import { KryptonLogo } from '@/components/common/KryptonLogo';
 
 const mainNavItems = [
   { title: 'Dashboard', url: '/pbl/dashboard', icon: LayoutDashboard },
@@ -54,17 +54,9 @@ export function PBLSidebar() {
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <SidebarHeader className="p-3">
-        {!collapsed && (
+        {!collapsed ? (
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-sm">TK</span>
-              </div>
-              <div>
-                <h2 className="text-sm font-semibold">Teams Krypton</h2>
-                <p className="text-[10px] text-muted-foreground">Project Mode</p>
-              </div>
-            </div>
+            <KryptonLogo size={32} showText subtext="Project Mode" />
             <Button
               variant="ghost"
               size="icon"
@@ -74,11 +66,10 @@ export function PBLSidebar() {
               <ChevronLeft className="h-4 w-4" />
             </Button>
           </div>
-        )}
-        {collapsed && (
+        ) : (
           <div className="flex justify-center">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center cursor-pointer" onClick={toggleSidebar}>
-              <span className="text-primary-foreground font-bold text-sm">TK</span>
+            <div className="cursor-pointer" onClick={toggleSidebar}>
+              <KryptonLogo size={32} showText={false} />
             </div>
           </div>
         )}

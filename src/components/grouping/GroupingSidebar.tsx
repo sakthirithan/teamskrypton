@@ -3,6 +3,7 @@ import { useLocation, useSearchParams } from 'react-router-dom';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { KryptonLogo } from '@/components/common/KryptonLogo';
 import {
   LayoutDashboard,
   BookOpen,
@@ -265,26 +266,15 @@ export function GroupingSidebar() {
       <SidebarHeader className="p-3">
         {!collapsed ? (
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center">
-                  <img src="/favicon.ico" alt="Teams Krypton logo featuring TK initials on primary blue background" className="rounded-lg" />
-                </div>
-              <div>
-                <h2 className="text-sm font-semibold">Teams Krypton</h2>
-                <p className="text-[10px] text-muted-foreground">Grouping Mode</p>
-              </div>
-            </div>
+            <KryptonLogo size={32} showText subtext="Grouping Mode" />
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={toggleSidebar}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
           </div>
         ) : (
           <div className="flex justify-center">
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer"
-              onClick={toggleSidebar}
-            >
-              <img src="/favicon.ico" alt="Teams Krypton logo featuring TK initials on primary blue background" className="rounded-lg " />
+            <div className="cursor-pointer" onClick={toggleSidebar}>
+              <KryptonLogo size={32} showText={false} />
             </div>
           </div>
         )}
