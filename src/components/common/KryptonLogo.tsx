@@ -15,24 +15,49 @@ export const KryptonLogo = memo(function KryptonLogo({
 }: KryptonLogoProps) {
   return (
     <div className={`flex items-center gap-2.5 shrink-0 select-none ${className}`}>
-      {/* Icon Image with Aspect Ratio Preservation */}
+      {/* High-Performance Instant SVG Branding Emblem */}
       <div
-        className="relative shrink-0 rounded-xl overflow-hidden shadow-sm transition-transform duration-200 hover:scale-105"
+        className="relative shrink-0 rounded-xl overflow-hidden shadow-md transition-transform duration-200 hover:scale-105"
         style={{ width: size, height: size }}
       >
-        <img
-          src="/icons/icon-512x512.png"
-          alt="Teams Krypton Logo"
+        <svg
+          viewBox="0 0 512 512"
           className="w-full h-full object-contain rounded-xl"
-          onError={(e) => {
-            // Fallback to SVG if PNG fails to load on any platform
-            const target = e.currentTarget;
-            if (!target.dataset.fallback) {
-              target.dataset.fallback = 'true';
-              target.src = '/icons/icon-512x512.svg';
-            }
-          }}
-        />
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <defs>
+            <linearGradient id="tk-logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#4f46e5" />
+              <stop offset="50%" stopColor="#6366f1" />
+              <stop offset="100%" stopColor="#8b5cf6" />
+            </linearGradient>
+            <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+              <feDropShadow dx="0" dy="4" stdDeviation="6" floodColor="#000" floodOpacity="0.25" />
+            </filter>
+          </defs>
+          {/* Rounded Shield Outer */}
+          <rect width="512" height="512" rx="112" fill="url(#tk-logo-grad)" />
+          {/* Subtle Gloss Line */}
+          <path
+            d="M 0,0 L 512,0 L 512,180 Q 256,260 0,180 Z"
+            fill="#ffffff"
+            fillOpacity="0.08"
+          />
+          {/* TK Emblem Text */}
+          <text
+            x="256"
+            y="325"
+            fontFamily="Outfit, system-ui, -apple-system, sans-serif"
+            fontSize="260"
+            fontWeight="900"
+            letterSpacing="-12"
+            fill="#ffffff"
+            textAnchor="middle"
+            filter="url(#shadow)"
+          >
+            TK
+          </text>
+        </svg>
       </div>
 
       {/* Brand Typography */}
