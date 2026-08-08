@@ -80,13 +80,13 @@
     --priority-critical: 0 72% 51%;
 
     /* Sidebar */
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 240 10% 4%;
-    --sidebar-primary: 250 85% 55%;
+    --sidebar-background: 210 40% 98%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 217 91% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 16% 96%;
+    --sidebar-accent: 210 30% 96%;
     --sidebar-accent-foreground: 222 47% 11%;
-    --sidebar-border: 214 14% 92%;
+    --sidebar-border: 214 20% 90%;
     --sidebar-ring: 217 91% 50%;
 
     /* Gradients */
