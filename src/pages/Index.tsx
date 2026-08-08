@@ -11,13 +11,22 @@ const Index = () => {
 
   useEffect(() => {
     if (!isLoading && !user) {
-      navigate('/auth');
+      navigate('/auth', { replace: true });
       return;
     }
 
     if (!isLoading && user) {
       navigate('/grouping/home', { replace: true });
     }
+
+    // Safety timeout: if loading takes more than 3 seconds on native APK, navigate to /auth
+    const timer = setTimeout(() => {
+      if (!user) {
+        navigate('/auth', { replace: true });
+      }
+    }, 3000);
+
+    return () => clearTimeout(timer);
   }, [user, isLoading, navigate]);
 
   if (isLoading) {

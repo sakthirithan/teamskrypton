@@ -78,7 +78,7 @@ function SuspensionGate({ children }: { children: ReactNode }) {
 
   // Always allow /auth to render (so the suspended user can sign out cleanly)
   if (isLoading) return <>{children}</>;
-  if (location.pathname === '/auth') return <>{children}</>;
+  if (location.pathname === '/auth' || location.pathname === '/' || location.pathname === '/index.html') return <>{children}</>;
   if (!isDisabled) return <>{children}</>;
 
   // Read-only mode: user may opt to continue into the app in view-only.
@@ -107,6 +107,7 @@ const App = () => (
               <SuspensionGate>
                 <Routes>
                   <Route path="/" element={<Index />} />
+                  <Route path="/index.html" element={<Index />} />
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/team" element={<Team />} />
                   <Route path="/my-space" element={<MySpace />} />
