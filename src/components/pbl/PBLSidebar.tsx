@@ -27,6 +27,8 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { ROLE_LABELS } from '@/lib/constants';
 import { KryptonLogo } from '@/components/common/KryptonLogo';
 import { useGroupingNotifications } from '@/hooks/useGroupingNotifications';
 
