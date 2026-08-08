@@ -84,17 +84,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const initAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const sessionRes: any = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise((resolve) => setTimeout(() => resolve({ data: { session: null } }), 2500)),
+        ]);
         if (!isMounted) return;
 
+        const session = sessionRes?.data?.session ?? null;
         setSession(session);
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          // Fast safety race (max 3.5s) so network delays never block app startup
+          // Fast safety race (max 2.5s) so network delays never block app startup
           await Promise.race([
             fetchUserData(session.user.id),
-            new Promise((resolve) => setTimeout(resolve, 3500)),
+            new Promise((resolve) => setTimeout(resolve, 2500)),
           ]);
         }
       } catch (e) {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, AlertCircle } from 'lucide-react';
+import { KryptonLogo } from '@/components/common/KryptonLogo';
 
 interface AppLoadingScreenProps {
   isLoading: boolean;
@@ -23,8 +24,8 @@ export function AppLoadingScreen({ isLoading, onTimeoutRetry }: AppLoadingScreen
   useEffect(() => {
     if (!isLoading) return;
 
-    const timer1 = setTimeout(() => setStatusIndex(1), 700);
-    const timer2 = setTimeout(() => setStatusIndex(2), 1600);
+    const timer1 = setTimeout(() => setStatusIndex(1), 600);
+    const timer2 = setTimeout(() => setStatusIndex(2), 1400);
 
     return () => {
       clearTimeout(timer1);
@@ -32,7 +33,7 @@ export function AppLoadingScreen({ isLoading, onTimeoutRetry }: AppLoadingScreen
     };
   }, [isLoading]);
 
-  // Safety timeout: 10 seconds
+  // Safety timeout & fade out
   useEffect(() => {
     if (!isLoading) {
       setIsFadingOut(true);
@@ -45,7 +46,7 @@ export function AppLoadingScreen({ isLoading, onTimeoutRetry }: AppLoadingScreen
 
     const timeoutTimer = setTimeout(() => {
       setIsTimedOut(true);
-    }, 10000);
+    }, 7000);
 
     return () => clearTimeout(timeoutTimer);
   }, [isLoading]);
@@ -66,22 +67,20 @@ export function AppLoadingScreen({ isLoading, onTimeoutRetry }: AppLoadingScreen
         isFadingOut ? 'opacity-0 pointer-events-none' : 'opacity-100'
       }`}
     >
-      {/* Background Ambient Glow */}
+      {/* Soft Ambient Glow */}
       <div className="absolute w-72 h-72 rounded-full bg-primary/10 blur-3xl animate-pulse -z-10" />
 
       {/* Centered Container */}
       <div className="flex flex-col items-center justify-center p-6 text-center max-w-sm mx-auto space-y-6">
-        {/* Animated Teams Krypton Logo */}
+        {/* Animated Official Teams Krypton App Logo */}
         <div className="relative group">
-          <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-primary/40 to-accent/40 blur-md opacity-75 animate-pulse" />
-          <div className="relative w-20 h-20 rounded-2xl bg-card border border-border/80 shadow-xl flex items-center justify-center text-primary font-black text-2xl tracking-tighter transform transition-transform duration-700 animate-[bounce_2s_infinite]">
-            <span className="bg-gradient-to-tr from-primary to-accent bg-clip-text text-transparent">
-              TK
-            </span>
+          <div className="absolute -inset-2 rounded-2xl bg-gradient-to-tr from-primary/30 to-purple-500/30 blur-lg opacity-70 animate-pulse" />
+          <div className="relative bg-card p-3 rounded-2xl border border-border/80 shadow-2xl transition-transform duration-500 hover:scale-105">
+            <KryptonLogo size={64} showText={false} />
           </div>
         </div>
 
-        {/* Title */}
+        {/* Branding Typography */}
         <div className="space-y-1">
           <h1 className="text-xl font-bold tracking-tight text-foreground font-display">
             Teams Krypton
@@ -91,16 +90,16 @@ export function AppLoadingScreen({ isLoading, onTimeoutRetry }: AppLoadingScreen
           </p>
         </div>
 
-        {/* Animated Progress Dots & Status */}
+        {/* Animated Progress Micro-Dots & Dynamic Status Text */}
         {!isTimedOut ? (
           <div className="space-y-3 pt-2">
             {/* Animated Dots Bar */}
-            <div className="flex items-center justify-center space-x-1.5">
+            <div className="flex items-center justify-center space-x-2">
               {[0, 1, 2, 3, 4].map((idx) => (
                 <div
                   key={idx}
                   className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                    idx <= (statusIndex * 2)
+                    idx <= statusIndex * 2
                       ? 'bg-primary scale-110 shadow-[0_0_8px_hsl(var(--primary))]'
                       : 'bg-muted-foreground/30 scale-90'
                   }`}
@@ -118,7 +117,7 @@ export function AppLoadingScreen({ isLoading, onTimeoutRetry }: AppLoadingScreen
           <div className="space-y-3 pt-2 animate-in fade-in zoom-in duration-300">
             <div className="flex items-center justify-center text-amber-500 gap-1.5 text-xs font-semibold">
               <AlertCircle className="w-4 h-4" />
-              Taking longer than expected.
+              Unable to complete workspace loading.
             </div>
             <Button
               size="sm"

@@ -1,9 +1,10 @@
-import { useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Trophy, Target, Zap, Coins, Dot } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Trophy, Target, Zap, Coins, ChevronDown, ChevronUp } from 'lucide-react';
 import type { SkillType } from '@/hooks/useMemberSkills';
 
 interface Props {
@@ -36,7 +37,9 @@ const TYPE_CONFIG: Record<
   },
 };
 
-export function SkillsAndIndicatorsGrid({ userId, className, compact }: Props) {
+export function SkillsAndIndicatorsGrid({ userId, className }: Props) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
   // User skills query
   const skillsQ = useQuery({
     queryKey: ['skills-grid:user', userId],
@@ -133,11 +136,19 @@ export function SkillsAndIndicatorsGrid({ userId, className, compact }: Props) {
   const secondarySkills = skills.filter((s) => s.skill_type === 'secondary');
   const specSkills = skills.filter((s) => s.skill_type === 'specialization');
 
-  const categories: Array<{ type: SkillType; list: typeof skills }> = [
-    { type: 'primary', list: primarySkills },
-    { type: 'secondary', list: secondarySkills },
-    { type: 'specialization', list: specSkills },
-  ];
+  // Categories to render based on expanded state
+  const visibleCategories: Array<{ type: SkillType; list: typeof skills }> = isExpanded
+    ? [
+        { type: 'primary', list: primarySkills },
+        { type: 'secondary', list: secondarySkills },
+        { type: 'specialization', list: specSkills },
+      ]
+    : [
+        { type: 'primary', list: primarySkills },
+        { type: 'secondary', list: secondarySkills },
+      ];
+
+  const hasMoreToExpand = skills.length > 3 || specSkills.length > 0;
 
   const rankItems = [
     {
@@ -176,7 +187,7 @@ export function SkillsAndIndicatorsGrid({ userId, className, compact }: Props) {
             <h3 className="text-sm font-bold tracking-tight text-foreground">Skills & Indicators</h3>
           </div>
           <Badge variant="secondary" className="text-xs px-2 py-0.5 font-bold tabular-nums">
-            {skills.length}
+            {skills.length} skills
           </Badge>
         </div>
 
@@ -185,8 +196,8 @@ export function SkillsAndIndicatorsGrid({ userId, className, compact }: Props) {
             No skills assigned yet.
           </div>
         ) : (
-          <div className="space-y-4">
-            {categories.map(({ type, list }) => {
+          <div className="space-y-4 transition-all duration-300">
+            {visibleCategories.map(({ type, list }) => {
               if (list.length === 0) return null;
               const cfg = TYPE_CONFIG[type];
               return (
@@ -199,19 +210,50 @@ export function SkillsAndIndicatorsGrid({ userId, className, compact }: Props) {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {list.map((s) => (
-                      <div
-                        key={s.id}
-                        className="flex items-center justify-between p-2.5 rounded-xl border border-border/60 bg-muted/30 hover:bg-muted/50 transition-colors text-xs"
-                      >
-                        <span className="font-semibold text-foreground truncate">{s.skill_name}</span>
-                        <span className="w-2 h-2 rounded-full shrink-0 bg-primary/70 ml-2" />
-                      </div>
-                    ))}
+                    {list.map((s) => {
+                      const domainName = s.custom_domain || s.domain;
+                      return (
+                        <div
+                          key={s.id}
+                          className="flex items-center justify-between p-2.5 rounded-xl border border-border/60 bg-muted/30 hover:bg-muted/50 transition-colors text-xs"
+                        >
+                          <span className="font-semibold text-foreground truncate">{s.skill_name}</span>
+                          {domainName ? (
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 border-primary/30 text-primary font-medium shrink-0 ml-2">
+                              {domainName}
+                            </Badge>
+                          ) : (
+                            <span className="w-2 h-2 rounded-full shrink-0 bg-primary/70 ml-2" />
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               );
             })}
+
+            {/* Expand / Collapse Button */}
+            {hasMoreToExpand && (
+              <div className="pt-2 border-t border-border/50 flex justify-center">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  className="text-xs text-primary font-semibold hover:bg-primary/10 transition-colors gap-1 h-8 px-3"
+                >
+                  {isExpanded ? (
+                    <>
+                      Show less <ChevronUp className="w-3.5 h-3.5" />
+                    </>
+                  ) : (
+                    <>
+                      View all {skills.length} skills <ChevronDown className="w-3.5 h-3.5" />
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </Card>
