@@ -523,25 +523,27 @@ export const UserListPanel = memo(function UserListPanel({ onClose }: UserListPa
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 px-0">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="members" className="flex items-center gap-2">
-                <Users className="w-4 h-4" />
-                Members
-                <Badge variant="secondary" className="ml-1 text-xs">{users.length}</Badge>
-              </TabsTrigger>
-              <TabsTrigger value="approvals" className="flex items-center gap-2">
-                <UserPlus className="w-4 h-4" />
-                Approvals
-                {requests.length > 0 && (
-                  <Badge variant="destructive" className="ml-1 text-xs">{requests.length}</Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="test-users" className="flex items-center gap-2">
-                <FlaskConical className="w-4 h-4" />
-                Test Users
-              </TabsTrigger>
-            </TabsList>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <div className="w-full overflow-x-auto no-scrollbar pb-1">
+              <TabsList className="inline-flex w-auto min-w-full justify-start sm:grid sm:grid-cols-3">
+                <TabsTrigger value="members" className="flex items-center gap-2 text-xs shrink-0">
+                  <Users className="w-4 h-4" />
+                  Members
+                  <Badge variant="secondary" className="ml-1 text-xs">{users.length}</Badge>
+                </TabsTrigger>
+                <TabsTrigger value="approvals" className="flex items-center gap-2 text-xs shrink-0">
+                  <UserPlus className="w-4 h-4" />
+                  Approvals
+                  {requests.length > 0 && (
+                    <Badge variant="destructive" className="ml-1 text-xs">{requests.length}</Badge>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="test-users" className="flex items-center gap-2 text-xs shrink-0">
+                  <FlaskConical className="w-4 h-4" />
+                  Test Users
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
             {/* Team Members Tab */}
             <TabsContent value="members" className="space-y-4 mt-4">

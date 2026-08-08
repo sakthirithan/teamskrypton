@@ -45,6 +45,7 @@ import { SkillActivityFeed } from '@/components/grouping/SkillActivityFeed';
 import { TeamAnalyticsReport } from '@/components/grouping/TeamAnalyticsReport';
 import { MemberSkillsBadges } from '@/components/grouping/MemberSkillsBadges';
 import { SkillsAndIndicatorsGrid } from '@/components/grouping/SkillsAndIndicatorsGrid';
+import { CommunitiesManager } from '@/components/grouping/CommunitiesManager';
 import { SkillAssignmentPanel } from '@/components/grouping/SkillAssignmentPanel';
 import { DailyStudyBoard } from '@/components/grouping/DailyStudyBoard';
 import { BalancePointsCard } from '@/components/grouping/BalancePointsCard';
@@ -610,6 +611,13 @@ const GroupingMe = () => {
                   userName={displayProfile?.full_name || 'Member'}
                   isSelfMode={!isViewingOther}
                 />
+              )}
+
+              {/* Communities Section */}
+              {viewingUserId && (
+                <Card className="p-4 border-border/60">
+                  <CommunitiesManager userId={viewingUserId} canEdit={!isViewingOther || isLeadership} />
+                </Card>
               )}
 
               {/* Session Summary */}

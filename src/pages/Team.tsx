@@ -50,6 +50,7 @@ interface TeamMember {
     inProgress: boolean;
   };
   skills: MemberSkillSummary[];
+  communities: string[];
 }
 
 const Team = () => {
@@ -159,6 +160,7 @@ const Team = () => {
         role: roleMap.get(p.user_id) || null,
         taskStats: taskStatsMap.get(p.user_id) || { total: 0, completed: 0, inProgress: false },
         skills: skillsMap.get(p.user_id) || [],
+        communities: (p.metadata as any)?.communities || ['AI & Machine Learning Community', 'Full Stack Software Community'],
       }));
 
       // Sort: Leadership first, then alphabetically
@@ -364,6 +366,60 @@ const Team = () => {
           ? Math.min(100, Math.round((completedPoints / targetPoints) * 100))
           : 0;
 
+        if (exportFormat === 'xlsx') {
+          const uniqueDomains = Array.from(
+            new Set(userSkills.map((s) => getEffectiveDomain(s.skill_name, s.domain, s.custom_domain)))
+          );
+
+          return {
+            'Member Name': member.profile.full_name,
+            'Role': member.role ? ROLE_LABELS[member.role] : '-',
+            'Department': member.profile.department,
+            'Email': member.profile.email,
+            'Phone Number': member.profile.phone_number || '-',
+            'Register Number': member.profile.register_number || '-',
+
+            // Skills & Domains
+            'Primary Skills': primarySkills.map((s) => s.skill_name).join(' | ') || '-',
+            'Secondary Skills': secondarySkills.map((s) => s.skill_name).join(' | ') || '-',
+            'Specialization Skills': specSkills.map((s) => s.skill_name).join(' | ') || '-',
+            'Skill Domains': uniqueDomains.join(' | ') || '-',
+            'Total Skills Count': userSkills.length,
+
+            // Communities
+            'Communities': (member.communities || []).join(' | ') || '-',
+            'Communities Count': (member.communities || []).length,
+
+            // Targets & Progress
+            'Individual Target (Points)': targetPoints,
+            'Group Target (Points)': groupTarget?.target_points || 0,
+            'Contribution Points': apData.points || completedPoints || 0,
+            'Target Status': TARGET_STATUS_LABELS[targetStatus],
+            'Progress (%)': `${progressPercent}%`,
+
+            // Leaderboard Ranks & Performance Indicators
+            'PS Rank': psData.rank ? `#${psData.rank}` : '-',
+            'PS Score (Points)': psData.points,
+            'Activity Rank': apData.rank ? `#${apData.rank}` : '-',
+            'Activity Points': apData.points,
+            'Golden Rank': gpData.rank ? `#${gpData.rank}` : '-',
+            'Golden Points': gpData.points,
+
+            // Sprint / Session Summary
+            'Current Sprint / Session': activeSession.name,
+            'Session Dates': `${activeSession.start_date} to ${activeSession.end_date}`,
+            'Session Status': activeSession.status,
+            'Days Remaining': daysRemaining,
+            'Total Session Days': totalDays,
+
+            // Current Progress Summaries
+            'Completed Summary': `${completedEntries.length} completed (${completedPoints} pts)`,
+            'Pending Summary': `${pendingEntries.length} pending (${pendingPointsSum} pts)`,
+            'Attempt Summary': `${attemptEntries.length} attempt(s) (${attemptPointsSum} pts)`,
+            'Current Total Points': completedPoints + ((individualTarget as any)?.balance_points || 0),
+          };
+        }
+
         return {
           'Member Name': member.profile.full_name,
           'Role': member.role ? ROLE_LABELS[member.role] : '-',
@@ -419,10 +475,16 @@ const Team = () => {
         };
       });
 
-      // 9. Generate file
+      // 9. Generate file with clean column widths
       const ws = XLSX.utils.json_to_sheet(exportData);
+      if (exportData.length > 0) {
+        const colWidths = Object.keys(exportData[0] || {}).map((key) => ({
+          wch: Math.max(key.length + 4, 18),
+        }));
+        ws['!cols'] = colWidths;
+      }
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Comprehensive Team Report');
+      XLSX.utils.book_append_sheet(wb, ws, 'Team Overview');
 
       const timestamp = format(new Date(), 'yyyy-MM-dd');
       const sessionName = activeSession.name.replace(/[^a-zA-Z0-9]/g, '_');
@@ -563,6 +625,9 @@ const Team = () => {
 
         if (matchesSkill) return true;
       }
+
+      // 6. Community Name Search
+      if (m.communities && m.communities.some(c => c.toLowerCase().includes(query))) return true;
 
       return false;
     });

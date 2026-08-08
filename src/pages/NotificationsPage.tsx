@@ -277,17 +277,9 @@ export default function NotificationsPage() {
                           {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
                         </p>
 
-                        {/* Formatted Message Body Preview / Full */}
+                        {/* Formatted Message Body Preview / Full with Read More / Show Less */}
                         {n.message && (
-                          <div className="mt-2 text-sm text-foreground/90">
-                            {isExpanded ? (
-                              <WhatsAppText text={n.message} />
-                            ) : (
-                              <p className="line-clamp-2 text-xs text-muted-foreground leading-relaxed">
-                                {n.message.replace(/[*_~`]/g, '')}
-                              </p>
-                            )}
-                          </div>
+                          <ExpandableNotificationMessage message={n.message} isCardExpanded={isExpanded} />
                         )}
                       </div>
                     </div>
@@ -323,5 +315,53 @@ export default function NotificationsPage() {
         )}
       </div>
     </LayoutWrapper>
+  );
+}
+
+function ExpandableNotificationMessage({ message, isCardExpanded }: { message: string; isCardExpanded: boolean }) {
+  const [userExpanded, setUserExpanded] = useState(false);
+  const isLong = message.length > 120 || message.includes('\n');
+  const isShowFull = isCardExpanded || userExpanded;
+
+  if (!isLong) {
+    return (
+      <div className="mt-2 text-xs sm:text-sm text-foreground/90 leading-relaxed">
+        <WhatsAppText text={message} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-2 text-xs sm:text-sm text-foreground/90 leading-relaxed">
+      {isShowFull ? (
+        <div>
+          <WhatsAppText text={message} />
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setUserExpanded(false);
+            }}
+            className="text-primary hover:underline text-[11px] font-semibold mt-1 inline-block"
+          >
+            Show less
+          </button>
+        </div>
+      ) : (
+        <div>
+          <WhatsAppText text={message.slice(0, 110) + '...'} />
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setUserExpanded(true);
+            }}
+            className="text-primary hover:underline text-[11px] font-semibold mt-1 inline-block ml-1"
+          >
+            Read more
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

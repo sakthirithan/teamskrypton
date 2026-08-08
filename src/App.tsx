@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { AppModeProvider } from "@/hooks/useAppMode";
 import { PWAInstallPrompt } from "@/components/pwa/PWAInstallPrompt";
 import { SuspensionScreen } from "@/components/auth/SuspensionScreen";
+import { AppLoadingScreen } from "@/components/common/AppLoadingScreen";
 import { initNativePush } from "@/lib/push";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -93,6 +94,11 @@ function SuspensionGate({ children }: { children: ReactNode }) {
   );
 }
 
+function AppLoadingBootstrap() {
+  const { isLoading } = useAuth();
+  return <AppLoadingScreen isLoading={isLoading} />;
+}
+
 const App = () => (
   <ThemeProvider attribute="class" defaultTheme="system" enableSystem storageKey="teams-krypton-theme">
     <QueryClientProvider client={queryClient}>
@@ -100,6 +106,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <AuthProvider>
+          <AppLoadingBootstrap />
           <AppModeProvider>
             <PWAInstallPrompt />
             <BrowserRouter>
