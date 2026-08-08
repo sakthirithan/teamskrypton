@@ -2,6 +2,31 @@ import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/integrations/supabase/client';
 
 let initialized = false;
+let navigationHandler: ((path: string) => void) | null = null;
+let pendingPath: string | null = null;
+
+export function setPushNavigationHandler(handler: (path: string) => void) {
+  navigationHandler = handler;
+  if (pendingPath) {
+    handler(pendingPath);
+    pendingPath = null;
+  }
+}
+
+export function handlePushRoute(rawPath?: string) {
+  const targetPath = rawPath || '/grouping/notifications';
+  if (navigationHandler) {
+    navigationHandler(targetPath);
+  } else {
+    pendingPath = targetPath;
+    try {
+      window.history.pushState({}, '', targetPath);
+      window.dispatchEvent(new Event('popstate'));
+    } catch (e) {
+      console.warn('[push] fallback nav error:', e);
+    }
+  }
+}
 
 export async function initNativePush() {
   if (initialized) return;
@@ -54,14 +79,11 @@ export async function initNativePush() {
     // Handle Tap on Notification (Foreground, Background, Cold-Start)
     PushNotifications.addListener('pushNotificationActionPerformed', (evt) => {
       const path = (evt.notification.data as any)?.path || '/grouping/notifications';
-      if (path && typeof path === 'string') {
-        if (window.location.pathname !== path) {
-          window.location.assign(path);
-        }
-      }
+      handlePushRoute(path);
     });
   } catch (e) {
     console.error('[push] init failed', e);
   }
 }
+
 

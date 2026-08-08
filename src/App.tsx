@@ -52,9 +52,22 @@ const queryClient = new QueryClient({
   },
 });
 
+import { initNativePush, setPushNavigationHandler } from './lib/push';
+
 function NativePushBootstrap() {
   const { user } = useAuth();
-  useEffect(() => { if (user) initNativePush(); }, [user]);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    setPushNavigationHandler((path) => {
+      navigate(path);
+    });
+  }, [navigate]);
+
+  useEffect(() => {
+    if (user) initNativePush();
+  }, [user]);
+
   return null;
 }
 
@@ -88,9 +101,9 @@ const App = () => (
         <Sonner />
         <AuthProvider>
           <AppModeProvider>
-            <NativePushBootstrap />
             <PWAInstallPrompt />
             <BrowserRouter>
+              <NativePushBootstrap />
               <SuspensionGate>
                 <Routes>
                   <Route path="/" element={<Index />} />

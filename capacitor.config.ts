@@ -4,10 +4,7 @@ const config: CapacitorConfig = {
   appId: 'com.teamskrypton.app',
   appName: 'teamskrypton',
   webDir: 'dist',
-  server: {
-    url: 'https://9f6c516d-2ea6-44d1-89f4-1b98f40586c1.lovableproject.com?forceHideBadge=true',
-    cleartext: true
-  },
+
   plugins: {
     SplashScreen: {
       launchShowDuration: 2000,
