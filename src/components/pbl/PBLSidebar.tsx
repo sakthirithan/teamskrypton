@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { KryptonLogo } from '@/components/common/KryptonLogo';
+import { useGroupingNotifications } from '@/hooks/useGroupingNotifications';
 
 const mainNavItems = [
   { title: 'Dashboard', url: '/pbl/dashboard', icon: LayoutDashboard },
