@@ -19,9 +19,9 @@
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 4%;
 
-    /* Primary — Premium Indigo */
-    --primary: 250 85% 55%;
-    --primary-foreground: 210 40% 98%;
+    /* Primary — Zoho Blue */
+    --primary: 217 91% 50%;
+    --primary-foreground: 0 0% 100%;
 
     /* Secondary — Neutral slate */
     --secondary: 240 5% 96%;
@@ -48,8 +48,8 @@
     --info-foreground: 0 0% 100%;
 
     /* Borders */
-    --border: 214 14% 90%;
-    --input: 214 14% 90%;
+    --border: 214 20% 90%;
+    --input: 214 20% 90%;
     --ring: 217 91% 50%;
 
     --radius: 0.5rem;
@@ -112,8 +112,8 @@
     --popover: 240 8% 6%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 250 85% 65%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
 
     --secondary: 240 6% 12%;
     --secondary-foreground: 240 5% 85%;
