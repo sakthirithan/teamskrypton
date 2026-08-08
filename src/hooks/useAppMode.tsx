@@ -25,34 +25,47 @@ const MODE_STORAGE_KEY = 'krypton_app_mode';
 const MODE_SELECTED_KEY = 'krypton_mode_selected';
 
 export function AppModeProvider({ children }: { children: ReactNode }) {
-  // Initialize from session storage
+  // Initialize from local storage with session storage fallback
   const [mode, setModeState] = useState<AppMode>(() => {
     if (typeof window !== 'undefined') {
-      const stored = sessionStorage.getItem(MODE_STORAGE_KEY);
+      const stored = localStorage.getItem(MODE_STORAGE_KEY) || sessionStorage.getItem(MODE_STORAGE_KEY);
       if (stored === 'pbl') return 'pbl';
     }
     return 'grouping';
   });
 
-  // Mode selected tracks if user has actively chosen a mode this session
+  // Mode selected tracks if user has actively chosen a mode
   const [isModeSelected, setIsModeSelected] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
-      return sessionStorage.getItem(MODE_SELECTED_KEY) === 'true';
+      return (
+        localStorage.getItem(MODE_SELECTED_KEY) === 'true' ||
+        sessionStorage.getItem(MODE_SELECTED_KEY) === 'true'
+      );
     }
     return false;
   });
 
-  // Persist mode to session storage
+  // Persist mode to local and session storage
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      sessionStorage.setItem(MODE_STORAGE_KEY, mode);
+      try {
+        localStorage.setItem(MODE_STORAGE_KEY, mode);
+        sessionStorage.setItem(MODE_STORAGE_KEY, mode);
+      } catch (e) {
+        console.warn('Failed to persist mode:', e);
+      }
     }
   }, [mode]);
 
   // Persist mode selected status
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      sessionStorage.setItem(MODE_SELECTED_KEY, isModeSelected.toString());
+      try {
+        localStorage.setItem(MODE_SELECTED_KEY, isModeSelected.toString());
+        sessionStorage.setItem(MODE_SELECTED_KEY, isModeSelected.toString());
+      } catch (e) {
+        console.warn('Failed to persist mode selected state:', e);
+      }
     }
   }, [isModeSelected]);
 
@@ -60,8 +73,14 @@ export function AppModeProvider({ children }: { children: ReactNode }) {
     setModeState(newMode);
     setIsModeSelected(true);
     if (typeof window !== 'undefined') {
-      sessionStorage.setItem(MODE_STORAGE_KEY, newMode);
-      sessionStorage.setItem(MODE_SELECTED_KEY, 'true');
+      try {
+        localStorage.setItem(MODE_STORAGE_KEY, newMode);
+        localStorage.setItem(MODE_SELECTED_KEY, 'true');
+        sessionStorage.setItem(MODE_STORAGE_KEY, newMode);
+        sessionStorage.setItem(MODE_SELECTED_KEY, 'true');
+      } catch (e) {
+        console.warn('Failed to save setMode:', e);
+      }
     }
   }, []);
 
@@ -70,8 +89,14 @@ export function AppModeProvider({ children }: { children: ReactNode }) {
     setModeState('grouping');
     setIsModeSelected(false);
     if (typeof window !== 'undefined') {
-      sessionStorage.removeItem(MODE_STORAGE_KEY);
-      sessionStorage.removeItem(MODE_SELECTED_KEY);
+      try {
+        localStorage.removeItem(MODE_STORAGE_KEY);
+        localStorage.removeItem(MODE_SELECTED_KEY);
+        sessionStorage.removeItem(MODE_STORAGE_KEY);
+        sessionStorage.removeItem(MODE_SELECTED_KEY);
+      } catch (e) {
+        console.warn('Failed to clear mode:', e);
+      }
     }
   }, []);
 
@@ -79,7 +104,12 @@ export function AppModeProvider({ children }: { children: ReactNode }) {
   const resetModeSelection = useCallback(() => {
     setIsModeSelected(false);
     if (typeof window !== 'undefined') {
-      sessionStorage.removeItem(MODE_SELECTED_KEY);
+      try {
+        localStorage.removeItem(MODE_SELECTED_KEY);
+        sessionStorage.removeItem(MODE_SELECTED_KEY);
+      } catch (e) {
+        console.warn('Failed to reset mode selection:', e);
+      }
     }
   }, []);
 
