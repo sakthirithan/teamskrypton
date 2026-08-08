@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.lovable.9f6c516d2ea644d189f41b98f40586c1',
+  appId: 'com.teamskrypton.app',
   appName: 'teamskrypton',
   webDir: 'dist',
   server: {

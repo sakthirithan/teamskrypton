@@ -6,6 +6,21 @@
     <title>Teams Krypton</title>
     <meta name="description" content="Teams krypton - Collab platform. Where Work Becomes Visible.">
     <meta name="author" content="Lovable" />
+    <!-- Theme Anti-Flash Script -->
+    <script>
+      (function() {
+        try {
+          var savedTheme = localStorage.getItem('teams-krypton-theme');
+          var theme = savedTheme ? savedTheme : 'system';
+          var isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (isDark) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
     
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#6366f1" />

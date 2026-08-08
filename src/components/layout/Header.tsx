@@ -22,6 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { AppMode } from '@/lib/groupingConstants';
 import { GuestModeBadge } from '@/components/guest/GuestModeBadge';
 import { usePblProjectLead } from '@/components/grouping/LeaderboardPanel';
+import { ThemeToggle } from '@/components/theme/ThemeToggle';
 
 function getRoleBadgeClass(role: KryptonRole | null): string {
   switch (role) {
@@ -212,6 +213,8 @@ export function Header() {
                 </>
               )}
             </Badge>
+            
+            <ThemeToggle className="text-primary-foreground hover:bg-primary-foreground/10" />
             
             {/* User Profile Dropdown */}
             <DropdownMenu>

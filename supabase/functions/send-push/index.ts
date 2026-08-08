@@ -116,7 +116,15 @@ Deno.serve(async (req) => {
               data: Object.fromEntries(
                 Object.entries(data || {}).map(([k, v]) => [k, String(v)]),
               ),
-              android: { priority: 'HIGH' },
+              android: {
+                priority: 'HIGH',
+                notification: {
+                  channelId: 'teams_krypton_default',
+                  sound: 'default',
+                  defaultSound: true,
+                  defaultVibrateTimings: true,
+                },
+              },
             },
           }),
         });

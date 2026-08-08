@@ -1,4 +1,5 @@
 import { useEffect, useState, ReactNode } from "react";
+import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -36,6 +37,7 @@ import PBLMySpace from "./pages/PBLMySpace";
 import PBLTodos from "./pages/PBLTodos";
 import GroupingPolls from "./pages/GroupingPolls";
 import PBLPolls from "./pages/PBLPolls";
+import NotificationsPage from "./pages/NotificationsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -79,54 +81,58 @@ function SuspensionGate({ children }: { children: ReactNode }) {
 }
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <AuthProvider>
-        <AppModeProvider>
-          <NativePushBootstrap />
-          <PWAInstallPrompt />
-          <BrowserRouter>
-            <SuspensionGate>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/team" element={<Team />} />
-                <Route path="/my-space" element={<MySpace />} />
-                <Route path="/member/:userId" element={<MemberProfile />} />
-                <Route path="/profile/:userId" element={<MemberPublicProfile />} />
-                {/* Grouping Mode Routes */}
-                <Route path="/grouping/home" element={<GroupingHome />} />
-                <Route path="/grouping/me" element={<GroupingMe />} />
-                <Route path="/grouping/skills" element={<GroupingSkills />} />
-                <Route path="/grouping/ps" element={<GroupingPS />} />
-                <Route path="/grouping/reflections" element={<GroupingReflections />} />
-                <Route path="/grouping/notes" element={<GroupingNotes />} />
-                <Route path="/grouping/sessions" element={<GroupingSessions />} />
-                <Route path="/grouping/habits" element={<GroupingHabits />} />
-                <Route path="/grouping/todos" element={<GroupingTodos />} />
-                <Route path="/grouping/leaderboard" element={<GroupingLeaderboard />} />
-                <Route path="/grouping/management/points" element={<GroupingPointManagement />} />
-                <Route path="/grouping/polls" element={<GroupingPolls />} />
-                {/* PBL Mode Routes */}
-                <Route path="/pbl/dashboard" element={<PBLDashboard />} />
-                <Route path="/pbl/my-space" element={<PBLMySpace />} />
-                <Route path="/pbl/projects" element={<PBLProjects />} />
-                <Route path="/pbl/projects/:projectId" element={<ProjectDetail />} />
-                <Route path="/pbl/analytics" element={<PBLAnalytics />} />
-                <Route path="/pbl/docs" element={<PBLDocumentation />} />
-                <Route path="/pbl/notifications" element={<PBLNotifications />} />
-                <Route path="/pbl/todos" element={<PBLTodos />} />
-                <Route path="/pbl/polls" element={<PBLPolls />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </SuspensionGate>
-          </BrowserRouter>
-        </AppModeProvider>
-      </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <ThemeProvider attribute="class" defaultTheme="system" enableSystem storageKey="teams-krypton-theme">
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <AuthProvider>
+          <AppModeProvider>
+            <NativePushBootstrap />
+            <PWAInstallPrompt />
+            <BrowserRouter>
+              <SuspensionGate>
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/team" element={<Team />} />
+                  <Route path="/my-space" element={<MySpace />} />
+                  <Route path="/member/:userId" element={<MemberProfile />} />
+                  <Route path="/profile/:userId" element={<MemberPublicProfile />} />
+                  {/* Grouping Mode Routes */}
+                  <Route path="/grouping/home" element={<GroupingHome />} />
+                  <Route path="/grouping/me" element={<GroupingMe />} />
+                  <Route path="/grouping/skills" element={<GroupingSkills />} />
+                  <Route path="/grouping/ps" element={<GroupingPS />} />
+                  <Route path="/grouping/reflections" element={<GroupingReflections />} />
+                  <Route path="/grouping/notes" element={<GroupingNotes />} />
+                  <Route path="/grouping/sessions" element={<GroupingSessions />} />
+                  <Route path="/grouping/habits" element={<GroupingHabits />} />
+                  <Route path="/grouping/todos" element={<GroupingTodos />} />
+                  <Route path="/grouping/leaderboard" element={<GroupingLeaderboard />} />
+                  <Route path="/grouping/management/points" element={<GroupingPointManagement />} />
+                  <Route path="/grouping/polls" element={<GroupingPolls />} />
+                  <Route path="/grouping/notifications" element={<NotificationsPage />} />
+                  <Route path="/notifications" element={<NotificationsPage />} />
+                  {/* PBL Mode Routes */}
+                  <Route path="/pbl/dashboard" element={<PBLDashboard />} />
+                  <Route path="/pbl/my-space" element={<PBLMySpace />} />
+                  <Route path="/pbl/projects" element={<PBLProjects />} />
+                  <Route path="/pbl/projects/:projectId" element={<ProjectDetail />} />
+                  <Route path="/pbl/analytics" element={<PBLAnalytics />} />
+                  <Route path="/pbl/docs" element={<PBLDocumentation />} />
+                  <Route path="/pbl/notifications" element={<PBLNotifications />} />
+                  <Route path="/pbl/todos" element={<PBLTodos />} />
+                  <Route path="/pbl/polls" element={<PBLPolls />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </SuspensionGate>
+            </BrowserRouter>
+          </AppModeProvider>
+        </AuthProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ThemeProvider>
 );
 
 export default App;

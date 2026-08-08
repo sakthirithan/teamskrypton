@@ -27,8 +27,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ROLE_LABELS } from '@/lib/constants';
+import { useGroupingNotifications } from '@/hooks/useGroupingNotifications';
 
 const mainNavItems = [
   { title: 'Dashboard', url: '/pbl/dashboard', icon: LayoutDashboard },
@@ -37,7 +36,7 @@ const mainNavItems = [
   { title: 'Projects', url: '/pbl/projects', icon: FolderKanban },
   { title: 'Documentation', url: '/pbl/docs', icon: FileText },
   { title: 'To-Do List', url: '/pbl/todos', icon: ListChecks },
-  { title: 'Notifications', url: '/pbl/notifications', icon: Bell },
+  { title: 'Notifications', url: '/grouping/notifications', icon: Bell },
   { title: 'Analytics', url: '/pbl/analytics', icon: BarChart3 },
 ];
 
@@ -46,6 +45,7 @@ export function PBLSidebar() {
   const collapsed = state === 'collapsed';
   const location = useLocation();
   const { profile, role } = useAuth();
+  const { unreadCount } = useGroupingNotifications();
 
   const isActive = (path: string) => {
     return location.pathname === path || location.pathname.startsWith(path + '/');
@@ -95,11 +95,21 @@ export function PBLSidebar() {
                     <NavLink
                       to={item.url}
                       end={item.url === '/'}
-                      className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-sidebar-accent"
+                      className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-sidebar-accent"
                       activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
                     >
-                      <item.icon className="h-4 w-4 shrink-0" />
-                      {!collapsed && <span>{item.title}</span>}
+                      <div className="flex items-center gap-2 min-w-0">
+                        <item.icon className="h-4 w-4 shrink-0" />
+                        {!collapsed && <span>{item.title}</span>}
+                      </div>
+                      {item.title === 'Notifications' && unreadCount > 0 && (
+                        <Badge
+                          variant="destructive"
+                          className="text-[10px] px-1.5 py-0 h-4 rounded-full font-extrabold shadow-sm"
+                        >
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </Badge>
+                      )}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

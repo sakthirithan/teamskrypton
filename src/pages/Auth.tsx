@@ -7,6 +7,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAppMode } from '@/hooks/useAppMode';
 import { AppMode } from '@/lib/groupingConstants';
 
+import { ThemeToggle } from '@/components/theme/ThemeToggle';
+
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [showModeSelection, setShowModeSelection] = useState(false);
@@ -58,7 +60,10 @@ const Auth = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <div className="krypton-gradient py-8">
+      <div className="krypton-gradient py-8 relative">
+        <div className="absolute top-3 right-4 sm:right-6">
+          <ThemeToggle className="text-primary-foreground hover:bg-primary-foreground/10" />
+        </div>
         <div className="container mx-auto px-6 text-center">
           <h1 className="text-3xl md:text-4xl font-display font-bold text-primary-foreground mb-2">
             Teams Krypton

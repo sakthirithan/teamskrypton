@@ -12,6 +12,20 @@ export async function initNativePush() {
     const { PushNotifications } = await import('@capacitor/push-notifications');
     const platform = Capacitor.getPlatform() === 'ios' ? 'ios' : 'android';
 
+    // Create Android High-Priority Notification Channel
+    if (Capacitor.getPlatform() === 'android') {
+      await PushNotifications.createChannel({
+        id: 'teams_krypton_default',
+        name: 'Teams Krypton Notifications',
+        description: 'General team alerts and push notifications',
+        importance: 4, // HIGH
+        visibility: 1, // PUBLIC
+        vibration: true,
+        sound: 'default',
+      }).catch((e) => console.warn('[push] channel creation error:', e));
+    }
+
+    // Check & request runtime notification permissions (POST_NOTIFICATIONS on Android 13+)
     let perm = await PushNotifications.checkPermissions();
     if (perm.receive === 'prompt' || perm.receive === 'prompt-with-rationale') {
       perm = await PushNotifications.requestPermissions();
@@ -23,6 +37,7 @@ export async function initNativePush() {
 
     await PushNotifications.register();
 
+    // Store / Refresh FCM Token
     PushNotifications.addListener('registration', async (t) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -36,11 +51,17 @@ export async function initNativePush() {
 
     PushNotifications.addListener('registrationError', (e) => console.error('[push] registrationError', e));
 
+    // Handle Tap on Notification (Foreground, Background, Cold-Start)
     PushNotifications.addListener('pushNotificationActionPerformed', (evt) => {
-      const path = (evt.notification.data as any)?.path;
-      if (path && typeof path === 'string') window.location.assign(path);
+      const path = (evt.notification.data as any)?.path || '/grouping/notifications';
+      if (path && typeof path === 'string') {
+        if (window.location.pathname !== path) {
+          window.location.assign(path);
+        }
+      }
     });
   } catch (e) {
     console.error('[push] init failed', e);
   }
 }
+

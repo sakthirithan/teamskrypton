@@ -25,7 +25,9 @@ import {
   ListChecks,
   Coins,
   Vote,
+  Bell,
 } from 'lucide-react';
+import { useGroupingNotifications } from '@/hooks/useGroupingNotifications';
 import {
   Sidebar,
   SidebarContent,
@@ -74,6 +76,7 @@ export function GroupingSidebar() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { profile, user, role, isLeadership, isCaptainOrVice } = useAuth();
+  const { unreadCount } = useGroupingNotifications();
   const { data: isProjectLead } = usePblProjectLead(user?.id);
   const canManagePoints = isLeadership || isProjectLead;
   const isMobile = useIsMobile();
@@ -356,6 +359,29 @@ export function GroupingSidebar() {
                   >
                     <TrendingUp className="h-4 w-4 shrink-0" />
                     {!collapsed && <span>Leaderboard</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isActive('/grouping/notifications')}>
+                  <NavLink
+                    to="/grouping/notifications"
+                    className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-sidebar-accent"
+                    activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Bell className="h-4 w-4 shrink-0 text-primary" />
+                      {!collapsed && <span>Notifications</span>}
+                    </div>
+                    {unreadCount > 0 && (
+                      <Badge
+                        variant="destructive"
+                        className="text-[10px] px-1.5 py-0 h-4 rounded-full font-extrabold shadow-sm"
+                      >
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </Badge>
+                    )}
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>

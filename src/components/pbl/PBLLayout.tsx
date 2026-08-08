@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { PBLSidebar } from './PBLSidebar';
 import { NotificationBell } from '@/components/grouping/NotificationBell';
+import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppMode } from '@/hooks/useAppMode';
 import { Header } from '@/components/layout/Header';
@@ -78,6 +79,7 @@ export function PBLLayout({ children, title }: PBLLayoutProps) {
                 PBL Mode
               </Badge>
 
+              <ThemeToggle />
               <NotificationBell />
 
               <DropdownMenu>

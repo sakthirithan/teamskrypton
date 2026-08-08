@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "345804857601",
+    "project_id": "teamskrypton-2428",
+    "storage_bucket": "teamskrypton-2428.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:345804857601:android:93e3c7dc4075a5ee523b00",
+        "android_client_info": {
+          "package_name": "com.teamskrypton.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAyY-3jYbSXO-sJf32khdfagmzji-yHkFo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:345804857601:android:93e3c7dc4075a5ee523b00",
+        "android_client_info": {
+          "package_name": "app.lovable.f96c516d2ea644d189f41b98f40586c1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAyY-3jYbSXO-sJf32khdfagmzji-yHkFo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { UserListPanel } from '@/components/admin/UserListPanel';
 import { PointsManagementPanel } from '@/components/admin/PointsManagementPanel';
 import { NotificationBell } from '@/components/grouping/NotificationBell';
+import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -75,6 +76,7 @@ export function GroupingLayout({ children, title }: GroupingLayoutProps) {
                 Grouping Mode
               </Badge>
 
+              <ThemeToggle />
               <NotificationBell />
 
               <DropdownMenu>
