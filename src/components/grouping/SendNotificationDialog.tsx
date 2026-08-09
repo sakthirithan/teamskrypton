@@ -68,21 +68,18 @@ export function SendNotificationDialog({ trigger }: Props) {
   const leads = allUsers.filter(u => u.user_roles?.role && LEADERSHIP_ROLES.includes(u.user_roles.role as any));
   const members = allUsers.filter(u => !u.user_roles?.role || !LEADERSHIP_ROLES.includes(u.user_roles.role as any));
 
-  // ✅ Send to multiple users
+  // ✅ Send to multiple users as a private broadcast
   const handleSend = async () => {
     if (form.recipient_ids.length === 0 || !form.title) return;
 
-    await Promise.all(
-      form.recipient_ids.map((id) =>
-        sendNotification.mutateAsync({
-          recipient_id: id,
-          title: form.title,
-          message: form.message || undefined,
-          type: form.type,
-          session_id: activeSession?.id,
-        })
-      )
-    );
+    await sendTargetedNotification.mutateAsync({
+      recipient_ids: form.recipient_ids,
+      target_audience: 'direct',
+      title: form.title,
+      message: form.message || '',
+      type: form.type,
+      session_id: activeSession?.id,
+    });
 
     // Fire-and-forget email delivery via Gmail connector
     supabase.functions.invoke('send-notification-email', {

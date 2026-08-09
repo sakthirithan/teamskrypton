@@ -24,6 +24,26 @@ export interface GroupingNotification {
   metadata?: Record<string, any>;
 }
 
+export interface BroadcastRecipientStatus {
+  recipient_id: string;
+  is_read: boolean;
+  created_at: string;
+}
+
+export interface SentBroadcastGroup {
+  broadcast_id: string;
+  title: string;
+  message: string | null;
+  type: string;
+  created_at: string;
+  expires_at?: string | null;
+  target_audience?: string;
+  is_24h_broadcast?: boolean;
+  recipients: BroadcastRecipientStatus[];
+  total_recipients: number;
+  read_count: number;
+}
+
 export function useGroupingNotifications() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -50,6 +70,62 @@ export function useGroupingNotifications() {
       });
 
       return validNotifs;
+    },
+    enabled: !!user,
+  });
+
+  // Creator's Sent Broadcasts Query (Grouped by broadcast_id)
+  const sentBroadcastsQuery = useQuery({
+    queryKey: ['sent-broadcasts', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from('grouping_notifications')
+        .select('*')
+        .eq('sender_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const now = new Date().toISOString();
+      const valid = ((data || []) as GroupingNotification[]).filter((n) => {
+        if (n.expires_at && new Date(n.expires_at).toISOString() <= now) {
+          return false;
+        }
+        return true;
+      });
+
+      const map = new Map<string, SentBroadcastGroup>();
+
+      valid.forEach((n) => {
+        const bId = (n.metadata as any)?.broadcast_id || `${n.title}-${n.created_at}`;
+        if (!map.has(bId)) {
+          map.set(bId, {
+            broadcast_id: bId,
+            title: n.title,
+            message: n.message,
+            type: n.type,
+            created_at: n.created_at,
+            expires_at: n.expires_at,
+            target_audience: n.target_audience,
+            is_24h_broadcast: !!n.expires_at || n.is_broadcast,
+            recipients: [],
+            total_recipients: 0,
+            read_count: 0,
+          });
+        }
+
+        const group = map.get(bId)!;
+        group.recipients.push({
+          recipient_id: n.recipient_id,
+          is_read: n.is_read,
+          created_at: n.created_at,
+        });
+        group.total_recipients += 1;
+        if (n.is_read) group.read_count += 1;
+      });
+
+      return Array.from(map.values());
     },
     enabled: !!user,
   });
@@ -140,6 +216,7 @@ export function useGroupingNotifications() {
       type?: string;
       session_id?: string;
     }) => {
+      const broadcast_id = crypto.randomUUID();
       const { data, error } = await supabase
         .from('grouping_notifications')
         .insert({
@@ -149,7 +226,8 @@ export function useGroupingNotifications() {
           message: params.message || null,
           type: params.type || 'info',
           session_id: params.session_id || null,
-        })
+          metadata: { broadcast_id, target_audience: 'direct', recipient_count: 1 },
+        } as any)
         .select()
         .single();
 
@@ -174,6 +252,7 @@ export function useGroupingNotifications() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['grouping-notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['sent-broadcasts'] });
       toast({ title: 'Notification Sent' });
     },
     onError: (error: Error) => {
@@ -181,7 +260,7 @@ export function useGroupingNotifications() {
     },
   });
 
-  // Targeted batch / group / broadcast notification send
+  // Private multi-recipient broadcast send (Individual DB rows, Creator broadcast grouping)
   const sendTargetedNotification = useMutation({
     mutationFn: async (params: {
       recipient_ids: string[];
@@ -195,6 +274,7 @@ export function useGroupingNotifications() {
       if (!user) throw new Error('Not authenticated');
       if (params.recipient_ids.length === 0) throw new Error('No recipients selected');
 
+      const broadcast_id = crypto.randomUUID();
       const expires_at = params.is_24h_broadcast
         ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
         : null;
@@ -209,6 +289,11 @@ export function useGroupingNotifications() {
         target_audience: params.target_audience,
         expires_at,
         is_broadcast: !!params.is_24h_broadcast,
+        metadata: {
+          broadcast_id,
+          target_audience: params.target_audience,
+          recipient_count: params.recipient_ids.length,
+        },
       }));
 
       let { error } = await supabase.from('grouping_notifications').insert(rows as any);
@@ -220,7 +305,7 @@ export function useGroupingNotifications() {
       }
       if (error) throw error;
 
-      // Invoke FCM push for background mobile delivery
+      // Invoke FCM push for background mobile delivery — sends individual notification push
       try {
         const cleanBody = stripWhatsAppFormatting(params.message);
         await supabase.functions.invoke('send-push', {
@@ -235,13 +320,14 @@ export function useGroupingNotifications() {
         console.warn('FCM push invoke error:', err);
       }
 
-      return { count: rows.length };
+      return { count: rows.length, broadcast_id };
     },
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ['grouping-notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['sent-broadcasts'] });
       toast({
-        title: vars.is_24h_broadcast ? 'Broadcast Sent (24h Active)' : 'Notification Sent',
-        description: `Delivered to ${vars.recipient_ids.length} recipient(s)`,
+        title: vars.is_24h_broadcast ? 'Private Broadcast Sent (24h Active)' : 'Private Broadcast Sent',
+        description: `Delivered to ${vars.recipient_ids.length} recipient(s) as direct notifications.`,
       });
     },
     onError: (error: Error) => {
@@ -259,6 +345,7 @@ export function useGroupingNotifications() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['grouping-notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['sent-broadcasts'] });
     },
   });
 
@@ -273,6 +360,7 @@ export function useGroupingNotifications() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['grouping-notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['sent-broadcasts'] });
       toast({ title: 'All notifications marked as read' });
     },
   });
@@ -287,11 +375,42 @@ export function useGroupingNotifications() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['grouping-notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['sent-broadcasts'] });
+    },
+  });
+
+  const deleteBroadcast = useMutation({
+    mutationFn: async (broadcastId: string) => {
+      const { data: sent } = await supabase
+        .from('grouping_notifications')
+        .select('id, metadata, title, created_at')
+        .eq('sender_id', user!.id);
+
+      const idsToDelete = (sent || [])
+        .filter((n) => (n.metadata as any)?.broadcast_id === broadcastId || `${n.title}-${n.created_at}` === broadcastId)
+        .map((n) => n.id);
+
+      if (idsToDelete.length > 0) {
+        const { error } = await supabase
+          .from('grouping_notifications')
+          .delete()
+          .in('id', idsToDelete);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['grouping-notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['sent-broadcasts'] });
+      toast({ title: 'Broadcast Deleted' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Delete Failed', description: error.message, variant: 'destructive' });
     },
   });
 
   return {
     notifications: notificationsQuery.data || [],
+    sentBroadcasts: sentBroadcastsQuery.data || [],
     unreadCount,
     isLoading: notificationsQuery.isLoading,
     sendNotification,
@@ -299,7 +418,10 @@ export function useGroupingNotifications() {
     markAsRead,
     markAllAsRead,
     deleteNotification,
+    deleteBroadcast,
     refetch: notificationsQuery.refetch,
+    refetchSentBroadcasts: sentBroadcastsQuery.refetch,
   };
 }
+
 

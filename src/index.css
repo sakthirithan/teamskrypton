@@ -444,3 +444,21 @@
 .neon-pulse {
   animation: neon-pulse 2s ease-in-out infinite;
 }
+
+/* Messenger: subtle bounce for new-message banner */
+@keyframes bounce-subtle {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50%       { transform: translateX(-50%) translateY(-4px); }
+}
+.animate-bounce-subtle {
+  animation: bounce-subtle 1.4s ease-in-out infinite;
+}
+
+/* Fade-in slide for reply bar / search bar */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fade-in 0.15s ease-out both;
+}

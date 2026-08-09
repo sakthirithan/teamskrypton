@@ -202,14 +202,16 @@ export function NotificationComposer({ onSuccess, open, onOpenChange }: Notifica
   const activeRecipients = resolveRecipientIds();
 
   const handleSend = async () => {
-    if (!title.trim()) return;
     if (!message.trim()) return;
     if (activeRecipients.length === 0) return;
+
+    // Title is OPTIONAL — fallback to 'Notification' or message snippet if blank
+    const finalTitle = title.trim() || 'Notification';
 
     await sendTargetedNotification.mutateAsync({
       recipient_ids: activeRecipients,
       target_audience: audience,
-      title: title.trim(),
+      title: finalTitle,
       message: message.trim(),
       is_24h_broadcast: is24hBroadcast,
     });
@@ -334,21 +336,24 @@ export function NotificationComposer({ onSuccess, open, onOpenChange }: Notifica
         Will deliver to <strong className="text-primary tabular-nums">{activeRecipients.length}</strong> recipient(s).
       </div>
 
-      {/* Notification Title */}
+      {/* Notification Title (Optional) */}
       <div className="space-y-1">
-        <Label className="text-xs font-bold text-foreground">Title</Label>
+        <div className="flex items-center justify-between">
+          <Label className="text-xs font-bold text-foreground">Title</Label>
+          <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
+        </div>
         <Input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="e.g. Important Team Update or Assessment Schedule"
+          placeholder="e.g. Important Team Update (Optional)"
           className="h-9 text-xs rounded-xl"
         />
       </div>
 
-      {/* Message Textarea + Formatting Toolbar */}
+      {/* Message Textarea + Formatting Toolbar (Required) */}
       <div className="space-y-1">
         <div className="flex items-center justify-between">
-          <Label className="text-xs font-bold text-foreground">Message</Label>
+          <Label className="text-xs font-bold text-foreground">Message *</Label>
           <Button
             type="button"
             variant="ghost"
@@ -440,7 +445,7 @@ export function NotificationComposer({ onSuccess, open, onOpenChange }: Notifica
       {showPreview && message.trim() && (
         <div className="p-3.5 border border-primary/20 rounded-2xl bg-card/60 space-y-1 animate-in fade-in duration-200">
           <p className="text-[9px] font-extrabold uppercase tracking-wider text-muted-foreground">Formatted Live Preview</p>
-          <p className="font-bold text-xs text-foreground">{title || 'Untitled Notification'}</p>
+          <p className="font-bold text-xs text-foreground">{title || 'Notification'}</p>
           <WhatsAppText text={message} className="text-xs text-foreground/90 leading-relaxed mt-1" />
         </div>
       )}
@@ -471,7 +476,7 @@ export function NotificationComposer({ onSuccess, open, onOpenChange }: Notifica
       <div className="flex justify-end pt-2">
         <Button
           onClick={handleSend}
-          disabled={!title.trim() || !message.trim() || activeRecipients.length === 0 || sendTargetedNotification.isPending}
+          disabled={!message.trim() || activeRecipients.length === 0 || sendTargetedNotification.isPending}
           className="gap-2 px-5 text-xs font-bold uppercase tracking-wider rounded-xl h-9"
         >
           {sendTargetedNotification.isPending ? (
@@ -488,7 +493,7 @@ export function NotificationComposer({ onSuccess, open, onOpenChange }: Notifica
         </Button>
       </div>
 
-      {/* WhatsApp/Instagram Style Select People Dialog */}
+      {/* Select People Dialog */}
       <Dialog open={selectorOpen} onOpenChange={setSelectorOpen}>
         <DialogContent className="w-[95vw] max-w-lg rounded-2xl p-0 overflow-hidden bg-card border-border shadow-2xl flex flex-col h-[85vh] max-h-[600px]">
           <DialogHeader className="p-4 border-b border-border flex flex-row items-center justify-between bg-muted/10 shrink-0">
@@ -561,13 +566,11 @@ export function NotificationComposer({ onSuccess, open, onOpenChange }: Notifica
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0 flex-1">
-                        {/* Checkbox indicator */}
                         <Checkbox
                           checked={checked}
                           onCheckedChange={() => toggleSelectUser(p.user_id)}
                           className="rounded-full shrink-0 border-border/80"
                         />
-                        {/* Avatar */}
                         <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-extrabold text-xs shrink-0 shadow-xs">
                           {initials}
                         </div>

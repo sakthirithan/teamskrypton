@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
-export type PollMode = 'grouping' | 'pbl';
+export type PollMode = 'grouping' | 'pbl' | 'messenger';
 
 export interface Poll {
   id: string;
@@ -150,15 +150,14 @@ export function usePolls(mode: PollMode) {
   });
 
   const castVote = useMutation({
-    mutationFn: async ({ poll, optionId }: { poll: Poll; optionId: string }) => {
+    mutationFn: async ({ pollId, optionId }: { pollId: string; optionId: string }) => {
       if (!user) throw new Error('Not signed in');
-      if (!poll.allow_multiple) {
-        // Clear any previous votes on this poll
-        await supabase.from('poll_votes').delete().eq('poll_id', poll.id).eq('voter_id', user.id);
-      }
+      // For single-choice: remove previous vote on this poll first, then insert new
+      // UNIQUE constraint is (poll_id, voter_id) — one vote per person per poll
+      await supabase.from('poll_votes').delete().eq('poll_id', pollId).eq('voter_id', user.id);
       const { error } = await supabase
         .from('poll_votes')
-        .insert({ poll_id: poll.id, option_id: optionId, voter_id: user.id });
+        .insert({ poll_id: pollId, option_id: optionId, voter_id: user.id });
       if (error && !String(error.message).toLowerCase().includes('duplicate')) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['poll_votes', mode] }),

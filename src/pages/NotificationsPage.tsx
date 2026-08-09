@@ -2,386 +2,408 @@ import { useState, useMemo } from 'react';
 import { GroupingLayout } from '@/components/grouping/GroupingLayout';
 import { PBLLayout } from '@/components/pbl/PBLLayout';
 import { useAppMode } from '@/hooks/useAppMode';
-import { useGroupingNotifications, GroupingNotification } from '@/hooks/useGroupingNotifications';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
-import { useQuery } from '@tanstack/react-query';
+import { useMessengerChats } from '@/hooks/useMessengerChats';
+import { MessengerConversation } from '@/components/messenger/MessengerConversation';
+import { CreateGroupDialog } from '@/components/messenger/CreateGroupDialog';
+import { CreatePollDialog } from '@/components/messenger/CreatePollDialog';
 import { NotificationComposer } from '@/components/notifications/NotificationComposer';
-import { WhatsAppText } from '@/components/ui/whatsapp-text';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import {
-  Bell,
-  CheckCheck,
+  MessageSquare,
   Search,
   Plus,
-  Trash2,
-  Clock,
   Radio,
-  User,
   Users,
-  UserCheck,
-  Check,
-  AlertTriangle,
-  Info,
+  BarChart2,
+  X,
+  User,
+  Activity,
 } from 'lucide-react';
-import { formatDistanceToNow, format } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import { EmptyState } from '@/components/common/EmptyState';
 
-type AudienceFilter = 'all' | 'members' | 'leads';
+type FilterType = 'all' | 'unread' | 'groups' | 'polls';
 
 export default function NotificationsPage() {
   const { isGroupingMode } = useAppMode();
-  const { user, isLeadership } = useAuth();
-  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } =
-    useGroupingNotifications();
+  const { user } = useAuth();
+  const { conversations, messages, allProfiles, markConversationAsRead } = useMessengerChats();
 
-  const [filter, setFilter] = useState<AudienceFilter>('all');
-  const [readFilter, setReadFilter] = useState<'all' | 'unread' | 'read'>('all');
+  const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<FilterType>('all');
   const [search, setSearch] = useState('');
+
+  // Dialog Controls
   const [composerOpen, setComposerOpen] = useState(false);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [groupDialogOpen, setGroupDialogOpen] = useState(false);
+  const [pollDialogOpen, setPollDialogOpen] = useState(false);
 
-  // Fetch senders profiles map
-  const { data: profilesMap = new Map<string, { full_name: string; role: string }>() } = useQuery({
-    queryKey: ['profiles-map-for-notifications'],
-    queryFn: async () => {
-      const { data } = await supabase.from('profiles').select('user_id, full_name, role');
-      const map = new Map<string, { full_name: string; role: string }>();
-      (data || []).forEach((p) => {
-        map.set(p.user_id, { full_name: p.full_name, role: p.role });
+  // Filtered Active Conversations
+  const filteredConversations = useMemo(() => {
+    let list = conversations;
+
+    if (filter === 'unread') {
+      list = list.filter((c) => c.unread_count > 0);
+    } else if (filter === 'groups') {
+      list = list.filter((c) => c.type === 'group');
+    } else if (filter === 'polls') {
+      list = list.filter((c) => {
+        const chatMsgs = messages.filter((m) => {
+          if (c.type === 'group') return m.metadata?.group_id === c.group_id;
+          return m.sender_id === c.other_user_id || m.recipient_id === c.other_user_id;
+        });
+        return chatMsgs.some((m) => m.type === 'poll' || m.metadata?.poll_id);
       });
-      return map;
-    },
-  });
-
-  const filteredNotifications = useMemo(() => {
-    let list = notifications;
-
-    if (filter === 'members') {
-      list = list.filter((n) => n.target_audience === 'members' || n.target_audience === 'all' || !n.target_audience);
-    } else if (filter === 'leads') {
-      list = list.filter((n) => n.target_audience === 'leads' || n.target_audience === 'all');
-    }
-
-    if (readFilter === 'unread') {
-      list = list.filter((n) => !n.is_read);
-    } else if (readFilter === 'read') {
-      list = list.filter((n) => n.is_read);
     }
 
     if (search.trim()) {
       const q = search.toLowerCase();
-      list = list.filter((n) => {
-        const sender = profilesMap.get(n.sender_id)?.full_name || '';
-        return (
-          n.title.toLowerCase().includes(q) ||
-          (n.message || '').toLowerCase().includes(q) ||
-          sender.toLowerCase().includes(q)
-        );
-      });
+      list = list.filter(
+        (c) =>
+          c.title.toLowerCase().includes(q) ||
+          (c.last_message || '').toLowerCase().includes(q)
+      );
     }
 
     return list;
-  }, [notifications, filter, readFilter, search, profilesMap]);
+  }, [conversations, filter, search, messages]);
 
-  const handleCardClick = (n: GroupingNotification) => {
-    if (expandedId === n.id) {
-      setExpandedId(null);
-    } else {
-      setExpandedId(n.id);
-      if (!n.is_read) {
-        markAsRead.mutate(n.id);
-      }
-    }
+  // Real-time Contact Search: Search all team profiles
+  const matchingContacts = useMemo(() => {
+    if (!search.trim()) return [];
+    const q = search.toLowerCase();
+
+    // User IDs already present in filtered active chats
+    const existingChatUserIds = new Set(
+      filteredConversations
+        .filter((c) => c.type === 'direct' && c.other_user_id)
+        .map((c) => c.other_user_id!)
+    );
+
+    return allProfiles.filter((p) => {
+      if (p.user_id === user?.id) return false;
+      const nameMatch = (p.full_name || '').toLowerCase().includes(q);
+      const emailMatch = (p.email || '').toLowerCase().includes(q);
+      const deptMatch = (p.department || '').toLowerCase().includes(q);
+
+      return (nameMatch || emailMatch || deptMatch) && !existingChatUserIds.has(p.user_id);
+    });
+  }, [allProfiles, search, user?.id, filteredConversations]);
+
+  const totalUnread = useMemo(() => {
+    return conversations.reduce((acc, c) => acc + c.unread_count, 0);
+  }, [conversations]);
+
+  const handleSelectChat = (chatId: string) => {
+    setActiveChatId(chatId);
+    markConversationAsRead(chatId);
+  };
+
+  const handleStartDirectChat = (otherUserId: string) => {
+    const chatId = `direct_${otherUserId}`;
+    setActiveChatId(chatId);
+    markConversationAsRead(chatId);
   };
 
   const LayoutWrapper = isGroupingMode ? GroupingLayout : PBLLayout;
 
   return (
-    <LayoutWrapper title="Notifications">
-      <div className="max-w-5xl mx-auto space-y-6">
-        {/* Top Header Card */}
-        <div className="krypton-card p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
-              <Bell className="w-6 h-6" />
-            </div>
-            <div>
+    <LayoutWrapper title="Messenger">
+      {/*
+        ── FLAT MESSENGER WORKSPACE LAYOUT (NO OUTER CARD, NO GIANT CARD SHADOW) ──
+        Root: Full available width and height workspace
+        Left pane:  flex-col w-full md:w-[320px] lg:w-[360px] border-r border-border bg-card/40 min-h-0
+        Right pane: flex-col flex-1 bg-background min-h-0
+      */}
+      <div className="flex w-full h-[calc(100vh-4rem)] sm:h-[calc(100vh-4.5rem)] overflow-hidden bg-background">
+        
+        {/* ══════════════════════════════════════════════════════
+            LEFT SIDEBAR — Navigation & Conversations
+            On mobile: full width, hidden when a chat is active
+            On desktop: 320px–360px fixed width, always visible
+        ══════════════════════════════════════════════════════ */}
+        <div
+          className={`
+            ${activeChatId ? 'hidden md:flex' : 'flex'}
+            flex-col
+            w-full md:w-[320px] lg:w-[360px]
+            shrink-0
+            border-r border-border/80
+            bg-card/30
+            min-h-0
+          `}
+        >
+          {/* ── Sidebar Header ── */}
+          <div className="shrink-0 p-3.5 border-b border-border/80 bg-card/80 backdrop-blur space-y-3">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold tracking-tight">Notification Center</h2>
-                {unreadCount > 0 && (
-                  <Badge variant="destructive" className="px-2 py-0.5 text-xs font-semibold">
-                    {unreadCount} Unread
+                <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold">
+                  <MessageSquare className="w-4 h-4" />
+                </div>
+                <h2 className="text-base font-bold tracking-tight text-foreground">Messenger</h2>
+                {totalUnread > 0 && (
+                  <Badge variant="destructive" className="h-5 px-1.5 text-[10px] font-bold">
+                    {totalUnread}
                   </Badge>
                 )}
               </div>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-                Real-time updates, targeted team alerts, and 24-hour broadcasts
-              </p>
-            </div>
-          </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            {unreadCount > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => markAllAsRead.mutate()}
-                className="text-xs gap-1.5 flex-1 sm:flex-initial"
-              >
-                <CheckCheck className="w-4 h-4 text-primary" />
-                Mark All Read
-              </Button>
-            )}
-
-            <Dialog open={composerOpen} onOpenChange={setComposerOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" className="gap-1.5 text-xs flex-1 sm:flex-initial">
-                  <Plus className="w-4 h-4" />
-                  Compose Notification
+              {/* Action Buttons: [People] [Activity] [+] */}
+              <div className="flex items-center gap-1">
+                {/* Create Group */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setGroupDialogOpen(true)}
+                  className="h-8 w-8 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted"
+                  title="Create Group Chat"
+                >
+                  <Users className="w-4 h-4" />
                 </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    <Radio className="w-5 h-5 text-primary" />
-                    New Team Notification / Broadcast
-                  </DialogTitle>
-                </DialogHeader>
-                <NotificationComposer onSuccess={() => setComposerOpen(false)} />
-              </DialogContent>
-            </Dialog>
-          </div>
-        </div>
 
-        {/* Filter Bar & Search */}
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-card p-3 rounded-xl border border-border/60 shadow-sm">
-          <div className="flex flex-col sm:flex-row gap-2.5">
-            {/* Audience Filter Tabs */}
-            <div className="inline-flex p-1 bg-muted/60 rounded-lg border border-border/60 self-start">
-              <button
-                onClick={() => setFilter('all')}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 ${
-                  filter === 'all'
-                    ? 'bg-card text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Users className="w-3.5 h-3.5" />
-                All Audience
-              </button>
-              <button
-                onClick={() => setFilter('members')}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 ${
-                  filter === 'members'
-                    ? 'bg-card text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <UserCheck className="w-3.5 h-3.5" />
-                Members
-              </button>
-              <button
-                onClick={() => setFilter('leads')}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 ${
-                  filter === 'leads'
-                    ? 'bg-card text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Radio className="w-3.5 h-3.5" />
-                Leads
-              </button>
+                {/* Create Poll */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setPollDialogOpen(true)}
+                  className="h-8 w-8 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted"
+                  title="Create 48h Poll"
+                >
+                  <BarChart2 className="w-4 h-4" />
+                </Button>
+
+                {/* Compose Broadcast */}
+                <Dialog open={composerOpen} onOpenChange={setComposerOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="icon" className="h-8 w-8 rounded-xl" title="New Private Broadcast">
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <Radio className="w-5 h-5 text-primary" />
+                        New Private Broadcast / Message
+                      </DialogTitle>
+                    </DialogHeader>
+                    <NotificationComposer onSuccess={() => setComposerOpen(false)} />
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
 
-            {/* Read/Unread Status Tabs */}
-            <div className="inline-flex p-1 bg-muted/60 rounded-lg border border-border/60 self-start">
-              <button
-                onClick={() => setReadFilter('all')}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-                  readFilter === 'all'
-                    ? 'bg-card text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                All Status
-              </button>
-              <button
-                onClick={() => setReadFilter('unread')}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-                  readFilter === 'unread'
-                    ? 'bg-card text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                Unread
-              </button>
-              <button
-                onClick={() => setReadFilter('read')}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-                  readFilter === 'read'
-                    ? 'bg-card text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                Read
-              </button>
+            {/* Instant Contact & Chat Search Input */}
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search chats, people, groups..."
+                className="h-8 pl-8 pr-8 text-xs rounded-xl bg-background"
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
-          </div>
 
-          {/* Search Field */}
-          <div className="relative w-full lg:w-72">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search notifications or sender..."
-              className="h-9 pl-9 text-xs"
-            />
-          </div>
-        </div>
-
-        {/* Notifications List */}
-        {filteredNotifications.length === 0 ? (
-          <EmptyState
-            title="No notifications found"
-            description={
-              search
-                ? 'No notifications matched your search parameters.'
-                : filter !== 'all'
-                ? `No notifications currently available under the '${filter}' filter.`
-                : 'All caught up! Check back later for new team announcements.'
-            }
-            icon={Bell}
-          />
-        ) : (
-          <div className="space-y-3">
-            {filteredNotifications.map((n) => {
-              const sender = profilesMap.get(n.sender_id);
-              const isExpanded = expandedId === n.id;
-              const is24h = n.expires_at || n.is_broadcast;
-
-              return (
-                <div
-                  key={n.id}
-                  onClick={() => handleCardClick(n)}
-                  className={`krypton-card p-4 transition-all duration-200 cursor-pointer relative overflow-hidden border ${
-                    !n.is_read
-                      ? 'border-primary/40 bg-primary/[0.03] dark:bg-primary/[0.05] shadow-sm'
-                      : 'border-border/60 hover:border-border'
+            {/* Filter Pills */}
+            <div className="flex items-center gap-1 overflow-x-auto pb-1 text-xs">
+              {(['all', 'unread', 'groups', 'polls'] as FilterType[]).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`px-3 py-1 font-semibold rounded-xl transition-all whitespace-nowrap ${
+                    filter === f
+                      ? 'bg-primary text-primary-foreground shadow-xs'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                   }`}
                 >
-                  {/* Unread Left Border Highlight */}
-                  {!n.is_read && (
-                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r-full shadow-[0_0_8px_hsl(var(--primary))]" />
-                  )}
+                  {f.charAt(0).toUpperCase() + f.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
 
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3 flex-1 min-w-0">
-                      {/* Avatar */}
-                      <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
-                        {sender?.full_name?.charAt(0)?.toUpperCase() || 'S'}
-                      </div>
+          {/* ── Chat & Contact List (Independently Scrollable) ── */}
+          <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-border/40">
+            {/* Active Conversations Section */}
+            {filteredConversations.length > 0 && (
+              <div>
+                {search.trim() && matchingContacts.length > 0 && (
+                  <div className="px-3 py-1.5 bg-muted/30 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Active Chats
+                  </div>
+                )}
+                {filteredConversations.map((c) => {
+                  const isSelected = activeChatId === c.chat_id;
+                  const isGroup = c.type === 'group';
 
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className={`text-sm tracking-tight ${!n.is_read ? 'font-bold text-foreground' : 'font-semibold text-foreground/90'}`}>
-                            {n.title}
-                          </span>
-
-                          {/* Unread Pill */}
-                          {!n.is_read && (
-                            <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                          )}
-
-                          {/* 24-Hour Broadcast Badge */}
-                          {is24h && (
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-amber-500/40 text-amber-600 dark:text-amber-400 gap-1">
-                              <Clock className="w-3 h-3" />
-                              24h Broadcast
-                            </Badge>
-                          )}
-
-                          {/* Target Audience Badge */}
-                          {n.target_audience && n.target_audience !== 'direct' && (
-                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 uppercase">
-                              {n.target_audience}
-                            </Badge>
+                  return (
+                    <div
+                      key={c.chat_id}
+                      onClick={() => handleSelectChat(c.chat_id)}
+                      className={`p-3 flex items-center justify-between gap-3 cursor-pointer transition-colors relative ${
+                        isSelected
+                          ? 'bg-primary/10 border-l-[3px] border-l-primary'
+                          : c.unread_count > 0
+                          ? 'bg-primary/[0.03] hover:bg-muted/60'
+                          : 'hover:bg-muted/40'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        {/* Avatar */}
+                        <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden border border-primary/20">
+                          {c.avatar_url ? (
+                            <img src={c.avatar_url} alt={c.title} className="w-full h-full object-cover" />
+                          ) : isGroup ? (
+                            <Users className="w-5 h-5 text-primary" />
+                          ) : (
+                            c.title.charAt(0).toUpperCase()
                           )}
                         </div>
 
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          From <span className="font-medium text-foreground">{sender?.full_name || 'System'}</span> •{' '}
-                          {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
-                        </p>
+                        <div className="min-w-0 flex-1 space-y-0.5">
+                          <div className="flex items-center justify-between gap-1">
+                            <h4 className={`text-xs font-bold truncate ${c.unread_count > 0 ? 'text-foreground' : 'text-foreground/90'}`}>
+                              {c.title}
+                            </h4>
+                            <span className="text-[10px] text-muted-foreground shrink-0">
+                              {formatDistanceToNow(new Date(c.last_message_at), { addSuffix: false })}
+                            </span>
+                          </div>
 
-                        {/* Formatted Message Body Preview / Full with Read More / Show Less */}
-                        {n.message && (
-                          <ExpandableNotificationMessage message={n.message} isCardExpanded={isExpanded} />
-                        )}
+                          <p className={`text-xs truncate ${c.unread_count > 0 ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>
+                            {c.last_message || 'Start conversation...'}
+                          </p>
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Actions */}
-                    <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-                      {!n.is_read && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 rounded-full hover:bg-primary/10 hover:text-primary"
-                          onClick={() => markAsRead.mutate(n.id)}
-                          title="Mark as read"
-                        >
-                          <Check className="w-4 h-4" />
-                        </Button>
+                      {c.unread_count > 0 && (
+                        <Badge variant="destructive" className="h-5 px-1.5 text-[10px] font-bold shrink-0">
+                          {c.unread_count}
+                        </Badge>
                       )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                        onClick={() => deleteNotification.mutate(n.id)}
-                        title="Delete notification"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
                     </div>
-                  </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* People & Contacts Search Results Section */}
+            {search.trim() && matchingContacts.length > 0 && (
+              <div>
+                <div className="px-3 py-1.5 bg-primary/5 text-[10px] font-bold uppercase tracking-wider text-primary flex items-center justify-between">
+                  <span>People & Contacts</span>
+                  <span className="text-[9px] font-semibold text-muted-foreground">Tap to message</span>
                 </div>
-              );
-            })}
+                {matchingContacts.map((p) => {
+                  const isSelected = activeChatId === `direct_${p.user_id}`;
+                  return (
+                    <div
+                      key={p.user_id}
+                      onClick={() => handleStartDirectChat(p.user_id)}
+                      className={`p-3 flex items-center justify-between gap-3 cursor-pointer transition-colors ${
+                        isSelected ? 'bg-primary/10 border-l-[3px] border-l-primary' : 'hover:bg-muted/40'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden border border-primary/20">
+                          {p.avatar_url ? (
+                            <img src={p.avatar_url} alt={p.full_name} className="w-full h-full object-cover" />
+                          ) : (
+                            p.full_name.charAt(0).toUpperCase()
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1 space-y-0.5">
+                          <h4 className="text-xs font-bold truncate text-foreground">{p.full_name}</h4>
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            {p.department ? `${p.department} • ` : ''}{p.email || 'Team Member'}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-primary/30 text-primary font-bold">
+                        Message
+                      </Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Empty State when no chats or contacts match search */}
+            {filteredConversations.length === 0 && matchingContacts.length === 0 && (
+              <EmptyState
+                title="No matches found"
+                description={
+                  search
+                    ? `No contacts or messages matched "${search}".`
+                    : 'Start a direct chat, create a group, or post a 48h poll!'
+                }
+                icon={MessageSquare}
+                className="py-8"
+              />
+            )}
           </div>
-        )}
-      </div>
-    </LayoutWrapper>
-  );
-}
+        </div>
 
-function ExpandableNotificationMessage({ message, isCardExpanded }: { message: string; isCardExpanded: boolean }) {
-  const [userExpanded, setUserExpanded] = useState(false);
-  const isLong = message.length > 120 || message.includes('\n');
-  const isShowFull = isCardExpanded || userExpanded;
-
-  return (
-    <div className="mt-2 text-xs sm:text-sm text-foreground/90 leading-relaxed">
-      <div className={(!isShowFull && isLong) ? 'line-clamp-2' : ''}>
-        <WhatsAppText text={message} />
-      </div>
-      {isLong && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setUserExpanded(!isShowFull);
-          }}
-          className="text-primary hover:underline text-[11px] font-semibold mt-1 inline-block"
+        {/* ══════════════════════════════════════════════════════
+            RIGHT CONVERSATION AREA — Fills Remaining Space
+            Flat application background canvas (NO inner rounded cards)
+        ══════════════════════════════════════════════════════ */}
+        <div
+          className={`
+            ${activeChatId ? 'flex' : 'hidden md:flex'}
+            flex-col
+            flex-1
+            min-h-0
+            min-w-0
+            bg-background
+          `}
         >
-          {isShowFull ? 'Show less' : 'Read more'}
-        </button>
-      )}
-    </div>
+          {activeChatId ? (
+            <MessengerConversation
+              chatId={activeChatId}
+              onBack={() => setActiveChatId(null)}
+              onOpenPollDialog={() => setPollDialogOpen(true)}
+            />
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center text-center p-8 text-muted-foreground space-y-3 bg-background">
+              <div className="w-16 h-16 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-2xl">
+                💬
+              </div>
+              <h3 className="text-lg font-bold text-foreground">Teams Krypton Messenger</h3>
+              <p className="text-xs max-w-xs text-muted-foreground leading-relaxed">
+                Select a chat or search for someone in the sidebar to start messaging.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Dialogs ── */}
+      <CreateGroupDialog
+        open={groupDialogOpen}
+        onOpenChange={setGroupDialogOpen}
+        onGroupCreated={(gId) => {
+          setActiveChatId(`group_${gId}`);
+        }}
+      />
+
+      <CreatePollDialog
+        open={pollDialogOpen}
+        onOpenChange={setPollDialogOpen}
+        onPollCreated={() => {}}
+      />
+    </LayoutWrapper>
   );
 }
