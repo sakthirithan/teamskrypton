@@ -70,9 +70,11 @@ export function MessengerConversation({ chatId, onBack, onOpenPollDialog }: Mess
   const { toast } = useToast();
   const {
     messages,
+    conversations,
     profilesMap,
     sendDirectMessage,
     sendGroupMessage,
+    deleteGroup,
     toggleReaction,
     deleteMessage,
     markConversationAsRead,
@@ -86,7 +88,7 @@ export function MessengerConversation({ chatId, onBack, onOpenPollDialog }: Mess
   const [showNewMsgBanner, setShowNewMsgBanner] = useState(false);
   const [isNearBottom, setIsNearBottom] = useState(true);
 
-  // ── Scroll refs ──
+  // Scroll refs
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLInputElement>(null);
@@ -96,6 +98,11 @@ export function MessengerConversation({ chatId, onBack, onOpenPollDialog }: Mess
   const isGroup = chatId.startsWith('group_');
   const isDirect = chatId.startsWith('direct_');
   const targetId = chatId.replace(/^(direct_|group_)/, '');
+
+  // Active conversation record if exists in persistent conversations
+  const currentConv = useMemo(() => {
+    return conversations.find((c) => c.chat_id === chatId);
+  }, [conversations, chatId]);
 
   // Filter messages belonging to this chat
   const chatMessages = useMemo(() => {
@@ -135,16 +142,26 @@ export function MessengerConversation({ chatId, onBack, onOpenPollDialog }: Mess
     }
     if (isGroup) {
       const sampleMsg = chatMessages[0];
-      const gName = sampleMsg?.metadata?.group_name || sampleMsg?.title || 'Group Chat';
-      const membersCount = sampleMsg?.metadata?.group_members?.length || 2;
+      const gName = currentConv?.title || sampleMsg?.metadata?.group_name || sampleMsg?.title || 'Group Chat';
+      const membersCount = currentConv?.members?.length || sampleMsg?.metadata?.group_members?.length || 2;
       return {
         title: gName,
         subtitle: `${membersCount} members • Group`,
-        avatar_url: sampleMsg?.metadata?.group_avatar,
+        avatar_url: currentConv?.avatar_url || sampleMsg?.metadata?.group_avatar,
+        creator_id: currentConv?.creator_id,
       };
     }
     return { title: 'Conversation', subtitle: '', avatar_url: null };
-  }, [isDirect, isGroup, targetId, profilesMap, chatMessages]);
+  }, [isDirect, isGroup, targetId, profilesMap, chatMessages, currentConv]);
+
+  // Handle group deletion by creator
+  const handleDeleteGroup = async () => {
+    if (!isGroup || !targetId) return;
+    if (window.confirm(`Are you sure you want to delete "${chatInfo.title}"? This cannot be undone.`)) {
+      await deleteGroup.mutateAsync(targetId);
+      if (onBack) onBack();
+    }
+  };
 
   // ── Scroll-position tracking ──
   const handleScroll = useCallback(() => {
@@ -345,6 +362,19 @@ export function MessengerConversation({ chatId, onBack, onOpenPollDialog }: Mess
                   <span>48 Hours (2 Days)</span>
                   {expirationDays === 2 && <Check className="w-3.5 h-3.5" />}
                 </button>
+
+                {isGroup && (chatInfo as any).creator_id === user?.id && (
+                  <>
+                    <div className="my-1 border-t border-border" />
+                    <button
+                      onClick={handleDeleteGroup}
+                      className="w-full text-left px-2.5 py-1.5 text-xs font-semibold text-destructive rounded-xl hover:bg-destructive/10 flex items-center gap-2"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Delete Group</span>
+                    </button>
+                  </>
+                )}
               </div>
             </PopoverContent>
           </Popover>

@@ -41,6 +41,7 @@ export interface ConversationItem {
   type: 'direct' | 'group' | 'broadcast';
   other_user_id?: string;
   group_id?: string;
+  creator_id?: string;
   title: string;
   avatar_url?: string | null;
   last_message?: string | null;
@@ -48,6 +49,7 @@ export interface ConversationItem {
   unread_count: number;
   is_pinned?: boolean;
   is_muted?: boolean;
+  members?: string[];
 }
 
 // ── Detect which tables/columns are actually available ──
@@ -84,13 +86,38 @@ export function useMessengerChats() {
   const queryClient = useQueryClient();
   const markReadTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
-  // ── 1. Fetch messages ──
+  // ── 1. Fetch persistent conversations from messenger_conversations ──
+  const conversationsQuery = useQuery({
+    queryKey: ['messenger-conversations-raw', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const caps = await detectCapabilities();
+      if (!caps.messengerConversations) return [];
+
+      const { data, error } = await supabase
+        .from('messenger_conversations' as any)
+        .select('*')
+        .order('updated_at', { ascending: false });
+
+      if (error) {
+        console.warn('[messenger] messenger_conversations fetch error:', error.message);
+        return [];
+      }
+      return (data || []) as any[];
+    },
+    enabled: !!user,
+    staleTime: 5000,
+  });
+
+  // ── 2. Fetch messages ──
   const messagesQuery = useQuery({
     queryKey: ['messenger-messages', user?.id],
     queryFn: async () => {
       if (!user) return [];
       const caps = await detectCapabilities();
       const nowIso = new Date().toISOString();
+
+      let rawMessages: ChatMessage[] = [];
 
       // Attempt 1: messenger_messages table
       if (caps.messengerMessages) {
@@ -102,46 +129,45 @@ export function useMessengerChats() {
           .limit(300);
 
         if (!res.error && res.data && res.data.length > 0) {
-          const valid = (res.data as unknown as ChatMessage[]).filter((m) => {
-            const exp = (m as any).expires_at || m.metadata?.expires_at;
-            if (exp && new Date(exp).toISOString() <= nowIso) return false;
-            return true;
-          });
-          return valid.reverse();
+          rawMessages = res.data as unknown as ChatMessage[];
         }
       }
 
       // Attempt 2: grouping_notifications
-      const gnSelect = caps.gnMetadata
-        ? 'id, sender_id, recipient_id, title, message, type, is_read, created_at, metadata, expires_at'
-        : 'id, sender_id, recipient_id, title, message, type, is_read, created_at';
+      if (rawMessages.length === 0) {
+        const gnSelect = caps.gnMetadata
+          ? 'id, sender_id, recipient_id, title, message, type, is_read, created_at, metadata, expires_at'
+          : 'id, sender_id, recipient_id, title, message, type, is_read, created_at';
 
-      const gnRes = await supabase
-        .from('grouping_notifications')
-        .select(gnSelect)
-        .or(`recipient_id.eq.${user.id},sender_id.eq.${user.id}`)
-        .order('created_at', { ascending: false })
-        .limit(300);
+        const gnRes = await supabase
+          .from('grouping_notifications')
+          .select(gnSelect)
+          .or(`recipient_id.eq.${user.id},sender_id.eq.${user.id}`)
+          .order('created_at', { ascending: false })
+          .limit(300);
 
-      if (gnRes.error) {
-        console.warn('[messenger] grouping_notifications error:', gnRes.error.message);
-        return [];
+        if (!gnRes.error && gnRes.data) {
+          rawMessages = gnRes.data as unknown as ChatMessage[];
+        }
       }
 
-      const valid = ((gnRes.data || []) as unknown as ChatMessage[]).filter((m) => {
-        if (!caps.gnExpiresAt) return true;
+      // Deduplicate messages by ID & filter expired
+      const messageMap = new Map<string, ChatMessage>();
+      rawMessages.forEach((m) => {
         const exp = (m as any).expires_at || m.metadata?.expires_at;
-        if (exp && new Date(exp).toISOString() <= nowIso) return false;
-        return true;
+        if (exp && new Date(exp).toISOString() <= nowIso) return;
+        if (!messageMap.has(m.id)) {
+          messageMap.set(m.id, m);
+        }
       });
 
-      return valid.reverse();
+      return Array.from(messageMap.values()).reverse();
     },
     enabled: !!user,
     staleTime: 3000,
   });
 
-  // ── 2. Fetch User Profiles ──
+  // ── 3. Fetch User Profiles ──
   const profilesQuery = useQuery({
     queryKey: ['messenger-profiles-map'],
     queryFn: async () => {
@@ -163,27 +189,24 @@ export function useMessengerChats() {
     staleTime: 60000,
   });
 
-  // ── 3. Realtime Subscriptions ──
+  // ── 4. Realtime Subscriptions ──
   useEffect(() => {
     if (!user) return;
 
-    const channelName = `messenger-${user.id}`;
-    let channel = supabase
+    const channelName = `messenger-channel-${user.id}`;
+    const channel = supabase
       .channel(channelName)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'grouping_notifications' }, () => {
         queryClient.invalidateQueries({ queryKey: ['messenger-messages'] });
-      });
-
-    // Also subscribe to messenger_messages if it exists (won't error if not)
-    channel = channel.on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'messenger_messages' as any },
-      () => {
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messenger_messages' as any }, () => {
         queryClient.invalidateQueries({ queryKey: ['messenger-messages'] });
-      }
-    );
-
-    channel.subscribe();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messenger_conversations' as any }, () => {
+        queryClient.invalidateQueries({ queryKey: ['messenger-conversations-raw'] });
+        queryClient.invalidateQueries({ queryKey: ['messenger-messages'] });
+      })
+      .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
@@ -192,19 +215,46 @@ export function useMessengerChats() {
 
   const allMessages = messagesQuery.data || [];
   const profilesMap = profilesQuery.data || new Map();
+  const persistentConversations = conversationsQuery.data || [];
 
-  // ── 4. Derive Conversation List ──
+  // ── 5. Derive Conversation List (including persistent groups with 0 messages) ──
   const conversations = useMemo(() => {
     if (!user) return [];
     const map = new Map<string, ConversationItem>();
 
+    // Step A: Seed persistent conversations from messenger_conversations table
+    persistentConversations.forEach((conv) => {
+      const members: string[] = conv.metadata?.members || [];
+      // Only include if creator or member
+      if (conv.creator_id !== user.id && !members.includes(user.id)) {
+        return;
+      }
+
+      if (conv.type === 'group') {
+        const chatId = `group_${conv.id}`;
+        map.set(chatId, {
+          chat_id: chatId,
+          type: 'group',
+          group_id: conv.id,
+          creator_id: conv.creator_id,
+          title: conv.title || conv.metadata?.group_name || 'Group Chat',
+          avatar_url: conv.avatar_url || conv.metadata?.group_avatar || null,
+          last_message: conv.last_message || null,
+          last_message_at: conv.last_message_at || conv.created_at,
+          unread_count: 0,
+          members,
+        });
+      }
+    });
+
+    // Step B: Overlay messages data
     allMessages.forEach((m) => {
       const meta = m.metadata || {};
 
       // ── Group Chat ──
       if (m.type === 'group' || meta.group_id) {
         const gId = meta.group_id;
-        if (!gId) return; // Skip group messages without a real UUID
+        if (!gId) return;
 
         const members = meta.group_members || [];
         if (m.sender_id !== user.id && m.recipient_id !== user.id && !members.includes(user.id)) {
@@ -225,6 +275,7 @@ export function useMessengerChats() {
             last_message: m.message,
             last_message_at: m.created_at,
             unread_count: isUnread ? 1 : 0,
+            members,
           });
         } else {
           if (new Date(m.created_at) > new Date(existing.last_message_at)) {
@@ -268,14 +319,16 @@ export function useMessengerChats() {
     return Array.from(map.values()).sort(
       (a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
     );
-  }, [allMessages, user, profilesMap]);
+  }, [allMessages, persistentConversations, user, profilesMap]);
 
-  // ── 5. Send Direct Message ──
+  // ── 6. Send Direct Message ──
   const sendDirectMessage = useMutation({
     mutationFn: async (params: {
       recipient_id: string;
       message: string;
       title?: string;
+      type?: 'direct' | 'poll';
+      metadata?: ChatMessage['metadata'];
       reply_to?: NonNullable<ChatMessage['metadata']>['reply_to'];
       expiration_days?: number;
     }) => {
@@ -285,6 +338,13 @@ export function useMessengerChats() {
       const expDays = params.expiration_days ?? 1;
       const expires_at = new Date(Date.now() + expDays * 24 * 60 * 60 * 1000).toISOString();
       const titleText = params.title || 'Direct Message';
+      const msgType = params.type || 'direct';
+      const metaCombined = {
+        reply_to: params.reply_to,
+        expiration_days: expDays,
+        expires_at,
+        ...(params.metadata || {}),
+      };
 
       // Attempt 1: messenger_messages
       if (caps.messengerMessages) {
@@ -293,9 +353,9 @@ export function useMessengerChats() {
           recipient_id: params.recipient_id,
           title: titleText,
           message: params.message,
-          type: 'direct',
+          type: msgType,
           expires_at,
-          metadata: { reply_to: params.reply_to, expiration_days: expDays, expires_at },
+          metadata: metaCombined,
         };
 
         const res = await supabase.from('messenger_messages' as any).insert(payload).select().single();
@@ -315,9 +375,9 @@ export function useMessengerChats() {
           recipient_id: params.recipient_id,
           title: titleText,
           message: params.message,
-          type: 'direct',
+          type: msgType,
           expires_at,
-          metadata: { reply_to: params.reply_to, expiration_days: expDays },
+          metadata: metaCombined,
         };
         const res = await supabase.from('grouping_notifications').insert(payload).select().single();
         if (!res.error) {
@@ -335,7 +395,7 @@ export function useMessengerChats() {
         recipient_id: params.recipient_id,
         title: titleText,
         message: params.message,
-        type: 'direct',
+        type: msgType,
       };
       const res3 = await supabase.from('grouping_notifications').insert(barePayload).select().single();
       if (res3.error) {
@@ -378,7 +438,7 @@ export function useMessengerChats() {
     }
   };
 
-  // ── 6. Send Group Message ──
+  // ── 7. Send Group Message ──
   const sendGroupMessage = useMutation({
     mutationFn: async (params: {
       group_id: string;
@@ -386,6 +446,8 @@ export function useMessengerChats() {
       members: string[];
       message: string;
       title?: string;
+      type?: 'group' | 'poll';
+      metadata?: ChatMessage['metadata'];
       reply_to?: NonNullable<ChatMessage['metadata']>['reply_to'];
       expiration_days?: number;
     }) => {
@@ -395,6 +457,7 @@ export function useMessengerChats() {
       const expDays = params.expiration_days ?? 1;
       const expires_at = new Date(Date.now() + expDays * 24 * 60 * 60 * 1000).toISOString();
       const recipients = params.members.filter((id) => id !== user.id);
+      const msgType = params.type || 'group';
 
       if (recipients.length === 0) return;
 
@@ -403,7 +466,7 @@ export function useMessengerChats() {
         recipient_id: rId,
         title: params.title || params.group_name,
         message: params.message,
-        type: 'group',
+        type: msgType,
         expires_at,
         metadata: {
           group_id: params.group_id,
@@ -412,8 +475,21 @@ export function useMessengerChats() {
           reply_to: params.reply_to,
           expiration_days: expDays,
           expires_at,
+          ...(params.metadata || {}),
         },
       }));
+
+      // Update messenger_conversations last_message & last_message_at if table exists
+      if (caps.messengerConversations) {
+        await supabase
+          .from('messenger_conversations' as any)
+          .update({
+            last_message: params.message,
+            last_message_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', params.group_id);
+      }
 
       // Attempt 1: messenger_messages
       if (caps.messengerMessages) {
@@ -422,6 +498,7 @@ export function useMessengerChats() {
           console.log('[GROUP] Sent via messenger_messages');
           triggerGroupPush(recipients, params.group_name, user.id, params.message, params.group_id, profilesMap);
           queryClient.invalidateQueries({ queryKey: ['messenger-messages'] });
+          queryClient.invalidateQueries({ queryKey: ['messenger-conversations-raw'] });
           return;
         }
         console.warn('[GROUP] messenger_messages failed:', res.error.message);
@@ -434,6 +511,7 @@ export function useMessengerChats() {
           console.log('[GROUP] Sent via grouping_notifications+metadata');
           triggerGroupPush(recipients, params.group_name, user.id, params.message, params.group_id, profilesMap);
           queryClient.invalidateQueries({ queryKey: ['messenger-messages'] });
+          queryClient.invalidateQueries({ queryKey: ['messenger-conversations-raw'] });
           return;
         }
         console.warn('[GROUP] grouping_notifications+metadata failed:', res.error.message);
@@ -447,6 +525,7 @@ export function useMessengerChats() {
       console.log('[GROUP] Sent via bare grouping_notifications');
       triggerGroupPush(recipients, params.group_name, user.id, params.message, params.group_id, profilesMap);
       queryClient.invalidateQueries({ queryKey: ['messenger-messages'] });
+      queryClient.invalidateQueries({ queryKey: ['messenger-conversations-raw'] });
     },
     onError: (e: any) => {
       toast({
@@ -481,7 +560,39 @@ export function useMessengerChats() {
     }
   };
 
-  // ── 7. Toggle Reaction ──
+  // ── 8. Delete Group Conversation ──
+  const deleteGroup = useMutation({
+    mutationFn: async (groupId: string) => {
+      if (!user) throw new Error('Not authenticated');
+      const caps = await detectCapabilities();
+
+      if (caps.messengerConversations) {
+        const { error } = await supabase
+          .from('messenger_conversations' as any)
+          .delete()
+          .eq('id', groupId);
+        if (error) throw error;
+      }
+
+      // Also clean up messenger_messages or grouping_notifications for this group
+      if (caps.messengerMessages) {
+        await supabase
+          .from('messenger_messages' as any)
+          .delete()
+          .filter('metadata->>group_id', 'eq', groupId);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['messenger-conversations-raw'] });
+      queryClient.invalidateQueries({ queryKey: ['messenger-messages'] });
+      toast({ title: 'Group Deleted', description: 'The group conversation has been deleted.' });
+    },
+    onError: (e: any) => {
+      toast({ variant: 'destructive', title: 'Failed to delete group', description: e.message });
+    },
+  });
+
+  // ── 9. Toggle Reaction ──
   const toggleReaction = useMutation({
     mutationFn: async (params: { message_id: string; emoji: string }) => {
       if (!user) return;
@@ -519,7 +630,7 @@ export function useMessengerChats() {
     },
   });
 
-  // ── 8. Delete Message ──
+  // ── 10. Delete Message ──
   const deleteMessage = useMutation({
     mutationFn: async (messageId: string) => {
       const res1 = await supabase
@@ -540,7 +651,7 @@ export function useMessengerChats() {
     },
   });
 
-  // ── 9. Mark Conversation as Read (debounced) ──
+  // ── 11. Mark Conversation as Read (debounced) ──
   const markConversationAsRead = useCallback((chatId: string) => {
     if (!user) return;
 
@@ -591,6 +702,7 @@ export function useMessengerChats() {
     isLoading: messagesQuery.isLoading,
     sendDirectMessage,
     sendGroupMessage,
+    deleteGroup,
     toggleReaction,
     deleteMessage,
     markConversationAsRead,

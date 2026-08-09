@@ -32,7 +32,14 @@ type FilterType = 'all' | 'unread' | 'groups' | 'polls';
 export default function NotificationsPage() {
   const { isGroupingMode } = useAppMode();
   const { user } = useAuth();
-  const { conversations, messages, allProfiles, markConversationAsRead } = useMessengerChats();
+  const {
+    conversations,
+    messages,
+    allProfiles,
+    markConversationAsRead,
+    sendDirectMessage,
+    sendGroupMessage,
+  } = useMessengerChats();
 
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterType>('all');
@@ -402,7 +409,31 @@ export default function NotificationsPage() {
       <CreatePollDialog
         open={pollDialogOpen}
         onOpenChange={setPollDialogOpen}
-        onPollCreated={() => {}}
+        onPollCreated={(pollId, title) => {
+          if (activeChatId) {
+            if (activeChatId.startsWith('direct_')) {
+              const otherId = activeChatId.replace('direct_', '');
+              sendDirectMessage.mutate({
+                recipient_id: otherId,
+                message: `📊 Poll: ${title}`,
+                type: 'poll',
+                metadata: { poll_id: pollId },
+              });
+            } else if (activeChatId.startsWith('group_')) {
+              const gId = activeChatId.replace('group_', '');
+              const conv = conversations.find((c) => c.chat_id === activeChatId);
+              const members = conv?.members || (user ? [user.id] : []);
+              sendGroupMessage.mutate({
+                group_id: gId,
+                group_name: conv?.title || 'Group Chat',
+                members,
+                message: `📊 Poll: ${title}`,
+                type: 'poll',
+                metadata: { poll_id: pollId, group_id: gId, group_name: conv?.title },
+              });
+            }
+          }
+        }}
       />
     </LayoutWrapper>
   );
