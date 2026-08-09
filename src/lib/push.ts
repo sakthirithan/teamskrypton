@@ -28,6 +28,12 @@ export function handlePushRoute(rawPath?: string) {
   }
 }
 
+function maskToken(token?: string) {
+  if (!token) return 'missing';
+  if (token.length <= 12) return `${token.slice(0, 4)}...`;
+  return `${token.slice(0, 6)}...${token.slice(-4)}`;
+}
+
 export async function initNativePush() {
   if (initialized) return;
   if (!Capacitor.isNativePlatform()) return;
@@ -52,35 +58,50 @@ export async function initNativePush() {
 
     // Check & request runtime notification permissions (POST_NOTIFICATIONS on Android 13+)
     let perm = await PushNotifications.checkPermissions();
+    console.log('[PUSH] permission:', perm.receive);
     if (perm.receive === 'prompt' || perm.receive === 'prompt-with-rationale') {
       perm = await PushNotifications.requestPermissions();
+      console.log('[PUSH] permission:', perm.receive);
     }
     if (perm.receive !== 'granted') {
-      console.warn('[push] permission not granted');
+      console.warn('[PUSH] permission not granted');
       return;
     }
 
-    await PushNotifications.register();
-
-    // Store / Refresh FCM Token
     PushNotifications.addListener('registration', async (t) => {
-      const { data: { user } } = await supabase.auth.getUser();
+      console.log('[PUSH] token:', maskToken(t.value));
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      console.log('[PUSH] user:', user ? user.id : 'not authenticated');
+      if (userError) {
+        console.error('[PUSH] user lookup failed:', userError);
+        return;
+      }
       if (!user) return;
-      await supabase
+
+      const { error } = await supabase
         .from('device_tokens' as any)
         .upsert(
           { user_id: user.id, token: t.value, platform, last_seen: new Date().toISOString() },
           { onConflict: 'user_id,token' } as any
         );
+
+      console.log('[PUSH] token saved:', error ? 'failed' : 'success');
+      if (error) {
+        console.error('[PUSH] token save error:', error);
+        return;
+      }
+      console.log('[PUSH] token registration result:', { ok: true, userId: user.id, platform, token: maskToken(t.value) });
     });
 
-    PushNotifications.addListener('registrationError', (e) => console.error('[push] registrationError', e));
+    PushNotifications.addListener('registrationError', (e) => console.error('[PUSH] registrationError', e));
 
     // Handle Tap on Notification (Foreground, Background, Cold-Start)
     PushNotifications.addListener('pushNotificationActionPerformed', (evt) => {
       const path = (evt.notification.data as any)?.path || '/grouping/notifications';
       handlePushRoute(path);
     });
+
+    await PushNotifications.register();
   } catch (e) {
     console.error('[push] init failed', e);
   }
