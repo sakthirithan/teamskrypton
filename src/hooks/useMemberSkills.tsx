@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 
-import { DOMAIN_OPTIONS, SKILL_DOMAIN_LABELS, SKILL_TO_DOMAIN_MAP, getEffectiveDomain } from '@/lib/skillDomains';
+import { DOMAIN_OPTIONS, SKILL_DOMAIN_LABELS, SKILL_TO_DOMAIN_MAP, getEffectiveDomain, mapUiDomainToDbDomain } from '@/lib/skillDomains';
 
 export type SkillType = 'primary' | 'secondary' | 'specialization';
 export type SkillDomain = string;
@@ -69,16 +69,17 @@ export function useMemberSkills(userId?: string) {
   });
 
   const assignSkill = useMutation({
-    mutationFn: async (params: { user_id: string; skill_name: string; skill_type: SkillType; domain: SkillDomain; custom_domain?: string; assigned_by?: string }) => {
+    mutationFn: async (params: { user_id: string; skill_name: string; skill_type: SkillType; domain: string; custom_domain?: string; assigned_by?: string }) => {
       if (!user) throw new Error('Not authenticated');
+      const { domain: dbDomain, custom_domain: mappedCustomDomain } = mapUiDomainToDbDomain(params.domain);
       const { data, error } = await supabase
         .from('member_skills')
         .insert({
           user_id: params.user_id,
           skill_name: params.skill_name,
           skill_type: params.skill_type,
-          domain: params.domain,
-          custom_domain: params.custom_domain || null,
+          domain: dbDomain,
+          custom_domain: params.custom_domain || mappedCustomDomain || null,
           assigned_by: params.assigned_by || user.id,
         } as any)
         .select()
@@ -100,14 +101,20 @@ export function useMemberSkills(userId?: string) {
       user_id?: string; 
       skill_name?: string; 
       skill_type?: SkillType; 
-      domain?: SkillDomain; 
+      domain?: string; 
       custom_domain?: string | null; 
     }) => {
       const { id, user_id, ...updates } = params;
+      const finalUpdates: any = { ...updates };
+      if (params.domain) {
+        const { domain: dbDomain, custom_domain: mappedCustomDomain } = mapUiDomainToDbDomain(params.domain);
+        finalUpdates.domain = dbDomain;
+        finalUpdates.custom_domain = params.custom_domain !== undefined ? params.custom_domain : (mappedCustomDomain || null);
+      }
       const { data, error } = await supabase
         .from('member_skills')
         .update({
-          ...updates,
+          ...finalUpdates,
           updated_at: new Date().toISOString(),
         } as any)
         .eq('id', id)

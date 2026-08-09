@@ -1,4 +1,4 @@
-import { useEffect, useState, ReactNode } from "react";
+import { useEffect, useState, ReactNode, lazy, Suspense } from "react";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -11,35 +11,50 @@ import { PWAInstallPrompt } from "@/components/pwa/PWAInstallPrompt";
 import { SuspensionScreen } from "@/components/auth/SuspensionScreen";
 import { AppLoadingScreen } from "@/components/common/AppLoadingScreen";
 import { initNativePush, setPushNavigationHandler } from "./lib/push";
+
+// Critical paths — eagerly loaded for fast first paint
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
-import Team from "./pages/Team";
-import MySpace from "./pages/MySpace";
-import MemberProfile from "./pages/MemberProfile";
-import MemberPublicProfile from "./pages/MemberPublicProfile";
-import GroupingHome from "./pages/GroupingHome";
-import GroupingMe from "./pages/GroupingMe";
-import GroupingSkills from "./pages/GroupingSkills";
-import GroupingPS from "./pages/GroupingPS";
-import GroupingReflections from "./pages/GroupingReflections";
-import GroupingNotes from "./pages/GroupingNotes";
-import GroupingSessions from "./pages/GroupingSessions";
-import GroupingHabits from "./pages/GroupingHabits";
-import GroupingTodos from "./pages/GroupingTodos";
-import GroupingLeaderboard from "./pages/GroupingLeaderboard";
-import GroupingPointManagement from "./pages/GroupingPointManagement";
-import PBLDashboard from "./pages/PBLDashboard";
-import PBLProjects from "./pages/PBLProjects";
-import PBLAnalytics from "./pages/PBLAnalytics";
-import ProjectDetail from "./pages/ProjectDetail";
-import PBLDocumentation from "./pages/PBLDocumentation";
-import PBLNotifications from "./pages/PBLNotifications";
-import PBLMySpace from "./pages/PBLMySpace";
-import PBLTodos from "./pages/PBLTodos";
-import GroupingPolls from "./pages/GroupingPolls";
-import PBLPolls from "./pages/PBLPolls";
-import NotificationsPage from "./pages/NotificationsPage";
 import NotFound from "./pages/NotFound";
+
+// All other pages — lazy loaded for code splitting
+const Team = lazy(() => import("./pages/Team"));
+const MySpace = lazy(() => import("./pages/MySpace"));
+const MemberProfile = lazy(() => import("./pages/MemberProfile"));
+const MemberPublicProfile = lazy(() => import("./pages/MemberPublicProfile"));
+const ProfileSettingsPage = lazy(() => import("./pages/ProfileSettingsPage"));
+const GroupingHome = lazy(() => import("./pages/GroupingHome"));
+const GroupingMe = lazy(() => import("./pages/GroupingMe"));
+const GroupingSkills = lazy(() => import("./pages/GroupingSkills"));
+const GroupingPS = lazy(() => import("./pages/GroupingPS"));
+const GroupingReflections = lazy(() => import("./pages/GroupingReflections"));
+const GroupingNotes = lazy(() => import("./pages/GroupingNotes"));
+const GroupingSessions = lazy(() => import("./pages/GroupingSessions"));
+const GroupingHabits = lazy(() => import("./pages/GroupingHabits"));
+const GroupingTodos = lazy(() => import("./pages/GroupingTodos"));
+const GroupingLeaderboard = lazy(() => import("./pages/GroupingLeaderboard"));
+const GroupingPointManagement = lazy(() => import("./pages/GroupingPointManagement"));
+const GroupingPolls = lazy(() => import("./pages/GroupingPolls"));
+const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
+const PBLDashboard = lazy(() => import("./pages/PBLDashboard"));
+const PBLProjects = lazy(() => import("./pages/PBLProjects"));
+const PBLAnalytics = lazy(() => import("./pages/PBLAnalytics"));
+const ProjectDetail = lazy(() => import("./pages/ProjectDetail"));
+const PBLDocumentation = lazy(() => import("./pages/PBLDocumentation"));
+const PBLNotifications = lazy(() => import("./pages/PBLNotifications"));
+const PBLMySpace = lazy(() => import("./pages/PBLMySpace"));
+const PBLTodos = lazy(() => import("./pages/PBLTodos"));
+const PBLPolls = lazy(() => import("./pages/PBLPolls"));
+
+// Route-level loading fallback
+function RouteFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+    </div>
+  );
+}
+
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -52,9 +67,6 @@ const queryClient = new QueryClient({
     },
   },
 });
-
-import { initNativePush, setPushNavigationHandler } from './lib/push';
-
 function NativePushBootstrap() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -131,7 +143,8 @@ const App = () => (
               <NativePushBootstrap />
               <ProtectedRouteGate>
                 <SuspensionGate>
-                  <Routes>
+                  <Suspense fallback={<RouteFallback />}>
+                    <Routes>
                     <Route path="/" element={<Index />} />
                     <Route path="/index.html" element={<Index />} />
                     <Route path="/auth" element={<Auth />} />
@@ -139,6 +152,7 @@ const App = () => (
                     <Route path="/my-space" element={<MySpace />} />
                     <Route path="/member/:userId" element={<MemberProfile />} />
                     <Route path="/profile/:userId" element={<MemberPublicProfile />} />
+                    <Route path="/profile/settings" element={<ProfileSettingsPage />} />
                     {/* Grouping Mode Routes */}
                     <Route path="/grouping/home" element={<GroupingHome />} />
                     <Route path="/grouping/me" element={<GroupingMe />} />
@@ -165,7 +179,8 @@ const App = () => (
                     <Route path="/pbl/todos" element={<PBLTodos />} />
                     <Route path="/pbl/polls" element={<PBLPolls />} />
                     <Route path="*" element={<NotFound />} />
-                  </Routes>
+                    </Routes>
+                  </Suspense>
                 </SuspensionGate>
               </ProtectedRouteGate>
             </BrowserRouter>

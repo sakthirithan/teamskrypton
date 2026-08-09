@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useLocation, useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -76,6 +76,7 @@ export function GroupingSidebar() {
   const collapsed = state === 'collapsed';
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { profile, user, role, isLeadership, isCaptainOrVice } = useAuth();
   const { unreadCount } = useGroupingNotifications();
   const { data: isProjectLead } = usePblProjectLead(user?.id);
@@ -394,9 +395,19 @@ export function GroupingSidebar() {
 
       <SidebarFooter className="p-3">
         {!collapsed && profile && (
-          <div className="flex items-center gap-2 p-2 rounded-lg bg-sidebar-accent/50">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-semibold">
-              {profile.full_name?.charAt(0)?.toUpperCase() || 'U'}
+          <div 
+            onClick={() => navigate('/profile/settings')}
+            className="flex items-center gap-2 p-2 rounded-lg bg-sidebar-accent/50 cursor-pointer hover:bg-sidebar-accent/80 transition-all select-none group"
+            title="Profile Settings"
+          >
+            <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center border border-border/80 bg-primary/10 shrink-0">
+              {profile.avatar_url ? (
+                <img src={profile.avatar_url} alt={profile.full_name} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-primary text-xs font-semibold">
+                  {profile.full_name?.charAt(0)?.toUpperCase() || 'U'}
+                </span>
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium truncate">{profile.full_name}</p>

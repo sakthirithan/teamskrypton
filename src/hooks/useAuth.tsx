@@ -18,6 +18,7 @@ interface AuthContextType {
   disabledReason: string | null;
   disabledUntil: string | null;
   signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 interface Profile {
@@ -134,12 +135,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRole(null);
   };
 
+  const refreshProfile = async () => {
+    if (user?.id) {
+      await fetchUserData(user.id);
+    }
+  };
+
   return (
     <AuthContext.Provider value={{
       user, session, profile, role, isLoading,
       isLeadership, isCaptainOrVice,
       isDisabled, isReadOnly, disabledMode, disabledReason, disabledUntil,
       signOut,
+      refreshProfile,
     }}>
       {children}
     </AuthContext.Provider>

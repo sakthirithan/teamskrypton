@@ -228,8 +228,12 @@ export function Header() {
                       </span>
                     )}
                   </div>
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-primary-foreground/20 flex items-center justify-center ring-2 ring-primary-foreground/30 transition-all duration-200 hover:ring-primary-foreground/50">
-                    <User className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-primary-foreground/20 flex items-center justify-center ring-2 ring-primary-foreground/30 transition-all duration-200 hover:ring-primary-foreground/50 overflow-hidden">
+                    {profile?.avatar_url ? (
+                      <img src={profile.avatar_url} alt={profile.full_name} className="w-full h-full object-cover" />
+                    ) : (
+                      <User className="w-4 h-4 sm:w-5 sm:h-5" />
+                    )}
                   </div>
                 </div>
               </DropdownMenuTrigger>
@@ -247,6 +251,11 @@ export function Header() {
                 <DropdownMenuItem onClick={() => navigate('/my-space')}>
                   <LayoutDashboard className="w-4 h-4 mr-2" />
                   My Space
+                </DropdownMenuItem>
+                
+                <DropdownMenuItem onClick={() => navigate('/profile/settings')}>
+                  <User className="w-4 h-4 mr-2" />
+                  Profile Settings
                 </DropdownMenuItem>
                 
                 {/* User List - Only for TL & VC */}

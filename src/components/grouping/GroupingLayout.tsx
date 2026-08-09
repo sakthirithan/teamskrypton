@@ -82,10 +82,14 @@ export function GroupingLayout({ children, title }: GroupingLayoutProps) {
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-full">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-semibold">
-                      {profile?.full_name?.charAt(0)?.toUpperCase() || 'U'}
-                    </div>
+                  <Button variant="ghost" size="icon" className="rounded-full overflow-hidden w-8 h-8 flex items-center justify-center border border-border/80">
+                    {profile?.avatar_url ? (
+                      <img src={profile.avatar_url} alt={profile.full_name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-primary/10 flex items-center justify-center text-primary text-sm font-semibold">
+                        {profile?.full_name?.charAt(0)?.toUpperCase() || 'U'}
+                      </div>
+                    )}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
@@ -96,6 +100,11 @@ export function GroupingLayout({ children, title }: GroupingLayoutProps) {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
+
+                  <DropdownMenuItem onClick={() => navigate('/profile/settings')}>
+                    <User className="w-4 h-4 mr-2" />
+                    Profile Settings
+                  </DropdownMenuItem>
 
                   {isCaptainOrVice && (
                     <DropdownMenuItem onClick={() => setUserListOpen(true)}>

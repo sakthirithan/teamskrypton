@@ -29,6 +29,7 @@ import {
   Info,
 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
+import { EmptyState } from '@/components/common/EmptyState';
 
 type AudienceFilter = 'all' | 'members' | 'leads';
 
@@ -39,6 +40,7 @@ export default function NotificationsPage() {
     useGroupingNotifications();
 
   const [filter, setFilter] = useState<AudienceFilter>('all');
+  const [readFilter, setReadFilter] = useState<'all' | 'unread' | 'read'>('all');
   const [search, setSearch] = useState('');
   const [composerOpen, setComposerOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -65,6 +67,12 @@ export default function NotificationsPage() {
       list = list.filter((n) => n.target_audience === 'leads' || n.target_audience === 'all');
     }
 
+    if (readFilter === 'unread') {
+      list = list.filter((n) => !n.is_read);
+    } else if (readFilter === 'read') {
+      list = list.filter((n) => n.is_read);
+    }
+
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter((n) => {
@@ -78,7 +86,7 @@ export default function NotificationsPage() {
     }
 
     return list;
-  }, [notifications, filter, search, profilesMap]);
+  }, [notifications, filter, readFilter, search, profilesMap]);
 
   const handleCardClick = (n: GroupingNotification) => {
     if (expandedId === n.id) {
@@ -151,46 +159,82 @@ export default function NotificationsPage() {
         </div>
 
         {/* Filter Bar & Search */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          {/* Audience Filter Tabs */}
-          <div className="inline-flex p-1 bg-muted/60 rounded-lg border border-border/60 self-start sm:self-auto">
-            <button
-              onClick={() => setFilter('all')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 ${
-                filter === 'all'
-                  ? 'bg-card text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Users className="w-3.5 h-3.5" />
-              All Members & Leads
-            </button>
-            <button
-              onClick={() => setFilter('members')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 ${
-                filter === 'members'
-                  ? 'bg-card text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <UserCheck className="w-3.5 h-3.5" />
-              Members
-            </button>
-            <button
-              onClick={() => setFilter('leads')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 ${
-                filter === 'leads'
-                  ? 'bg-card text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Radio className="w-3.5 h-3.5" />
-              Leads
-            </button>
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-card p-3 rounded-xl border border-border/60 shadow-sm">
+          <div className="flex flex-col sm:flex-row gap-2.5">
+            {/* Audience Filter Tabs */}
+            <div className="inline-flex p-1 bg-muted/60 rounded-lg border border-border/60 self-start">
+              <button
+                onClick={() => setFilter('all')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 ${
+                  filter === 'all'
+                    ? 'bg-card text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                All Audience
+              </button>
+              <button
+                onClick={() => setFilter('members')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 ${
+                  filter === 'members'
+                    ? 'bg-card text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <UserCheck className="w-3.5 h-3.5" />
+                Members
+              </button>
+              <button
+                onClick={() => setFilter('leads')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 ${
+                  filter === 'leads'
+                    ? 'bg-card text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Radio className="w-3.5 h-3.5" />
+                Leads
+              </button>
+            </div>
+
+            {/* Read/Unread Status Tabs */}
+            <div className="inline-flex p-1 bg-muted/60 rounded-lg border border-border/60 self-start">
+              <button
+                onClick={() => setReadFilter('all')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                  readFilter === 'all'
+                    ? 'bg-card text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                All Status
+              </button>
+              <button
+                onClick={() => setReadFilter('unread')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                  readFilter === 'unread'
+                    ? 'bg-card text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Unread
+              </button>
+              <button
+                onClick={() => setReadFilter('read')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                  readFilter === 'read'
+                    ? 'bg-card text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Read
+              </button>
+            </div>
           </div>
 
           {/* Search Field */}
-          <div className="relative w-full sm:w-72">
+          <div className="relative w-full lg:w-72">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={search}
@@ -203,19 +247,17 @@ export default function NotificationsPage() {
 
         {/* Notifications List */}
         {filteredNotifications.length === 0 ? (
-          <div className="krypton-card p-12 text-center flex flex-col items-center justify-center">
-            <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mb-4">
-              <Bell className="w-8 h-8 text-muted-foreground/40" />
-            </div>
-            <h3 className="text-base font-semibold text-foreground">No notifications found</h3>
-            <p className="text-xs text-muted-foreground mt-1 max-w-sm">
-              {search
+          <EmptyState
+            title="No notifications found"
+            description={
+              search
                 ? 'No notifications matched your search parameters.'
                 : filter !== 'all'
                 ? `No notifications currently available under the '${filter}' filter.`
-                : 'All caught up! Check back later for new team announcements.'}
-            </p>
-          </div>
+                : 'All caught up! Check back later for new team announcements.'
+            }
+            icon={Bell}
+          />
         ) : (
           <div className="space-y-3">
             {filteredNotifications.map((n) => {
@@ -323,44 +365,22 @@ function ExpandableNotificationMessage({ message, isCardExpanded }: { message: s
   const isLong = message.length > 120 || message.includes('\n');
   const isShowFull = isCardExpanded || userExpanded;
 
-  if (!isLong) {
-    return (
-      <div className="mt-2 text-xs sm:text-sm text-foreground/90 leading-relaxed">
-        <WhatsAppText text={message} />
-      </div>
-    );
-  }
-
   return (
     <div className="mt-2 text-xs sm:text-sm text-foreground/90 leading-relaxed">
-      {isShowFull ? (
-        <div>
-          <WhatsAppText text={message} />
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setUserExpanded(false);
-            }}
-            className="text-primary hover:underline text-[11px] font-semibold mt-1 inline-block"
-          >
-            Show less
-          </button>
-        </div>
-      ) : (
-        <div>
-          <WhatsAppText text={message.slice(0, 110) + '...'} />
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setUserExpanded(true);
-            }}
-            className="text-primary hover:underline text-[11px] font-semibold mt-1 inline-block ml-1"
-          >
-            Read more
-          </button>
-        </div>
+      <div className={(!isShowFull && isLong) ? 'line-clamp-2' : ''}>
+        <WhatsAppText text={message} />
+      </div>
+      {isLong && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setUserExpanded(!isShowFull);
+          }}
+          className="text-primary hover:underline text-[11px] font-semibold mt-1 inline-block"
+        >
+          {isShowFull ? 'Show less' : 'Read more'}
+        </button>
       )}
     </div>
   );

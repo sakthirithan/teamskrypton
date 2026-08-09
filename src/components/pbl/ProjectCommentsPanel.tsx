@@ -8,6 +8,7 @@ import { useAllProfiles } from '@/hooks/useProjects';
 import { supabase } from '@/integrations/supabase/client';
 import { MessageSquare, Send, Reply, Trash2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { WhatsAppText } from '@/components/ui/whatsapp-text';
 
 interface Props {
   projectId: string;
@@ -83,7 +84,7 @@ export const ProjectCommentsPanel = memo(function ProjectCommentsPanel({ project
               {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
             </span>
           </div>
-          <p className="text-sm mt-0.5 whitespace-pre-wrap">{comment.content}</p>
+          <WhatsAppText text={comment.content} className="text-sm mt-0.5" />
           <div className="flex items-center gap-2 mt-1">
             {!isReply && (
               <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => setReplyTo(replyTo === comment.id ? null : comment.id)}>

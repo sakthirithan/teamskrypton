@@ -8,7 +8,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { KryptonIdCard } from '@/components/team/KryptonIdCard';
 import { CheckCircle, BarChart3, ArrowLeft, ExternalLink } from 'lucide-react';
-import { SkillsAndIndicatorsGrid } from '@/components/grouping/SkillsAndIndicatorsGrid';
 import { format } from 'date-fns';
 import { KryptonRole, TaskStatus } from '@/lib/constants';
 import { startOfDay, endOfDay, isWithinInterval } from 'date-fns';
@@ -218,7 +217,6 @@ const MemberPublicProfile = () => {
 
           {/* Main Content - Only Completed Tasks */}
           <div className="lg:col-span-3 space-y-6">
-            {userId && <SkillsAndIndicatorsGrid userId={userId} />}
             {/* Personal Log - Completed Tasks Only */}
             <Card>
               <CardHeader>

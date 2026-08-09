@@ -1,84 +1,53 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Trophy, Target, Zap, Coins, ChevronDown, ChevronUp } from 'lucide-react';
-import type { SkillType } from '@/hooks/useMemberSkills';
+import { Trophy, Target, Zap, Coins } from 'lucide-react';
 
 interface Props {
   userId: string;
   className?: string;
-  compact?: boolean;
 }
 
-const TYPE_CONFIG: Record<
-  SkillType,
-  { title: string; badgeBg: string; textColor: string; dotColor: string }
-> = {
-  primary: {
-    title: 'PRIMARY',
-    badgeBg: 'bg-indigo-500/10 border-indigo-500/30 text-indigo-600 dark:text-indigo-400',
-    textColor: 'text-indigo-600 dark:text-indigo-400',
-    dotColor: 'bg-indigo-500',
-  },
-  secondary: {
-    title: 'SECONDARY',
-    badgeBg: 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400',
-    textColor: 'text-rose-600 dark:text-rose-400',
-    dotColor: 'bg-rose-500',
-  },
-  specialization: {
-    title: 'SPECIALIZATION',
-    badgeBg: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400',
-    textColor: 'text-emerald-600 dark:text-emerald-400',
-    dotColor: 'bg-emerald-500',
-  },
-};
-
-export function SkillsAndIndicatorsGrid({ userId, className }: Props) {
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  // User skills query
-  const skillsQ = useQuery({
-    queryKey: ['skills-grid:user', userId],
+export function OverviewLeaderboard({ userId, className }: Props) {
+  // Fetch active session IDs first so PS scores only reflect current sessions
+  const activeSessionsQ = useQuery({
+    queryKey: ['grouping-sessions', 'active-ids'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('member_skills')
-        .select('id, skill_name, skill_type, domain, custom_domain')
-        .eq('user_id', userId);
+        .from('grouping_sessions')
+        .select('id')
+        .eq('status', 'active');
       if (error) throw error;
-      return data as Array<{
-        id: string;
-        skill_name: string;
-        skill_type: SkillType;
-        domain?: string;
-        custom_domain?: string;
-      }>;
+      return (data || []).map((s: any) => s.id) as string[];
     },
-    enabled: !!userId,
+    staleTime: 60_000,
   });
 
-  // PS score per user
+  // PS score per user — only completed entries within active sessions
   const psQ = useQuery({
-    queryKey: ['skills-grid:ps-by-user'],
+    queryKey: ['ps-daily-entries', 'leaderboard', activeSessionsQ.data],
     queryFn: async () => {
+      const sessionIds = activeSessionsQ.data;
+      if (!sessionIds || sessionIds.length === 0) return new Map<string, number>();
       const { data, error } = await supabase
         .from('ps_daily_entries')
-        .select('user_id, reward_points, status')
-        .eq('status', 'completed');
+        .select('user_id, reward_points, session_id')
+        .eq('status', 'completed')
+        .in('session_id', sessionIds);
       if (error) throw error;
       const m = new Map<string, number>();
       (data || []).forEach((r: any) => m.set(r.user_id, (m.get(r.user_id) || 0) + (r.reward_points || 0)));
       return m;
     },
-    staleTime: 60_000,
+    enabled: !!activeSessionsQ.data,
+    staleTime: 30_000,
   });
+
 
   // Activity points per user
   const apQ = useQuery({
-    queryKey: ['skills-grid:ap-by-user'],
+    queryKey: ['activity-points', 'leaderboard'],
     queryFn: async () => {
       const { data, error } = await supabase.from('activity_points').select('user_id, points');
       if (error) throw error;
@@ -86,12 +55,12 @@ export function SkillsAndIndicatorsGrid({ userId, className }: Props) {
       (data || []).forEach((r: any) => m.set(r.user_id, (m.get(r.user_id) || 0) + (r.points || 0)));
       return m;
     },
-    staleTime: 60_000,
+    staleTime: 30_000,
   });
 
   // Golden points per user
   const gpQ = useQuery({
-    queryKey: ['skills-grid:gp-by-user'],
+    queryKey: ['user-points', 'leaderboard'],
     queryFn: async () => {
       const { data, error } = await supabase.from('user_points').select('user_id, points');
       if (error) throw error;
@@ -99,56 +68,40 @@ export function SkillsAndIndicatorsGrid({ userId, className }: Props) {
       (data || []).forEach((r: any) => m.set(r.user_id, r.points || 0));
       return m;
     },
-    staleTime: 60_000,
+    staleTime: 30_000,
   });
-
-  const skills = skillsQ.data || [];
 
   const computeRank = (m: Map<string, number>): { rank: number | null; points: number } => {
     const points = m.get(userId) || 0;
-    if (m.size === 0) return { rank: null, points };
-    const scored = Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
-    let rank = 0;
-    let last: number | null = null;
-    for (const [uid, val] of scored) {
-      if (val !== last) {
-        rank += 1;
-        last = val;
-      }
-      if (uid === userId) return { rank, points };
+    
+    const hasAnyPoints = Array.from(m.values()).some(p => p > 0);
+    if (!hasAnyPoints) {
+      return { rank: null, points };
     }
-    return { rank: scored.length + 1, points };
+    
+    let usersAhead = 0;
+    for (const [uid, val] of m.entries()) {
+      if (uid !== userId && val > points) {
+        usersAhead++;
+      }
+    }
+    
+    return { rank: usersAhead + 1, points };
   };
 
   const psRank = useMemo(() => computeRank(psQ.data || new Map()), [psQ.data, userId]);
   const apRank = useMemo(() => computeRank(apQ.data || new Map()), [apQ.data, userId]);
   const gpRank = useMemo(() => computeRank(gpQ.data || new Map()), [gpQ.data, userId]);
 
-  if (skillsQ.isLoading) {
+  if (activeSessionsQ.isLoading || psQ.isLoading || apQ.isLoading || gpQ.isLoading) {
     return (
-      <div className={className}>
-        <div className="h-32 rounded-2xl bg-muted/40 animate-pulse" />
+      <div className={`grid grid-cols-1 sm:grid-cols-3 gap-3 ${className || ''}`}>
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-16 rounded-2xl bg-muted/40 animate-pulse border border-border/50" />
+        ))}
       </div>
     );
   }
-
-  const primarySkills = skills.filter((s) => s.skill_type === 'primary');
-  const secondarySkills = skills.filter((s) => s.skill_type === 'secondary');
-  const specSkills = skills.filter((s) => s.skill_type === 'specialization');
-
-  // Categories to render based on expanded state
-  const visibleCategories: Array<{ type: SkillType; list: typeof skills }> = isExpanded
-    ? [
-        { type: 'primary', list: primarySkills },
-        { type: 'secondary', list: secondarySkills },
-        { type: 'specialization', list: specSkills },
-      ]
-    : [
-        { type: 'primary', list: primarySkills },
-        { type: 'secondary', list: secondarySkills },
-      ];
-
-  const hasMoreToExpand = skills.length > 3 || specSkills.length > 0;
 
   const rankItems = [
     {
@@ -178,123 +131,35 @@ export function SkillsAndIndicatorsGrid({ userId, className }: Props) {
   ];
 
   return (
-    <div className={`space-y-4 ${className || ''}`}>
-      {/* Skills & Indicators Card Container */}
-      <Card className="p-4 sm:p-5 border-border/80 shadow-xs space-y-4 rounded-2xl bg-card">
-        <div className="flex items-center justify-between border-b border-border/60 pb-3">
-          <div className="flex items-center gap-2">
-            <Zap className="w-4 h-4 text-primary" />
-            <h3 className="text-sm font-bold tracking-tight text-foreground">Skills & Indicators</h3>
-          </div>
-          <Badge variant="secondary" className="text-xs px-2 py-0.5 font-bold tabular-nums">
-            {skills.length} skills
-          </Badge>
-        </div>
+    <div className={`space-y-3 ${className || ''}`}>
+      <div className="flex items-center gap-1.5 px-1 pb-1">
+        <Trophy className="w-4 h-4 text-amber-500" />
+        <h4 className="text-sm font-bold tracking-tight text-foreground">Leaderboard & Performance</h4>
+      </div>
 
-        {skills.length === 0 ? (
-          <div className="text-center py-4 text-xs text-muted-foreground">
-            No skills assigned yet.
-          </div>
-        ) : (
-          <div className="space-y-4 transition-all duration-300">
-            {visibleCategories.map(({ type, list }) => {
-              if (list.length === 0) return null;
-              const cfg = TYPE_CONFIG[type];
-              return (
-                <div key={type} className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-extrabold tracking-wider text-muted-foreground uppercase">
-                      {cfg.title}
-                    </span>
-                    <div className="h-[1px] flex-1 bg-border/50" />
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {list.map((s) => {
-                      const domainName = s.custom_domain || s.domain;
-                      return (
-                        <div
-                          key={s.id}
-                          className="group relative flex flex-col justify-between p-3 rounded-xl border border-border/80 bg-muted/20 hover:bg-card hover:border-primary/40 shadow-xs hover:shadow-md transition-all duration-200"
-                        >
-                          <div className="flex items-start justify-between gap-2 mb-1.5">
-                            <span className="font-semibold text-xs text-foreground group-hover:text-primary transition-colors leading-snug">
-                              {s.skill_name}
-                            </span>
-                            <span className={`w-2 h-2 rounded-full shrink-0 ${cfg.dotColor} mt-1`} />
-                          </div>
-                          {domainName && (
-                            <div className="flex items-center justify-between pt-1.5 mt-auto border-t border-border/40">
-                              <span className="text-[10px] text-muted-foreground font-medium">Domain</span>
-                              <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 border-primary/30 text-primary font-semibold">
-                                {domainName}
-                              </Badge>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* Expand / Collapse Button */}
-            {hasMoreToExpand && (
-              <div className="pt-2 border-t border-border/50 flex justify-center">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsExpanded(!isExpanded)}
-                  className="text-xs text-primary font-semibold hover:bg-primary/10 transition-colors gap-1 h-8 px-3"
-                >
-                  {isExpanded ? (
-                    <>
-                      Show less <ChevronUp className="w-3.5 h-3.5" />
-                    </>
-                  ) : (
-                    <>
-                      View all {skills.length} skills <ChevronDown className="w-3.5 h-3.5" />
-                    </>
-                  )}
-                </Button>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {rankItems.map(({ key, label, icon: Icon, color, bg, data }) => (
+          <Card key={key} className={`p-4 border ${bg} rounded-2xl transition-all shadow-xs`}>
+            <div className="flex items-center gap-3">
+              <div className={`w-9 h-9 rounded-xl ${bg} ${color} flex items-center justify-center shrink-0`}>
+                <Icon className="w-4 h-4" />
               </div>
-            )}
-          </div>
-        )}
-      </Card>
-
-      {/* Leaderboard Cards */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-1.5 px-1">
-          <Trophy className="w-3.5 h-3.5 text-amber-500" />
-          <h4 className="text-xs font-bold tracking-tight text-foreground uppercase">Leaderboard</h4>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {rankItems.map(({ key, label, icon: Icon, color, bg, data }) => (
-            <Card key={key} className={`p-3.5 border ${bg} rounded-2xl transition-all shadow-xs`}>
-              <div className="flex items-center gap-3">
-                <div className={`w-9 h-9 rounded-xl ${bg} ${color} flex items-center justify-center shrink-0`}>
-                  <Icon className="w-4 h-4" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider truncate">
-                    {label}
-                  </p>
-                  <div className="flex items-baseline gap-1.5 mt-0.5">
-                    <span className={`text-base font-extrabold tabular-nums ${color}`}>
-                      {data.rank ? `#${data.rank}` : '—'}
-                    </span>
-                    <span className="text-[11px] font-semibold text-muted-foreground tabular-nums">
-                      · {data.points.toLocaleString()} pts
-                    </span>
-                  </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider truncate">
+                  {label}
+                </p>
+                <div className="flex items-baseline gap-1.5 mt-0.5">
+                  <span className={`text-base font-extrabold tabular-nums ${color}`}>
+                    {data.rank ? `#${data.rank}` : '—'}
+                  </span>
+                  <span className="text-[11px] font-semibold text-muted-foreground tabular-nums">
+                    · {data.points.toLocaleString()} pts
+                  </span>
                 </div>
               </div>
-            </Card>
-          ))}
-        </div>
+            </div>
+          </Card>
+        ))}
       </div>
     </div>
   );

@@ -8,6 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MessageSquare, Lightbulb, AlertTriangle, ArrowRight, User, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
+import { EmptyState } from '@/components/common/EmptyState';
+import { WhatsAppText } from '@/components/ui/whatsapp-text';
 
 interface ReflectionWithUser {
   id: string;
@@ -77,13 +79,11 @@ export function AllReflectionsPanel() {
 
   if (reflections.length === 0) {
     return (
-      <Card>
-        <CardContent className="py-10 text-center text-muted-foreground">
-          <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-40" />
-          <p className="text-sm font-medium">No reflections yet</p>
-          <p className="text-xs mt-1">Members can add weekly reflections from My Space.</p>
-        </CardContent>
-      </Card>
+      <EmptyState
+        title="No reflections yet"
+        description="Members can add weekly reflections from My Space to track progress and lessons."
+        icon={MessageSquare}
+      />
     );
   }
 
@@ -150,7 +150,7 @@ export function AllReflectionsPanel() {
                   <p className="text-xs font-medium flex items-center gap-1 mb-1 text-primary">
                     <Lightbulb className="w-3 h-3" /> What they learned
                   </p>
-                  <p className="text-sm">{selected.content}</p>
+                  <WhatsAppText text={selected.content} className="text-sm" />
                 </div>
 
                 {selected.challenges && (
@@ -158,7 +158,7 @@ export function AllReflectionsPanel() {
                     <p className="text-xs font-medium flex items-center gap-1 mb-1 text-amber-600">
                       <AlertTriangle className="w-3 h-3" /> Challenges
                     </p>
-                    <p className="text-sm">{selected.challenges}</p>
+                    <WhatsAppText text={selected.challenges} className="text-sm" />
                   </div>
                 )}
 
@@ -167,7 +167,7 @@ export function AllReflectionsPanel() {
                     <p className="text-xs font-medium flex items-center gap-1 mb-1 text-blue-600">
                       <ArrowRight className="w-3 h-3" /> Next Steps
                     </p>
-                    <p className="text-sm">{selected.next_steps}</p>
+                    <WhatsAppText text={selected.next_steps} className="text-sm" />
                   </div>
                 )}
               </div>

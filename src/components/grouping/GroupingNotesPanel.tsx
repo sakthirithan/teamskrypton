@@ -21,6 +21,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { RefreshButton } from '@/components/ui/RefreshIconButton';
 import { formatDistanceToNow, differenceInHours } from 'date-fns';
+import { WhatsAppText } from '@/components/ui/whatsapp-text';
 
 interface Profile {
   user_id: string;
@@ -248,7 +249,7 @@ export function GroupingNotesPanel() {
                       </div>
                     </div>
                   ) : (
-                    <p className="text-sm whitespace-pre-wrap leading-relaxed">{note.content}</p>
+                    <WhatsAppText text={note.content} className="text-sm" />
                   )}
 
                   {/* Replies */}
@@ -305,7 +306,7 @@ export function GroupingNotesPanel() {
                                 </div>
                               </div>
                             ) : (
-                              <p className="text-xs whitespace-pre-wrap">{reply.content}</p>
+                              <WhatsAppText text={reply.content} className="text-xs" />
                             )}
                           </div>
                         );

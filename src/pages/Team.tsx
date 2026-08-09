@@ -115,6 +115,11 @@ const Team = () => {
       .from('member_skills')
       .select('user_id, skill_name, skill_type, domain, custom_domain');
 
+    // Fetch member communities
+    const { data: memberCommunities } = await supabase
+      .from('member_communities')
+      .select('user_id, community_name');
+
     if (profiles) {
       const roleMap = new Map(roles?.map(r => [r.user_id, r.role as KryptonRole]) || []);
       
@@ -145,6 +150,15 @@ const Team = () => {
         });
       });
 
+      // Build communities map
+      const communitiesMap = new Map<string, string[]>();
+      profiles.forEach(p => communitiesMap.set(p.user_id, []));
+      memberCommunities?.forEach(c => {
+        if (communitiesMap.has(c.user_id)) {
+          communitiesMap.get(c.user_id)!.push(c.community_name);
+        }
+      });
+
       const teamMembers: TeamMember[] = profiles.map(p => ({
         profile: {
           user_id: p.user_id,
@@ -160,7 +174,7 @@ const Team = () => {
         role: roleMap.get(p.user_id) || null,
         taskStats: taskStatsMap.get(p.user_id) || { total: 0, completed: 0, inProgress: false },
         skills: skillsMap.get(p.user_id) || [],
-        communities: (p.metadata as any)?.communities || ['AI & Machine Learning Community', 'Full Stack Software Community'],
+        communities: communitiesMap.get(p.user_id) || [],
       }));
 
       // Sort: Leadership first, then alphabetically
@@ -478,9 +492,18 @@ const Team = () => {
       // 9. Generate file with clean column widths
       const ws = XLSX.utils.json_to_sheet(exportData);
       if (exportData.length > 0) {
-        const colWidths = Object.keys(exportData[0] || {}).map((key) => ({
-          wch: Math.max(key.length + 4, 18),
-        }));
+        const keys = Object.keys(exportData[0] || {});
+        const colWidths = keys.map((key) => {
+          let maxLen = key.length;
+          exportData.forEach((row: any) => {
+            const val = row[key];
+            if (val !== undefined && val !== null) {
+              const valStr = String(val);
+              if (valStr.length > maxLen) maxLen = valStr.length;
+            }
+          });
+          return { wch: Math.min(Math.max(maxLen + 4, 15), 45) };
+        });
         ws['!cols'] = colWidths;
       }
       const wb = XLSX.utils.book_new();
@@ -557,6 +580,21 @@ const Team = () => {
       }
 
       const ws = XLSX.utils.json_to_sheet(exportData);
+      if (exportData.length > 0) {
+        const keys = Object.keys(exportData[0] || {});
+        const colWidths = keys.map((key) => {
+          let maxLen = key.length;
+          exportData.forEach((row: any) => {
+            const val = row[key];
+            if (val !== undefined && val !== null) {
+              const valStr = String(val);
+              if (valStr.length > maxLen) maxLen = valStr.length;
+            }
+          });
+          return { wch: Math.min(Math.max(maxLen + 4, 15), 45) };
+        });
+        ws['!cols'] = colWidths;
+      }
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Team Task History');
 

@@ -166,3 +166,36 @@ export function getEffectiveDomain(
 
   return 'General';
 }
+
+export function mapUiDomainToDbDomain(uiDomain: string): {
+  domain: 'ai_data' | 'software_dev' | 'research' | 'ui_ux' | 'general';
+  custom_domain: string | null;
+} {
+  const clean = uiDomain.trim();
+  
+  const uiToDbMap: Record<string, 'ai_data' | 'software_dev' | 'research' | 'ui_ux' | 'general'> = {
+    'AI': 'ai_data',
+    'Software': 'software_dev',
+    'Robotics': 'software_dev',
+    'Electronics': 'software_dev',
+    'Electrical': 'general',
+    'Automation': 'general',
+    'Mechanical': 'general',
+    'Manufacturing': 'general',
+    'Biology': 'general',
+    'Agriculture': 'general',
+    'Gaming': 'software_dev',
+    'Immersive': 'software_dev',
+    'Design': 'ui_ux',
+    'Security': 'software_dev',
+    'Research': 'research',
+    'General': 'general',
+  };
+
+  const dbDomain = uiToDbMap[clean] || 'general';
+  
+  const coreUiDomains = ['AI', 'Software', 'Design', 'Research', 'General'];
+  const custom_domain = coreUiDomains.includes(clean) ? null : clean;
+
+  return { domain: dbDomain, custom_domain };
+}
