@@ -135,8 +135,8 @@ export function GroupingLayout({ children, title }: GroupingLayoutProps) {
             </div>
           </header>
 
-          {/* Main Content */}
-          <main className="flex-1 overflow-auto p-4 sm:p-6 page-enter pb-16 md:pb-6">
+          {/* Main Content — Full Canvas for Notifications/Messenger */}
+          <main className={location.pathname.includes('/notifications') ? "flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden p-0" : "flex-1 overflow-auto p-4 sm:p-6 page-enter pb-16 md:pb-6"}>
             {children}
           </main>
           <MobileBottomNav />

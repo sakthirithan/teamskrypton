@@ -93,12 +93,22 @@ export function MobileBottomNav() {
 
   const isPbl = mode === 'pbl' || location.pathname.startsWith('/pbl');
 
-  // Compute active quick action objects
   const activeNavItems = useMemo(() => {
     return navPrefIds
       .map((id) => allAvailableItems.find((opt) => opt.id === id))
       .filter(Boolean) as typeof allAvailableItems;
   }, [navPrefIds, allAvailableItems]);
+
+  const [chatActive, setChatActive] = useState(false);
+
+  useEffect(() => {
+    const check = () => setChatActive(document.body.dataset.activeChat === 'true');
+    check();
+    window.addEventListener('chat-active-change', check);
+    return () => window.removeEventListener('chat-active-change', check);
+  }, [location.pathname]);
+
+  if (chatActive) return null;
 
   return (
     <>
