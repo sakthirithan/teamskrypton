@@ -114,7 +114,9 @@ export function MessengerConversation({ chatId, onBack, onOpenPollDialog }: Mess
         );
       }
       if (isGroup) {
-        return m.metadata?.group_id === targetId || m.title === targetId;
+        // Support both new top-level group_id column and legacy metadata.group_id
+        const resolvedGroupId = (m as any).group_id || m.metadata?.group_id;
+        return resolvedGroupId === targetId;
       }
       return false;
     });
@@ -242,8 +244,14 @@ export function MessengerConversation({ chatId, onBack, onOpenPollDialog }: Mess
           expiration_days: expirationDays,
         });
       } else if (isGroup) {
-        const sampleMsg = chatMessages[0];
-        const gMembers = sampleMsg?.metadata?.group_members || [user.id, targetId];
+        // Prefer members from the persistent conversation record (currentConv),
+        // then fall back to the last message's metadata, then a minimal default.
+        // resolveGroupMembers() in the hook will re-fetch from DB anyway.
+        const gMembers =
+          currentConv?.members ||
+          chatMessages[0]?.metadata?.group_members ||
+          (chatMessages[0] as any)?.group_members ||
+          [user.id];
         await sendGroupMessage.mutateAsync({
           group_id: targetId,
           group_name: chatInfo.title,
@@ -528,17 +536,37 @@ export function MessengerConversation({ chatId, onBack, onOpenPollDialog }: Mess
                         <Copy className="w-3.5 h-3.5" />
                       </Button>
 
-                      {isOutgoing && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => deleteMessage.mutate(m.id)}
-                          className="h-6 w-6 rounded-lg text-muted-foreground hover:text-destructive"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      )}
+                      {/* Delete — sender gets "for everyone" option; recipient gets "for me" */}
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 rounded-lg text-muted-foreground hover:text-destructive"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-44 p-1.5 rounded-2xl" align="center">
+                          <div className="space-y-0.5">
+                            <button
+                              onClick={() => deleteMessage.mutate({ message_id: m.id, for_everyone: false })}
+                              className="w-full text-left px-2.5 py-1.5 text-xs font-semibold rounded-xl hover:bg-muted"
+                            >
+                              Delete for me
+                            </button>
+                            {isOutgoing && (
+                              <button
+                                onClick={() => deleteMessage.mutate({ message_id: m.id, for_everyone: true })}
+                                className="w-full text-left px-2.5 py-1.5 text-xs font-semibold text-destructive rounded-xl hover:bg-destructive/10"
+                              >
+                                Delete for everyone
+                              </button>
+                            )}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                   </div>
                 </div>
