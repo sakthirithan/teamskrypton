@@ -53,11 +53,32 @@ export function TeamSkillOverview({ session }: TeamSkillOverviewProps) {
     enabled: !!session.id,
   });
 
+  // Minimum 1 PS entry requirement — session-bound
+  const { data: psEntries = [] } = useQuery({
+    queryKey: ['ps-entries-min-check', session.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('ps_daily_entries')
+        .select('user_id')
+        .eq('session_id', session.id);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!session.id,
+  });
+
+  const psCountByUser = useMemo(() => {
+    const m = new Map<string, number>();
+    psEntries.forEach((e: any) => m.set(e.user_id, (m.get(e.user_id) || 0) + 1));
+    return m;
+  }, [psEntries]);
+
   const memberSummaries: MemberSkillSummary[] = useMemo(() => {
     return profiles.map(p => {
       const userTracks = allTracks.filter(t => t.user_id === p.user_id);
       const primaryTrack = userTracks.find(t => t.is_primary);
       const portfolioCount = allSkills.filter(s => s.user_id === p.user_id).length;
+      const psEntryCount = psCountByUser.get(p.user_id) || 0;
 
       return {
         userId: p.user_id,
@@ -65,9 +86,16 @@ export function TeamSkillOverview({ session }: TeamSkillOverviewProps) {
         trackCount: userTracks.length,
         primarySkill: primaryTrack?.skill_name || null,
         portfolioCount,
+        psEntryCount,
+        hasMinimumPS: psEntryCount >= 1,
       };
     }).sort((a, b) => b.trackCount - a.trackCount);
-  }, [profiles, allTracks, allSkills]);
+  }, [profiles, allTracks, allSkills, psCountByUser]);
+
+  const pendingPSMembers = useMemo(
+    () => memberSummaries.filter(m => !m.hasMinimumPS),
+    [memberSummaries]
+  );
 
   const stats = useMemo(() => {
     const totalTracks = allTracks.length;
@@ -78,6 +106,7 @@ export function TeamSkillOverview({ session }: TeamSkillOverviewProps) {
 
     return { totalTracks, activeLearners, totalMembers, activeRate, totalPortfolio };
   }, [allTracks, profiles, allSkills]);
+
 
   return (
     <div className="space-y-4">
