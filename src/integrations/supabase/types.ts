@@ -55,6 +55,119 @@ export type Database = {
           },
         ]
       }
+      alumni_interactions: {
+        Row: {
+          created_at: string
+          id: string
+          interaction_date: string
+          mentor_id: string | null
+          mentor_name: string | null
+          mode: string
+          session_id: string | null
+          takeaways: string | null
+          topic: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          interaction_date?: string
+          mentor_id?: string | null
+          mentor_name?: string | null
+          mode?: string
+          session_id?: string | null
+          takeaways?: string | null
+          topic?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          interaction_date?: string
+          mentor_id?: string | null
+          mentor_name?: string | null
+          mode?: string
+          session_id?: string | null
+          takeaways?: string | null
+          topic?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alumni_interactions_mentor_id_fkey"
+            columns: ["mentor_id"]
+            isOneToOne: false
+            referencedRelation: "alumni_mentors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alumni_interactions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "grouping_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      alumni_mentors: {
+        Row: {
+          batch: string | null
+          company: string | null
+          contact: string | null
+          created_at: string
+          created_by: string
+          designation: string | null
+          expertise: string | null
+          id: string
+          linkedin_url: string | null
+          name: string
+          notes: string | null
+          session_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          batch?: string | null
+          company?: string | null
+          contact?: string | null
+          created_at?: string
+          created_by: string
+          designation?: string | null
+          expertise?: string | null
+          id?: string
+          linkedin_url?: string | null
+          name: string
+          notes?: string | null
+          session_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          batch?: string | null
+          company?: string | null
+          contact?: string | null
+          created_at?: string
+          created_by?: string
+          designation?: string | null
+          expertise?: string | null
+          id?: string
+          linkedin_url?: string | null
+          name?: string
+          notes?: string | null
+          session_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alumni_mentors_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "grouping_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       approval_votes: {
         Row: {
           approval_id: string
@@ -171,7 +284,7 @@ export type Database = {
       }
       daily_study_items: {
         Row: {
-          category: string | null
+          category: string
           created_at: string
           expires_at: string
           id: string
@@ -186,7 +299,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          category?: string | null
+          category?: string
           created_at?: string
           expires_at?: string
           id?: string
@@ -201,7 +314,7 @@ export type Database = {
           user_id: string
         }
         Update: {
-          category?: string | null
+          category?: string
           created_at?: string
           expires_at?: string
           id?: string
@@ -568,6 +681,7 @@ export type Database = {
           metadata: Json | null
           recipient_id: string
           sender_id: string
+          sender_id_text: string | null
           session_id: string | null
           target_audience: string
           title: string
@@ -583,6 +697,7 @@ export type Database = {
           metadata?: Json | null
           recipient_id: string
           sender_id?: string
+          sender_id_text?: string | null
           session_id?: string | null
           target_audience?: string
           title: string
@@ -598,6 +713,7 @@ export type Database = {
           metadata?: Json | null
           recipient_id?: string
           sender_id?: string
+          sender_id_text?: string | null
           session_id?: string | null
           target_audience?: string
           title?: string
@@ -849,6 +965,89 @@ export type Database = {
           },
         ]
       }
+      industry_visit_requests: {
+        Row: {
+          admin_note: string | null
+          company_name: string
+          created_at: string
+          id: string
+          member_count: number
+          preferred_date: string | null
+          purpose: string
+          requested_by: string
+          session_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          admin_note?: string | null
+          company_name: string
+          created_at?: string
+          id?: string
+          member_count?: number
+          preferred_date?: string | null
+          purpose: string
+          requested_by: string
+          session_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_note?: string | null
+          company_name?: string
+          created_at?: string
+          id?: string
+          member_count?: number
+          preferred_date?: string | null
+          purpose?: string
+          requested_by?: string
+          session_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "industry_visit_requests_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "grouping_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      member_communities: {
+        Row: {
+          assigned_by: string
+          community_name: string
+          created_at: string
+          id: string
+          notes: string | null
+          role_in_community: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assigned_by: string
+          community_name: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          role_in_community?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assigned_by?: string
+          community_name?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          role_in_community?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       member_skills: {
         Row: {
           assigned_by: string
@@ -884,6 +1083,154 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      message_user_state: {
+        Row: {
+          hidden_at: string
+          id: string
+          message_id: string
+          user_id: string
+        }
+        Insert: {
+          hidden_at?: string
+          id?: string
+          message_id: string
+          user_id: string
+        }
+        Update: {
+          hidden_at?: string
+          id?: string
+          message_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      messenger_conversation_members: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          id?: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messenger_conversation_members_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "messenger_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messenger_conversations: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          creator_id: string
+          id: string
+          last_message: string | null
+          last_message_at: string
+          metadata: Json | null
+          title: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          creator_id?: string
+          id?: string
+          last_message?: string | null
+          last_message_at?: string
+          metadata?: Json | null
+          title?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          creator_id?: string
+          id?: string
+          last_message?: string | null
+          last_message_at?: string
+          metadata?: Json | null
+          title?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      messenger_messages: {
+        Row: {
+          conversation_id: string | null
+          created_at: string
+          expires_at: string | null
+          group_id: string | null
+          group_members: string[] | null
+          id: string
+          is_read: boolean
+          message: string | null
+          metadata: Json | null
+          recipient_id: string | null
+          sender_id: string
+          title: string | null
+          type: string
+        }
+        Insert: {
+          conversation_id?: string | null
+          created_at?: string
+          expires_at?: string | null
+          group_id?: string | null
+          group_members?: string[] | null
+          id?: string
+          is_read?: boolean
+          message?: string | null
+          metadata?: Json | null
+          recipient_id?: string | null
+          sender_id?: string
+          title?: string | null
+          type?: string
+        }
+        Update: {
+          conversation_id?: string | null
+          created_at?: string
+          expires_at?: string | null
+          group_id?: string | null
+          group_members?: string[] | null
+          id?: string
+          is_read?: boolean
+          message?: string | null
+          metadata?: Json | null
+          recipient_id?: string | null
+          sender_id?: string
+          title?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messenger_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "messenger_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       milestones: {
         Row: {
@@ -1140,6 +1487,7 @@ export type Database = {
         Row: {
           allow_multiple: boolean
           anonymous: boolean
+          conversation_id: string | null
           created_at: string
           creator_id: string
           deadline: string | null
@@ -1156,12 +1504,13 @@ export type Database = {
         Insert: {
           allow_multiple?: boolean
           anonymous?: boolean
+          conversation_id?: string | null
           created_at?: string
           creator_id: string
           deadline?: string | null
           description?: string | null
           id?: string
-          mode: string
+          mode?: string
           project_id?: string | null
           results_published?: boolean
           session_id?: string | null
@@ -1172,6 +1521,7 @@ export type Database = {
         Update: {
           allow_multiple?: boolean
           anonymous?: boolean
+          conversation_id?: string | null
           created_at?: string
           creator_id?: string
           deadline?: string | null
@@ -1185,7 +1535,15 @@ export type Database = {
           title?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "polls_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "messenger_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profile_status_history: {
         Row: {
@@ -2187,7 +2545,6 @@ export type Database = {
       skill_xp_log: {
         Row: {
           activity_type: string
-          completion_id: string | null
           created_at: string
           description: string | null
           id: string
@@ -2197,7 +2554,6 @@ export type Database = {
         }
         Insert: {
           activity_type: string
-          completion_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -2207,7 +2563,6 @@ export type Database = {
         }
         Update: {
           activity_type?: string
-          completion_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -2476,7 +2831,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      cleanup_expired_study_items: { Args: never; Returns: undefined }
       cleanup_old_login_activity: { Args: never; Returns: undefined }
       get_disabled_mode: { Args: { _user_id: string }; Returns: string }
       get_simulated_role: {
@@ -2495,6 +2849,14 @@ export type Database = {
         Returns: boolean
       }
       is_captain_or_vice: { Args: { _user_id: string }; Returns: boolean }
+      is_conversation_member: {
+        Args: { _conversation_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_conversation_owner: {
+        Args: { _conversation_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_guest_expired: { Args: { _user_id: string }; Returns: boolean }
       is_guest_user: { Args: { _user_id: string }; Returns: boolean }
       is_lead_for_user: {
