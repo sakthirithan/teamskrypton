@@ -45,7 +45,7 @@ export function PollCard({ poll, options, votes }: Props) {
     if (has && poll.allow_multiple) {
       removeVote.mutate({ pollId: poll.id, optionId });
     } else {
-      castVote.mutate({ poll, optionId });
+      castVote.mutate({ pollId: poll.id, optionId });
     }
   };
 
