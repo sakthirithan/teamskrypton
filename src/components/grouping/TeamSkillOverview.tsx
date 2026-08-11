@@ -149,6 +149,47 @@ export function TeamSkillOverview({ session }: TeamSkillOverviewProps) {
         </CardContent>
       </Card>
 
+      {/* Minimum 1 PS Entry — Pending Members (top priority) */}
+      {pendingPSMembers.length > 0 ? (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 px-1">
+            <AlertTriangle className="w-4 h-4 text-amber-500" />
+            <h4 className="text-sm font-bold tracking-tight">Minimum 1 PS Entry — Pending</h4>
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-500/30 text-amber-600 dark:text-amber-500">
+              {pendingPSMembers.length}/{stats.totalMembers}
+            </Badge>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {pendingPSMembers.map(m => (
+              <Card
+                key={m.userId}
+                onClick={() => navigate(`/grouping/me?userId=${m.userId}`)}
+                className="p-3 cursor-pointer border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 transition-colors rounded-2xl"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-500 flex items-center justify-center text-xs font-bold shrink-0">
+                    {m.fullName.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold truncate">{m.fullName}</p>
+                    <p className="text-[10px] text-amber-600 dark:text-amber-500 font-semibold">No PS entry yet</p>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      ) : (
+        stats.totalMembers > 0 && (
+          <Card className="border-emerald-500/30 bg-emerald-500/5 rounded-2xl">
+            <CardContent className="p-3 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+              <p className="text-xs font-semibold">All members have at least 1 PS entry this session.</p>
+            </CardContent>
+          </Card>
+        )
+      )}
+
       {/* Member List */}
       <Card>
         <CardHeader className="pb-2">
