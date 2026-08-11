@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
-import { BookOpen, Users, TrendingUp, Star } from 'lucide-react';
+import { BookOpen, Users, TrendingUp, Star, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useMemberSkills } from '@/hooks/useMemberSkills';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
@@ -20,6 +20,8 @@ interface MemberSkillSummary {
   trackCount: number;
   primarySkill: string | null;
   portfolioCount: number;
+  psEntryCount: number;
+  hasMinimumPS: boolean;
 }
 
 export function TeamSkillOverview({ session }: TeamSkillOverviewProps) {
