@@ -31,6 +31,7 @@ interface Props {
   members: Array<{ user_id: string; full_name: string; department: string }>;
   initialMemberIds?: string[];
   canDelete?: boolean;
+  canEdit?: boolean;
   onSave: (input: {
     id?: string;
     title: string;
@@ -56,7 +57,8 @@ export function ActivityDialog({
   defaultHour = 9,
   members,
   initialMemberIds = [],
-  canDelete,
+  canDelete = true,
+  canEdit = true,
   onSave,
   onDelete,
   saving,
@@ -104,25 +106,38 @@ export function ActivityDialog({
     [members, search],
   );
 
-  const valid = title.trim().length > 1 && date && start && end && end > start;
+  const isFinalized = activity?.status === 'final';
+  const readOnly = isFinalized && !canEdit;
+  const valid = canEdit && title.trim().length > 1 && date && start && end && end > start;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[95vw] max-w-lg max-h-[92vh] overflow-hidden p-4 sm:p-6">
-        <DialogHeader>
-          <DialogTitle>{activity ? 'Edit activity' : 'Create activity'}</DialogTitle>
+        <DialogHeader className="flex flex-row items-center justify-between">
+          <DialogTitle>{activity ? 'Activity Details' : 'Create Activity'}</DialogTitle>
+          {isFinalized && (
+            <span className="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+              {readOnly ? 'Finalized (Read-Only)' : 'Finalized'}
+            </span>
+          )}
         </DialogHeader>
 
         <ScrollArea className="max-h-[65vh] pr-3">
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label>Title</Label>
-              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Activity title" />
+              <Input
+                disabled={readOnly}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Activity title"
+              />
             </div>
 
             <div className="space-y-1.5">
               <Label>Description</Label>
               <Textarea
+                disabled={readOnly}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="What happens in this slot?"
@@ -133,11 +148,16 @@ export function ActivityDialog({
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Date</Label>
-                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+                <Input
+                  disabled={readOnly}
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>Category</Label>
-                <Select value={category} onValueChange={setCategory}>
+                <Select disabled={readOnly} value={category} onValueChange={setCategory}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -152,27 +172,29 @@ export function ActivityDialog({
               </div>
               <div className="space-y-1.5">
                 <Label>Start time</Label>
-                <Input type="time" value={start} onChange={(e) => setStart(e.target.value)} />
+                <Input disabled={readOnly} type="time" value={start} onChange={(e) => setStart(e.target.value)} />
               </div>
               <div className="space-y-1.5">
                 <Label>End time</Label>
-                <Input type="time" value={end} onChange={(e) => setEnd(e.target.value)} />
+                <Input disabled={readOnly} type="time" value={end} onChange={(e) => setEnd(e.target.value)} />
               </div>
             </div>
 
             <div className="space-y-1.5">
               <Label>Location (optional)</Label>
-              <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Lab, hall, online…" />
+              <Input disabled={readOnly} value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Lab, hall, online…" />
             </div>
 
             <div className="space-y-1.5">
               <Label>Assigned members ({memberIds.length})</Label>
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search members…"
-                className="mb-2"
-              />
+              {!readOnly && (
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search members…"
+                  className="mb-2"
+                />
+              )}
               <ScrollArea className="h-44 rounded-md border border-border">
                 <div className="p-2 space-y-1">
                   {filtered.map((m) => (
@@ -181,6 +203,7 @@ export function ActivityDialog({
                       className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted"
                     >
                       <Checkbox
+                        disabled={readOnly}
                         checked={memberIds.includes(m.user_id)}
                         onCheckedChange={(c) =>
                           setMemberIds((prev) =>
@@ -202,7 +225,7 @@ export function ActivityDialog({
         </ScrollArea>
 
         <DialogFooter className="gap-2 sm:justify-between">
-          {activity && canDelete ? (
+          {activity && canDelete && !readOnly ? (
             <Button
               variant="outline"
               className="text-destructive"
@@ -217,24 +240,30 @@ export function ActivityDialog({
           ) : (
             <span />
           )}
-          <Button
-            disabled={!valid || saving}
-            onClick={() =>
-              onSave({
-                id: activity?.id,
-                title: title.trim(),
-                description,
-                activity_date: date,
-                start_time: start,
-                end_time: end,
-                category,
-                location,
-                memberIds,
-              })
-            }
-          >
-            {activity ? 'Save changes' : 'Create activity'}
-          </Button>
+          {!readOnly ? (
+            <Button
+              disabled={!valid || saving}
+              onClick={() =>
+                onSave({
+                  id: activity?.id,
+                  title: title.trim(),
+                  description,
+                  activity_date: date,
+                  start_time: start,
+                  end_time: end,
+                  category,
+                  location,
+                  memberIds,
+                })
+              }
+            >
+              {activity ? 'Save changes' : 'Create activity'}
+            </Button>
+          ) : (
+            <Button variant="secondary" onClick={() => onOpenChange(false)}>
+              Close
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

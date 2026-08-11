@@ -68,13 +68,12 @@ export function InchargePanel() {
   };
 
   const tabs = [
-    ...(isIncharge ? [{ v: 'mine', label: 'My Schedule' }] : []),
-    { v: 'final', label: 'My Calendar' },
+    ...(isIncharge ? [{ v: 'mine', label: 'My Incharge Activities' }] : []),
     ...(isStrategist ? [{ v: 'board', label: 'Schedule Board' }] : []),
     ...(isLeadership ? [{ v: 'plans', label: 'Incharge Plans' }] : []),
     ...(canAppoint ? [{ v: 'appoint', label: 'Appointments' }] : []),
   ];
-  const [tab, setTab] = useState(tabs[0]?.v || 'final');
+  const [tab, setTab] = useState(tabs[0]?.v || 'board');
 
   const pendingFinal = activities.filter((a) => a.status !== 'final');
 
@@ -101,138 +100,131 @@ export function InchargePanel() {
         </Card>
       )}
 
-      <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="w-full flex-wrap justify-start">
-          {tabs.map((t) => (
-            <TabsTrigger key={t.v} value={t.v} className="text-xs sm:text-sm">
-              {t.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+      {tabs.length > 0 ? (
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList className="w-full flex-wrap justify-start">
+            {tabs.map((t) => (
+              <TabsTrigger key={t.v} value={t.v} className="text-xs sm:text-sm">
+                {t.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
 
-        {isIncharge && (
-          <TabsContent value="mine" className="mt-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                Click any timeline slot to plan an activity.
-              </p>
-              <Button size="sm" onClick={() => openSlot(toISODate(anchor), 9)}>
-                New activity
-              </Button>
-            </div>
-            <ScheduleCalendar
-              view={view}
-              onViewChange={setView}
-              anchorDate={anchor}
-              onAnchorChange={setAnchor}
-              activities={myActivities}
-              subtitleFor={subtitleFor}
-              onSlotClick={openSlot}
-              onActivityClick={openActivity}
-              emptyHint="No activities planned yet — tap a slot to start."
-            />
-          </TabsContent>
-        )}
-
-        <TabsContent value="final" className="mt-4">
-          <ScheduleCalendar
-            view={view}
-            onViewChange={setView}
-            anchorDate={anchor}
-            onAnchorChange={setAnchor}
-            activities={assignedToMe}
-            subtitleFor={subtitleFor}
-            onActivityClick={openActivity}
-            emptyHint="No finalised activities assigned to you yet."
-          />
-        </TabsContent>
-
-        {isStrategist && (
-          <TabsContent value="board" className="mt-4 space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm text-muted-foreground">
-                All incharge activities — adjust timing, then publish the final schedule.
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={!pendingFinal.length}
-                  onClick={() => setStatus.mutate({ ids: pendingFinal.map((a) => a.id), status: 'final' })}
-                >
-                  <CalendarCheck className="mr-2 h-4 w-4" />
-                  Finalise all ({pendingFinal.length})
-                </Button>
+          {isIncharge && (
+            <TabsContent value="mine" className="mt-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Click any timeline slot to plan an activity.
+                </p>
                 <Button size="sm" onClick={() => openSlot(toISODate(anchor), 9)}>
                   New activity
                 </Button>
               </div>
-            </div>
-            <ScheduleCalendar
-              view={view}
-              onViewChange={setView}
-              anchorDate={anchor}
-              onAnchorChange={setAnchor}
-              activities={activities}
-              subtitleFor={subtitleFor}
-              onSlotClick={openSlot}
-              onActivityClick={openActivity}
-              emptyHint="No activities submitted by incharges yet."
-            />
-          </TabsContent>
-        )}
+              <ScheduleCalendar
+                view={view}
+                onViewChange={setView}
+                anchorDate={anchor}
+                onAnchorChange={setAnchor}
+                activities={myActivities}
+                subtitleFor={subtitleFor}
+                onSlotClick={openSlot}
+                onActivityClick={openActivity}
+                emptyHint="No activities planned yet — tap a slot to start."
+              />
+            </TabsContent>
+          )}
 
-        {isLeadership && (
-          <TabsContent value="plans" className="mt-4 space-y-2">
-            {appointments
-              .filter((a) => a.is_active)
-              .map((ap) => {
-                const items = activities.filter((a) => a.appointment_id === ap.id);
-                return (
-                  <Card key={ap.id} className="glass-card">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="flex items-center gap-2 text-sm">
-                        <ClipboardList className="h-4 w-4 text-primary" />
-                        {nameOf(ap.user_id)} · {ap.position}
-                        <Badge variant="outline" className="text-[10px]">{items.length} activities</Badge>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-1.5">
-                      {items.slice(0, 6).map((a) => (
-                        <button
-                          key={a.id}
-                          onClick={() => openActivity(a)}
-                          className="flex w-full items-center justify-between rounded-md border border-border px-2 py-1.5 text-left text-xs hover:bg-muted"
-                        >
-                          <span className="truncate">{a.title}</span>
-                          <span className="shrink-0 text-muted-foreground">
-                            {a.activity_date} {a.start_time.slice(0, 5)}
-                          </span>
-                        </button>
-                      ))}
-                      {!items.length && (
-                        <p className="text-xs text-muted-foreground">No activities planned yet.</p>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-          </TabsContent>
-        )}
+          {isStrategist && (
+            <TabsContent value="board" className="mt-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm text-muted-foreground">
+                  All incharge activities — adjust timing, then publish the final schedule.
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!pendingFinal.length}
+                    onClick={() => setStatus.mutate({ ids: pendingFinal.map((a) => a.id), status: 'final' })}
+                  >
+                    <CalendarCheck className="mr-2 h-4 w-4" />
+                    Finalise all ({pendingFinal.length})
+                  </Button>
+                  <Button size="sm" onClick={() => openSlot(toISODate(anchor), 9)}>
+                    New activity
+                  </Button>
+                </div>
+              </div>
+              <ScheduleCalendar
+                view={view}
+                onViewChange={setView}
+                anchorDate={anchor}
+                onAnchorChange={setAnchor}
+                activities={activities}
+                subtitleFor={subtitleFor}
+                onSlotClick={openSlot}
+                onActivityClick={openActivity}
+                emptyHint="No activities submitted by incharges yet."
+              />
+            </TabsContent>
+          )}
 
-        {canAppoint && (
-          <TabsContent value="appoint" className="mt-4">
-            <AppointInchargeCard
-              members={members}
-              appointments={appointments}
-              saving={appoint.isPending}
-              onAppoint={(input) => appoint.mutate(input)}
-              onToggle={(a) => updateAppointment.mutate({ id: a.id, is_active: !a.is_active })}
-              onRemove={(id) => removeAppointment.mutate(id)}
-            />
-          </TabsContent>
-        )}
-      </Tabs>
+          {isLeadership && (
+            <TabsContent value="plans" className="mt-4 space-y-2">
+              {appointments
+                .filter((a) => a.is_active)
+                .map((ap) => {
+                  const items = activities.filter((a) => a.appointment_id === ap.id);
+                  return (
+                    <Card key={ap.id} className="glass-card">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="flex items-center gap-2 text-sm">
+                          <ClipboardList className="h-4 w-4 text-primary" />
+                          {nameOf(ap.user_id)} · {ap.position}
+                          <Badge variant="outline" className="text-[10px]">{items.length} activities</Badge>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-1.5">
+                        {items.slice(0, 6).map((a) => (
+                          <button
+                            key={a.id}
+                            onClick={() => openActivity(a)}
+                            className="flex w-full items-center justify-between rounded-md border border-border px-2 py-1.5 text-left text-xs hover:bg-muted"
+                          >
+                            <span className="truncate">{a.title}</span>
+                            <span className="shrink-0 text-muted-foreground">
+                              {a.activity_date} {a.start_time.slice(0, 5)}
+                            </span>
+                          </button>
+                        ))}
+                        {!items.length && (
+                          <p className="text-xs text-muted-foreground">No activities planned yet.</p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+            </TabsContent>
+          )}
+
+          {canAppoint && (
+            <TabsContent value="appoint" className="mt-4">
+              <AppointInchargeCard
+                members={members}
+                appointments={appointments}
+                saving={appoint.isPending}
+                onAppoint={(input) => appoint.mutate(input)}
+                onToggle={(a) => updateAppointment.mutate({ id: a.id, is_active: !a.is_active })}
+                onRemove={(id) => removeAppointment.mutate(id)}
+              />
+            </TabsContent>
+          )}
+        </Tabs>
+      ) : (
+        <Card className="p-6 text-center text-muted-foreground text-sm">
+          No active incharge tabs available for your role. Go to <a href="/grouping/calendar" className="text-primary underline">My Calendar</a> to see your schedule.
+        </Card>
+      )}
 
       <ActivityDialog
         open={dialogOpen}
@@ -242,7 +234,8 @@ export function InchargePanel() {
         defaultHour={slot.hour}
         members={members}
         initialMemberIds={editing ? membersOf(editing.id) : []}
-        canDelete={!!editing && (editing.created_by === user?.id || isStrategist)}
+        canDelete={!!editing && (editing.created_by === user?.id || isStrategist || isLeadership)}
+        canEdit={!editing || editing.created_by === user?.id || isStrategist || isLeadership}
         saving={saveActivity.isPending}
         onSave={(input) => {
           saveActivity.mutate(input, { onSuccess: () => setDialogOpen(false) });

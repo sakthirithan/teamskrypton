@@ -47,6 +47,7 @@ export function getAvailableNavCategories(userPermissions: {
       category: 'MY SPACE',
       items: [
         { id: 'dashboard', label: 'Dashboard', path: '/grouping/home', iconName: 'LayoutDashboard', category: 'MY SPACE' },
+        { id: 'my-calendar', label: 'My Calendar', path: '/grouping/calendar', iconName: 'Calendar', category: 'MY SPACE' },
         { id: 'overview', label: 'My Space', path: '/grouping/me', iconName: 'Compass', category: 'MY SPACE' },
         { id: 'skill-dev', label: 'Skill Development', path: '/grouping/me?tab=skills', iconName: 'Target', category: 'MY SPACE' },
         ...(isLeadership

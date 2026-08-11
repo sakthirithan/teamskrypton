@@ -36,6 +36,7 @@ const GroupingLeaderboard = lazy(() => import("./pages/GroupingLeaderboard"));
 const GroupingPointManagement = lazy(() => import("./pages/GroupingPointManagement"));
 const GroupingPolls = lazy(() => import("./pages/GroupingPolls"));
 const GroupingIncharge = lazy(() => import("./pages/GroupingIncharge"));
+const GroupingCalendar = lazy(() => import("./pages/GroupingCalendar"));
 const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
 const PBLDashboard = lazy(() => import("./pages/PBLDashboard"));
 const PBLProjects = lazy(() => import("./pages/PBLProjects"));
@@ -168,6 +169,7 @@ const App = () => (
                     <Route path="/grouping/management/points" element={<GroupingPointManagement />} />
                     <Route path="/grouping/polls" element={<GroupingPolls />} />
                     <Route path="/grouping/incharge" element={<GroupingIncharge />} />
+                    <Route path="/grouping/calendar" element={<GroupingCalendar />} />
                     <Route path="/grouping/notifications" element={<NotificationsPage />} />
                     <Route path="/notifications" element={<NotificationsPage />} />
                     {/* PBL Mode Routes */}

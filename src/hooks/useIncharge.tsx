@@ -218,6 +218,13 @@ export function useIncharge() {
     onError: (e: any) => toast.error(e.message || 'Remove failed'),
   });
 
+  const canEditActivity = (a: ScheduleActivity | null) => {
+    if (!a || !user) return false;
+    if (isLeadership || isStrategist) return true;
+    if (a.status === 'final') return false;
+    return a.created_by === user.id;
+  };
+
   const saveActivity = useMutation({
     mutationFn: async (input: {
       id?: string;
@@ -232,6 +239,13 @@ export function useIncharge() {
       memberIds: string[];
     }) => {
       if (!user) throw new Error('Not authenticated');
+      if (input.id) {
+        const existing = activities.find((a) => a.id === input.id);
+        if (existing && !canEditActivity(existing)) {
+          throw new Error('This activity is finalized and read-only for incharges.');
+        }
+      }
+
       const payload = {
         title: input.title,
         description: input.description || null,
@@ -289,6 +303,10 @@ export function useIncharge() {
       end_time?: string;
       sort_order?: number;
     }) => {
+      const existing = activities.find((a) => a.id === input.id);
+      if (existing && !canEditActivity(existing)) {
+        throw new Error('Finalized activities cannot be moved by incharges.');
+      }
       const { id, ...patch } = input;
       const { error } = await supabase.from('schedule_activities').update(patch as any).eq('id', id);
       if (error) throw error;
@@ -299,6 +317,10 @@ export function useIncharge() {
 
   const deleteActivity = useMutation({
     mutationFn: async (id: string) => {
+      const existing = activities.find((a) => a.id === id);
+      if (existing && !canEditActivity(existing)) {
+        throw new Error('Finalized activities cannot be deleted by incharges.');
+      }
       const { error } = await supabase.from('schedule_activities').delete().eq('id', id);
       if (error) throw error;
     },
@@ -328,8 +350,8 @@ export function useIncharge() {
         const creators = activities.filter((a) => ids.includes(a.id)).map((a) => a.created_by);
         await notify(
           [...affected, ...creators],
-          'Final schedule published',
-          'The Strategist finalised the team schedule. Check your Incharge calendar.',
+          'Activity finalized and mapped to your schedule.',
+          'The team schedule has been finalized. Check My Calendar to view details.',
         );
       }
     },
@@ -349,6 +371,7 @@ export function useIncharge() {
     isIncharge,
     isStrategist,
     isLeadership,
+    canEditActivity,
     canAppoint: isCaptainOrVice,
     isLoading: appointmentsQuery.isLoading || activitiesQuery.isLoading,
     appoint,

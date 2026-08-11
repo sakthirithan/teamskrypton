@@ -31,7 +31,11 @@ export function CreateGroupDialog({ open, onOpenChange, onGroupCreated }: Create
   const { data: profiles = [] } = useQuery({
     queryKey: ['profiles-for-group-creation'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('profiles').select('user_id, full_name, email, avatar_url');
+      const nowIso = new Date().toISOString();
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, email, avatar_url, is_disabled, disabled_until')
+        .or(`is_disabled.is.false,is_disabled.is.null,disabled_until.lt.${nowIso}`);
       if (error) throw error;
       return (data || []).filter((p) => p.user_id !== user?.id);
     },

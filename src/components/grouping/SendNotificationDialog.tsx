@@ -44,8 +44,12 @@ export function SendNotificationDialog({ trigger }: Props) {
   const { data: profiles } = useQuery({
     queryKey: ['all-profiles-for-notif'],
     queryFn: async () => {
+      const nowIso = new Date().toISOString();
       const [profilesRes, rolesRes] = await Promise.all([
-        supabase.from('profiles').select('user_id, full_name'),
+        supabase
+          .from('profiles')
+          .select('user_id, full_name, is_disabled, disabled_until')
+          .or(`is_disabled.is.false,is_disabled.is.null,disabled_until.lt.${nowIso}`),
         supabase.from('user_roles').select('user_id, role')
       ]);
 

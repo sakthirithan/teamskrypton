@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppMode } from '@/hooks/useAppMode';
 import { ROLE_LABELS, KryptonRole } from '@/lib/constants';
-import { LogOut, User, Users, Home, LayoutDashboard, Menu, X, Download, UserCog, Target, RefreshCw, Coins } from 'lucide-react';
+import { LogOut, User, Users, Home, LayoutDashboard, Menu, X, Download, UserCog, Target, RefreshCw, Coins, Calendar, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -215,6 +215,17 @@ export function Header() {
             </Badge>
             
             <ThemeToggle className="text-primary-foreground hover:bg-primary-foreground/10" />
+            
+            {/* Calendar Shortcut */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate('/grouping/calendar')}
+              className="text-primary-foreground hover:bg-primary-foreground/10 touch-target"
+              title="My Calendar"
+            >
+              <Calendar className="w-5 h-5" />
+            </Button>
             
             {/* User Profile Dropdown */}
             <DropdownMenu>

@@ -65,15 +65,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUserData = async (userId: string) => {
     try {
-      const [profileRes, roleRes] = await Promise.all([
+      const fetchPromise = Promise.all([
         supabase.from('profiles').select('*').eq('user_id', userId).maybeSingle(),
         supabase.from('user_roles').select('role').eq('user_id', userId).maybeSingle(),
       ]);
 
-      if (profileRes.data) {
+      const timeoutPromise = new Promise<{ data: null; error: any }[]>((resolve) =>
+        setTimeout(() => resolve([{ data: null, error: 'timeout' }, { data: null, error: 'timeout' }]), 4000)
+      );
+
+      const [profileRes, roleRes] = (await Promise.race([fetchPromise, timeoutPromise])) as any[];
+
+      if (profileRes?.data) {
         setProfile(profileRes.data as Profile);
       }
-      if (roleRes.data) {
+      if (roleRes?.data) {
         setRole(roleRes.data.role as KryptonRole);
       }
     } catch (error) {
@@ -83,6 +89,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let isMounted = true;
+    // Track whether the initial session check is still in progress.
+    // onAuthStateChange fires INITIAL_SESSION immediately on subscribe, so we
+    // need to prevent it from racing with initAuth.
+    let initDone = false;
 
     const initAuth = async () => {
       try {
@@ -93,11 +103,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          fetchUserData(session.user.id);
+          await fetchUserData(session.user.id);
         }
       } catch (e) {
         console.warn('[auth] init error:', e);
       } finally {
+        initDone = true;
         if (isMounted) {
           setIsLoading(false);
         }
@@ -107,18 +118,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (_event, session) => {
         if (!isMounted) return;
+
+        // During the initial auth check, ignore the INITIAL_SESSION event that
+        // Supabase fires synchronously — initAuth handles that path.
+        if (!initDone && (_event === 'INITIAL_SESSION' || _event === 'TOKEN_REFRESHED')) return;
+
         setSession(session);
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          fetchUserData(session.user.id);
+          await fetchUserData(session.user.id);
         } else {
           setProfile(null);
           setRole(null);
         }
-      }
+
+        // After initAuth is done, subsequent events should clear loading if needed.
+        if (isMounted && initDone) {
+          setIsLoading(false);
+        }
+      },
     );
 
     return () => {

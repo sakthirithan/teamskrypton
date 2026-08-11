@@ -28,7 +28,12 @@ export function TaskAssignmentSelect({ value, onChange, disabled }: TaskAssignme
 
   useEffect(() => {
     const fetchMembers = async () => {
-      const { data: profiles } = await supabase.from('profiles').select('user_id, full_name').eq('is_test', false);
+      const nowIso = new Date().toISOString();
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, is_disabled, disabled_until')
+        .eq('is_test', false)
+        .or(`is_disabled.is.false,is_disabled.is.null,disabled_until.lt.${nowIso}`);
       const { data: roles } = await supabase.from('user_roles').select('user_id, role');
       
       if (profiles && roles) {

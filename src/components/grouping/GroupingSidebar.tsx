@@ -356,6 +356,19 @@ export function GroupingSidebar() {
               </SidebarMenuItem>
 
               <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isActive('/grouping/calendar')}>
+                  <NavLink
+                    to="/grouping/calendar"
+                    className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-sidebar-accent"
+                    activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                  >
+                    <Calendar className="h-4 w-4 shrink-0 text-primary" />
+                    {!collapsed && <span>My Calendar</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={isActive('/grouping/incharge')}>
                   <NavLink
                     to="/grouping/incharge"
