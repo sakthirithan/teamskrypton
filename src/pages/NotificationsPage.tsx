@@ -145,7 +145,7 @@ export default function NotificationsPage() {
            MOBILE MESSENGER LAYOUT (Screen <= 768px)
            Dedicated single-column shell using 100dvh flex
         ══════════════════════════════════════════════════════ */
-        <div className="w-full h-[calc(100dvh-3.5rem)] flex flex-col min-h-0 bg-background overflow-hidden relative">
+        <div className="w-full flex-1 min-h-0 flex flex-col bg-background overflow-hidden relative">
           {activeChatId ? (
             /* Mobile Full Screen Chat View */
             <div className="w-full h-full flex flex-col min-h-0 bg-background overflow-hidden z-30">
