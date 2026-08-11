@@ -157,7 +157,7 @@ export default function NotificationsPage() {
             </div>
           ) : (
             /* Mobile Chat List View */
-            <div className="w-full h-full flex flex-col min-h-0 bg-background overflow-hidden pb-16">
+            <div className="w-full h-full flex flex-col min-h-0 bg-background overflow-hidden">
               {/* Header */}
               <div className="shrink-0 p-3 border-b border-border/80 bg-card/90 backdrop-blur space-y-2.5">
                 <div className="flex items-center justify-between">
