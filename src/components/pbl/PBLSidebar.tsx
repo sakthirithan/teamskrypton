@@ -12,6 +12,7 @@ import {
   ListChecks,
   User,
   Vote,
+  CalendarClock,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -39,6 +40,7 @@ const mainNavItems = [
   { title: 'Projects', url: '/pbl/projects', icon: FolderKanban },
   { title: 'Documentation', url: '/pbl/docs', icon: FileText },
   { title: 'To-Do List', url: '/pbl/todos', icon: ListChecks },
+  { title: 'Incharge', url: '/grouping/incharge', icon: CalendarClock },
   { title: 'Notifications', url: '/grouping/notifications', icon: Bell },
   { title: 'Analytics', url: '/pbl/analytics', icon: BarChart3 },
 ];
