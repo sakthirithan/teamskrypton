@@ -965,6 +965,50 @@ export type Database = {
           },
         ]
       }
+      incharge_appointments: {
+        Row: {
+          appointed_by: string
+          created_at: string
+          id: string
+          is_active: boolean
+          position: string
+          responsibilities: string | null
+          session_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          appointed_by: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          position: string
+          responsibilities?: string | null
+          session_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          appointed_by?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          position?: string
+          responsibilities?: string | null
+          session_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incharge_appointments_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "grouping_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       industry_visit_requests: {
         Row: {
           admin_note: string | null
@@ -2099,6 +2143,110 @@ export type Database = {
         }
         Relationships: []
       }
+      schedule_activities: {
+        Row: {
+          activity_date: string
+          appointment_id: string | null
+          category: string
+          created_at: string
+          created_by: string
+          description: string | null
+          end_time: string
+          finalized_at: string | null
+          finalized_by: string | null
+          id: string
+          location: string | null
+          session_id: string | null
+          sort_order: number
+          start_time: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          activity_date: string
+          appointment_id?: string | null
+          category?: string
+          created_at?: string
+          created_by: string
+          description?: string | null
+          end_time: string
+          finalized_at?: string | null
+          finalized_by?: string | null
+          id?: string
+          location?: string | null
+          session_id?: string | null
+          sort_order?: number
+          start_time: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          activity_date?: string
+          appointment_id?: string | null
+          category?: string
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          end_time?: string
+          finalized_at?: string | null
+          finalized_by?: string | null
+          id?: string
+          location?: string | null
+          session_id?: string | null
+          sort_order?: number
+          start_time?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedule_activities_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "incharge_appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedule_activities_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "grouping_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      schedule_activity_members: {
+        Row: {
+          activity_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          activity_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          activity_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedule_activity_members_activity_id_fkey"
+            columns: ["activity_id"]
+            isOneToOne: false
+            referencedRelation: "schedule_activities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       skill_activity_log: {
         Row: {
           activity_type: string
@@ -2859,6 +3007,7 @@ export type Database = {
       }
       is_guest_expired: { Args: { _user_id: string }; Returns: boolean }
       is_guest_user: { Args: { _user_id: string }; Returns: boolean }
+      is_incharge: { Args: { _user_id: string }; Returns: boolean }
       is_lead_for_user: {
         Args: { _lead_user_id: string; _target_user_id: string }
         Returns: boolean
