@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
-import { BookOpen, Users, TrendingUp, Star } from 'lucide-react';
+import { BookOpen, Users, TrendingUp, Star, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useMemberSkills } from '@/hooks/useMemberSkills';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
@@ -20,6 +20,8 @@ interface MemberSkillSummary {
   trackCount: number;
   primarySkill: string | null;
   portfolioCount: number;
+  psEntryCount: number;
+  hasMinimumPS: boolean;
 }
 
 export function TeamSkillOverview({ session }: TeamSkillOverviewProps) {
@@ -51,11 +53,32 @@ export function TeamSkillOverview({ session }: TeamSkillOverviewProps) {
     enabled: !!session.id,
   });
 
+  // Minimum 1 PS entry requirement — session-bound
+  const { data: psEntries = [] } = useQuery({
+    queryKey: ['ps-entries-min-check', session.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('ps_daily_entries')
+        .select('user_id')
+        .eq('session_id', session.id);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!session.id,
+  });
+
+  const psCountByUser = useMemo(() => {
+    const m = new Map<string, number>();
+    psEntries.forEach((e: any) => m.set(e.user_id, (m.get(e.user_id) || 0) + 1));
+    return m;
+  }, [psEntries]);
+
   const memberSummaries: MemberSkillSummary[] = useMemo(() => {
     return profiles.map(p => {
       const userTracks = allTracks.filter(t => t.user_id === p.user_id);
       const primaryTrack = userTracks.find(t => t.is_primary);
       const portfolioCount = allSkills.filter(s => s.user_id === p.user_id).length;
+      const psEntryCount = psCountByUser.get(p.user_id) || 0;
 
       return {
         userId: p.user_id,
@@ -63,9 +86,16 @@ export function TeamSkillOverview({ session }: TeamSkillOverviewProps) {
         trackCount: userTracks.length,
         primarySkill: primaryTrack?.skill_name || null,
         portfolioCount,
+        psEntryCount,
+        hasMinimumPS: psEntryCount >= 1,
       };
     }).sort((a, b) => b.trackCount - a.trackCount);
-  }, [profiles, allTracks, allSkills]);
+  }, [profiles, allTracks, allSkills, psCountByUser]);
+
+  const pendingPSMembers = useMemo(
+    () => memberSummaries.filter(m => !m.hasMinimumPS),
+    [memberSummaries]
+  );
 
   const stats = useMemo(() => {
     const totalTracks = allTracks.length;
@@ -76,6 +106,7 @@ export function TeamSkillOverview({ session }: TeamSkillOverviewProps) {
 
     return { totalTracks, activeLearners, totalMembers, activeRate, totalPortfolio };
   }, [allTracks, profiles, allSkills]);
+
 
   return (
     <div className="space-y-4">
@@ -118,6 +149,47 @@ export function TeamSkillOverview({ session }: TeamSkillOverviewProps) {
         </CardContent>
       </Card>
 
+      {/* Minimum 1 PS Entry — Pending Members (top priority) */}
+      {pendingPSMembers.length > 0 ? (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 px-1">
+            <AlertTriangle className="w-4 h-4 text-amber-500" />
+            <h4 className="text-sm font-bold tracking-tight">Minimum 1 PS Entry — Pending</h4>
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-500/30 text-amber-600 dark:text-amber-500">
+              {pendingPSMembers.length}/{stats.totalMembers}
+            </Badge>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {pendingPSMembers.map(m => (
+              <Card
+                key={m.userId}
+                onClick={() => navigate(`/grouping/me?userId=${m.userId}`)}
+                className="p-3 cursor-pointer border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 transition-colors rounded-2xl"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-500 flex items-center justify-center text-xs font-bold shrink-0">
+                    {m.fullName.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold truncate">{m.fullName}</p>
+                    <p className="text-[10px] text-amber-600 dark:text-amber-500 font-semibold">No PS entry yet</p>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      ) : (
+        stats.totalMembers > 0 && (
+          <Card className="border-emerald-500/30 bg-emerald-500/5 rounded-2xl">
+            <CardContent className="p-3 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+              <p className="text-xs font-semibold">All members have at least 1 PS entry this session.</p>
+            </CardContent>
+          </Card>
+        )
+      )}
+
       {/* Member List */}
       <Card>
         <CardHeader className="pb-2">
@@ -144,6 +216,12 @@ export function TeamSkillOverview({ session }: TeamSkillOverviewProps) {
                           {member.primarySkill}
                         </Badge>
                       )}
+                      <Badge
+                        variant="outline"
+                        className={`text-[9px] px-1.5 py-0 ${member.hasMinimumPS ? 'border-emerald-500/30 text-emerald-600 dark:text-emerald-500 bg-emerald-500/5' : 'border-amber-500/30 text-amber-600 dark:text-amber-500 bg-amber-500/5'}`}
+                      >
+                        {member.psEntryCount} PS {member.psEntryCount === 1 ? 'entry' : 'entries'}
+                      </Badge>
                       {member.portfolioCount > 0 && (
                         <span className="text-[10px] text-muted-foreground">
                           {member.portfolioCount} portfolio skills

@@ -28,6 +28,7 @@ interface Profile {
   email: string;
   department: string;
   avatar_url: string | null;
+  phone_number?: string | null;
   current_status: string;
   created_at: string;
   is_direct_access: boolean;

@@ -66,7 +66,7 @@ export default function ProfileSettingsPage() {
   const { skills, assignSkill, removeSkill } = useMemberSkills(user?.id);
   const [newSkillName, setNewSkillName] = useState('');
   const [newSkillType, setNewSkillType] = useState<SkillType>('primary');
-  const [newSkillDomain, setNewSkillDomain] = useState(DOMAIN_OPTIONS[0]);
+  const [newSkillDomain, setNewSkillDomain] = useState<string>(DOMAIN_OPTIONS[0]);
 
   // Communities states
   const { communities = [], addCommunity, removeCommunity } = useMemberCommunities(user?.id);
@@ -836,7 +836,7 @@ export default function ProfileSettingsPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => removeCommunity.mutate(c.community_name, { onSuccess: refetchCommunitiesCounts })}
+                            onClick={() => removeCommunity.mutate(c.community_name, { onSuccess: () => { refetchCommunitiesCounts(); } })}
                             className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl"
                             title="Leave Community"
                           >
