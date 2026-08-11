@@ -216,6 +216,12 @@ export function TeamSkillOverview({ session }: TeamSkillOverviewProps) {
                           {member.primarySkill}
                         </Badge>
                       )}
+                      <Badge
+                        variant="outline"
+                        className={`text-[9px] px-1.5 py-0 ${member.hasMinimumPS ? 'border-emerald-500/30 text-emerald-600 dark:text-emerald-500 bg-emerald-500/5' : 'border-amber-500/30 text-amber-600 dark:text-amber-500 bg-amber-500/5'}`}
+                      >
+                        {member.psEntryCount} PS {member.psEntryCount === 1 ? 'entry' : 'entries'}
+                      </Badge>
                       {member.portfolioCount > 0 && (
                         <span className="text-[10px] text-muted-foreground">
                           {member.portfolioCount} portfolio skills
