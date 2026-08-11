@@ -72,14 +72,15 @@ export function SendNotificationDialog({ trigger }: Props) {
   const handleSend = async () => {
     if (form.recipient_ids.length === 0 || !form.title) return;
 
-    await sendTargetedNotification.mutateAsync({
-      recipient_ids: form.recipient_ids,
-      target_audience: 'direct',
-      title: form.title,
-      message: form.message || '',
-      type: form.type,
-      session_id: activeSession?.id,
-    });
+    for (const recipient_id of form.recipient_ids) {
+      await sendNotification.mutateAsync({
+        recipient_id,
+        title: form.title,
+        message: form.message || '',
+        type: form.type,
+        session_id: activeSession?.id,
+      });
+    }
 
     // Fire-and-forget email delivery via Gmail connector
     supabase.functions.invoke('send-notification-email', {
