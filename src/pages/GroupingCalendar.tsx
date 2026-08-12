@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useIncharge, useTeamMembers, ScheduleActivity } from '@/hooks/useIncharge';
 import { ActivityDialog } from '@/components/incharge/ActivityDialog';
+import { ActivityDetailsDialog } from '@/components/incharge/ActivityDetailsDialog';
 import { ScheduleCalendar, toISODate } from '@/components/incharge/ScheduleCalendar';
 import { GroupingLayout } from '@/components/grouping/GroupingLayout';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
