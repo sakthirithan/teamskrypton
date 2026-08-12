@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { GroupingLayout } from '@/components/grouping/GroupingLayout';
 import { PBLLayout } from '@/components/pbl/PBLLayout';
 import { useAppMode } from '@/hooks/useAppMode';
@@ -31,6 +32,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 type FilterType = 'all' | 'unread' | 'groups' | 'polls';
 
 export default function NotificationsPage() {
+  const [searchParams] = useSearchParams();
   const { isGroupingMode } = useAppMode();
   const { user } = useAuth();
   const isMobile = useIsMobile();
@@ -44,9 +46,18 @@ export default function NotificationsPage() {
     sendGroupMessage,
   } = useMessengerChats();
 
-  const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const initialChatId = searchParams.get('chat_id') || searchParams.get('open_chat') || null;
+  const [activeChatId, setActiveChatId] = useState<string | null>(initialChatId);
   const [filter, setFilter] = useState<FilterType>('all');
   const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    const targetChatId = searchParams.get('chat_id') || searchParams.get('open_chat');
+    if (targetChatId) {
+      setActiveChatId(targetChatId);
+      markConversationAsRead(targetChatId);
+    }
+  }, [searchParams, markConversationAsRead]);
 
   // Dialog Controls
   const [composerOpen, setComposerOpen] = useState(false);

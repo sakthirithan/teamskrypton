@@ -1,8 +1,8 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { KryptonRole, LEADERSHIP_ROLES, CAPTAIN_ROLES } from '@/lib/roles';
-
 
 interface AuthContextType {
   user: User | null;
@@ -49,9 +49,54 @@ function isActiveNow(p: Profile | null): boolean {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [role, setRole] = useState<KryptonRole | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthInitializing, setIsAuthInitializing] = useState(true);
+  const queryClient = useQueryClient();
+
+  // Cached profile query
+  const { data: profile = null, isLoading: isProfileLoading, refetch: refetchProfileData } = useQuery({
+    queryKey: ['auth-user-profile', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.warn('[auth] Error fetching profile:', error.message);
+        return null;
+      }
+      return data as Profile;
+    },
+    enabled: !!user?.id,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+  });
+
+  // Cached role query
+  const { data: role = null, isLoading: isRoleLoading } = useQuery({
+    queryKey: ['auth-user-role', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.warn('[auth] Error fetching role:', error.message);
+        return null;
+      }
+      return (data?.role as KryptonRole) ?? null;
+    },
+    enabled: !!user?.id,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+  });
+
+  const isLoading = isAuthInitializing || (!!user?.id && (isProfileLoading || isRoleLoading));
 
   const isLeadership = role ? LEADERSHIP_ROLES.includes(role) : false;
   const isCaptainOrVice = role ? CAPTAIN_ROLES.includes(role) : false;
@@ -63,35 +108,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const disabledReason = isDisabled ? (profile?.disabled_reason ?? null) : null;
   const disabledUntil = isDisabled ? (profile?.disabled_until ?? null) : null;
 
-  const fetchUserData = async (userId: string) => {
-    try {
-      const fetchPromise = Promise.all([
-        supabase.from('profiles').select('*').eq('user_id', userId).maybeSingle(),
-        supabase.from('user_roles').select('role').eq('user_id', userId).maybeSingle(),
-      ]);
-
-      const timeoutPromise = new Promise<{ data: null; error: any }[]>((resolve) =>
-        setTimeout(() => resolve([{ data: null, error: 'timeout' }, { data: null, error: 'timeout' }]), 4000)
-      );
-
-      const [profileRes, roleRes] = (await Promise.race([fetchPromise, timeoutPromise])) as any[];
-
-      if (profileRes?.data) {
-        setProfile(profileRes.data as Profile);
-      }
-      if (roleRes?.data) {
-        setRole(roleRes.data.role as KryptonRole);
-      }
-    } catch (error) {
-      console.error('Error fetching user data:', error);
-    }
-  };
-
   useEffect(() => {
     let isMounted = true;
-    // Track whether the initial session check is still in progress.
-    // onAuthStateChange fires INITIAL_SESSION immediately on subscribe, so we
-    // need to prevent it from racing with initAuth.
     let initDone = false;
 
     const initAuth = async () => {
@@ -101,16 +119,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         setSession(session);
         setUser(session?.user ?? null);
-
-        if (session?.user) {
-          await fetchUserData(session.user.id);
-        }
       } catch (e) {
         console.warn('[auth] init error:', e);
       } finally {
         initDone = true;
         if (isMounted) {
-          setIsLoading(false);
+          setIsAuthInitializing(false);
         }
       }
     };
@@ -118,50 +132,96 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      (_event, session) => {
         if (!isMounted) return;
 
-        // During the initial auth check, ignore the INITIAL_SESSION event that
-        // Supabase fires synchronously — initAuth handles that path.
         if (!initDone && (_event === 'INITIAL_SESSION' || _event === 'TOKEN_REFRESHED')) return;
 
         setSession(session);
         setUser(session?.user ?? null);
 
-        if (session?.user) {
-          await fetchUserData(session.user.id);
-        } else {
-          setProfile(null);
-          setRole(null);
+        if (!session?.user) {
+          queryClient.setQueryData(['auth-user-profile', null], null);
+          queryClient.setQueryData(['auth-user-role', null], null);
         }
 
-        // After initAuth is done, subsequent events should clear loading if needed.
         if (isMounted && initDone) {
-          setIsLoading(false);
+          setIsAuthInitializing(false);
         }
       },
     );
 
+    // Silent background token re-validation on app resume / visibility change
+    const handleVisibilityOrResume = async () => {
+      if (!isMounted) return;
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (!isMounted) return;
+        if (error || !session) {
+          if (user) {
+            console.warn('[auth] session expired or invalid on resume');
+            setUser(null);
+            setSession(null);
+          }
+        } else {
+          setSession(session);
+          setUser(session.user);
+        }
+      } catch (e) {
+        console.warn('[auth] background session check failed:', e);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityOrResume);
+
+    let capacitorCleanup: (() => void) | null = null;
+    import('@capacitor/core').then(({ Capacitor }) => {
+      if (Capacitor.isNativePlatform()) {
+        import('@capacitor/app').then(({ App }) => {
+          const listener = App.addListener('appStateChange', ({ isActive }) => {
+            if (isActive) {
+              handleVisibilityOrResume();
+            }
+          });
+          capacitorCleanup = () => {
+            listener.then((l) => l.remove());
+          };
+        });
+      }
+    });
+
     return () => {
       isMounted = false;
       subscription.unsubscribe();
+      document.removeEventListener('visibilitychange', handleVisibilityOrResume);
+      if (capacitorCleanup) capacitorCleanup();
     };
-  }, []);
+  }, [queryClient]);
 
   const signOut = async () => {
-    localStorage.removeItem('krypton_session_info');
-    await supabase.auth.signOut();
-    setUser(null);
-    setSession(null);
-    setProfile(null);
-    setRole(null);
-  };
-
-  const refreshProfile = async () => {
-    if (user?.id) {
-      await fetchUserData(user.id);
+    try {
+      localStorage.removeItem('krypton_session_info');
+      localStorage.removeItem('krypton_app_mode');
+      localStorage.removeItem('krypton_mode_selected');
+      sessionStorage.clear();
+      queryClient.clear();
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.warn('[auth] signOut warning:', e);
+    } finally {
+      setUser(null);
+      setSession(null);
     }
   };
+
+  const refreshProfile = useCallback(async () => {
+    if (user?.id) {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['auth-user-profile', user.id] }),
+        queryClient.invalidateQueries({ queryKey: ['auth-user-role', user.id] }),
+      ]);
+    }
+  }, [user?.id, queryClient]);
 
   return (
     <AuthContext.Provider value={{
@@ -183,3 +243,4 @@ export function useAuth() {
   }
   return context;
 }
+

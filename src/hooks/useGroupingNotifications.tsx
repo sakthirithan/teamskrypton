@@ -7,6 +7,7 @@ import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Badge } from '@capawesome/capacitor-badge';
 import { stripWhatsAppFormatting } from '@/components/ui/whatsapp-text';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 
 export interface GroupingNotification {
   id: string;
@@ -157,55 +158,49 @@ export function useGroupingNotifications() {
     };
 
     requestPermissions();
+  }, []);
 
-    if (!user) return;
-
-    const channel = supabase
-      .channel(`grouping-notifications-${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'grouping_notifications',
-          filter: `recipient_id=eq.${user.id}`,
-        },
-        async (payload) => {
-          const newNotif = payload.new as GroupingNotification;
-          
-          // Refresh the notifications list
-          queryClient.invalidateQueries({ queryKey: ['grouping-notifications'] });
-          
-          // Display foreground system notification
-          try {
-            const cleanBody = stripWhatsAppFormatting(newNotif.message || '');
-            if (Capacitor.isNativePlatform()) {
-              await LocalNotifications.schedule({
-                notifications: [
-                  {
-                    title: newNotif.title,
-                    body: cleanBody,
-                    id: Math.floor(Math.random() * 100000),
-                    schedule: { at: new Date(Date.now() + 100) },
-                  }
-                ]
-              });
-            } else if ('Notification' in window && Notification.permission === 'granted') {
-              new Notification(newNotif.title, {
+  useRealtimeSubscription({
+    channelName: 'grouping-notifications',
+    table: 'grouping_notifications',
+    filter: user ? `recipient_id=eq.${user.id}` : undefined,
+    event: 'INSERT',
+    enabled: !!user,
+    onPayload: async (payload) => {
+      const newNotif = payload.new as GroupingNotification;
+      
+      // Update local query cache directly
+      queryClient.setQueryData<GroupingNotification[]>(
+        ['grouping-notifications', user?.id],
+        (old = []) => [newNotif, ...old]
+      );
+      
+      queryClient.invalidateQueries({ queryKey: ['grouping-notifications', user?.id] });
+      
+      // Display foreground system notification
+      try {
+        const cleanBody = stripWhatsAppFormatting(newNotif.message || '');
+        if (Capacitor.isNativePlatform()) {
+          await LocalNotifications.schedule({
+            notifications: [
+              {
+                title: newNotif.title,
                 body: cleanBody,
-              });
-            }
-          } catch (error) {
-            console.error('Error scheduling notification', error);
-          }
+                id: Math.floor(Math.random() * 100000),
+                schedule: { at: new Date(Date.now() + 100) },
+              }
+            ]
+          });
+        } else if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification(newNotif.title, {
+            body: cleanBody,
+          });
         }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user, queryClient]);
+      } catch (error) {
+        console.error('Error scheduling notification', error);
+      }
+    },
+  });
 
   // Original single recipient send
   const sendNotification = useMutation({
@@ -275,24 +270,27 @@ export function useGroupingNotifications() {
       if (params.recipient_ids.length === 0) throw new Error('No recipients selected');
 
       const broadcast_id = crypto.randomUUID();
-      const expires_at = params.is_24h_broadcast
+      const expTimestamp = params.is_24h_broadcast
         ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-        : null;
+        : new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString();
 
       const rows = params.recipient_ids.map((recipient_id) => ({
         sender_id: user.id,
         recipient_id,
         title: params.title,
         message: params.message,
-        type: params.type || (params.is_24h_broadcast ? 'broadcast' : 'info'),
+        type: 'broadcast',
         session_id: params.session_id || null,
         target_audience: params.target_audience,
-        expires_at,
-        is_broadcast: !!params.is_24h_broadcast,
+        expires_at: expTimestamp,
+        is_broadcast: true,
         metadata: {
           broadcast_id,
           target_audience: params.target_audience,
           recipient_count: params.recipient_ids.length,
+          is_broadcast: true,
+          sender_name: 'Announcement',
+          group_id: 'announcement',
         },
       }));
 
@@ -305,15 +303,37 @@ export function useGroupingNotifications() {
       }
       if (error) throw error;
 
+      // Dual persist to messenger_messages for Messenger alignment
+      try {
+        await (supabase as any).from('messenger_messages').insert({
+          sender_id: user.id,
+          recipient_id: null,
+          group_id: 'announcement',
+          title: params.title,
+          message: params.message,
+          type: 'broadcast',
+          expires_at: expTimestamp,
+          metadata: {
+            broadcast_id,
+            target_audience: params.target_audience,
+            is_broadcast: true,
+            sender_name: 'Announcement',
+            group_id: 'announcement',
+          },
+        });
+      } catch (mmErr) {
+        console.warn('[notifications] Dual insert to messenger_messages non-fatal warning:', mmErr);
+      }
+
       // Invoke FCM push for background mobile delivery — sends individual notification push
       try {
         const cleanBody = stripWhatsAppFormatting(params.message);
         await supabase.functions.invoke('send-push', {
           body: {
             user_ids: params.recipient_ids,
-            title: params.title,
+            title: `Announcement: ${params.title}`,
             body: cleanBody,
-            data: { path: '/grouping/notifications' },
+            data: { path: '/grouping/notifications?chat_id=broadcast_announcement', chat_id: 'broadcast_announcement' },
           },
         });
       } catch (err) {

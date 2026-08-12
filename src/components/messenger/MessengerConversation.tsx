@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { useMessengerChats, ChatMessage, MESSAGE_RETENTION_DAYS } from '@/hooks/useMessengerChats';
+import { useMessengerChats, ChatMessage, MESSAGE_RETENTION_DAYS, isBroadcastMessage } from '@/hooks/useMessengerChats';
 import { WhatsAppText } from '@/components/ui/whatsapp-text';
 import { MessengerPollCard } from './MessengerPollCard';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,7 @@ import {
   MoreVertical,
   ChevronDown,
   Search,
+  Radio,
 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -74,11 +75,13 @@ export function MessengerConversation({ chatId, onBack, onOpenPollDialog }: Mess
     profilesMap,
     sendDirectMessage,
     sendGroupMessage,
+    sendBroadcastMessage,
     deleteGroup,
     toggleReaction,
     deleteMessage,
     markConversationAsRead,
   } = useMessengerChats();
+  const { isLeadership, isCaptainOrVice } = useAuth();
 
   const [inputText, setInputText] = useState('');
   const [replyTarget, setReplyTarget] = useState<ChatMessage | null>(null);
@@ -97,7 +100,8 @@ export function MessengerConversation({ chatId, onBack, onOpenPollDialog }: Mess
   // Determine chat type & targets
   const isGroup = chatId.startsWith('group_');
   const isDirect = chatId.startsWith('direct_');
-  const targetId = chatId.replace(/^(direct_|group_)/, '');
+  const isBroadcast = chatId === 'broadcast_announcement' || chatId.startsWith('broadcast_');
+  const targetId = chatId.replace(/^(direct_|group_|broadcast_)/, '');
 
   // Active conversation record if exists in persistent conversations
   const currentConv = useMemo(() => {
@@ -107,6 +111,9 @@ export function MessengerConversation({ chatId, onBack, onOpenPollDialog }: Mess
   // Filter messages belonging to this chat
   const chatMessages = useMemo(() => {
     return messages.filter((m) => {
+      if (isBroadcast) {
+        return isBroadcastMessage(m);
+      }
       if (isDirect) {
         return (
           (m.sender_id === user?.id && m.recipient_id === targetId) ||
@@ -120,7 +127,7 @@ export function MessengerConversation({ chatId, onBack, onOpenPollDialog }: Mess
       }
       return false;
     });
-  }, [messages, isDirect, isGroup, targetId, user]);
+  }, [messages, isDirect, isGroup, isBroadcast, targetId, user]);
 
   const filteredMessages = useMemo(() => {
     if (!searchInChat.trim()) return chatMessages;
@@ -134,12 +141,21 @@ export function MessengerConversation({ chatId, onBack, onOpenPollDialog }: Mess
 
   // Derive Chat Title & Avatar
   const chatInfo = useMemo(() => {
+    if (isBroadcast) {
+      return {
+        title: 'Announcement',
+        subtitle: 'Official System Broadcast Channel',
+        avatar_url: null,
+        isBroadcast: true,
+      };
+    }
     if (isDirect) {
       const p = profilesMap.get(targetId);
       return {
         title: p?.full_name || 'Team Member',
         subtitle: p?.department ? `${p.department} • Direct` : 'Direct Message',
         avatar_url: p?.avatar_url,
+        isBroadcast: false,
       };
     }
     if (isGroup) {
@@ -151,10 +167,11 @@ export function MessengerConversation({ chatId, onBack, onOpenPollDialog }: Mess
         subtitle: `${membersCount} members • Group`,
         avatar_url: currentConv?.avatar_url || sampleMsg?.metadata?.group_avatar,
         creator_id: currentConv?.creator_id,
+        isBroadcast: false,
       };
     }
-    return { title: 'Conversation', subtitle: '', avatar_url: null };
-  }, [isDirect, isGroup, targetId, profilesMap, chatMessages, currentConv]);
+    return { title: 'Conversation', subtitle: '', avatar_url: null, isBroadcast: false };
+  }, [isDirect, isGroup, isBroadcast, targetId, profilesMap, chatMessages, currentConv]);
 
   // Handle group deletion by creator
   const handleDeleteGroup = async () => {
@@ -236,7 +253,13 @@ export function MessengerConversation({ chatId, onBack, onOpenPollDialog }: Mess
     setReplyTarget(null);
 
     try {
-      if (isDirect) {
+      if (isBroadcast) {
+        await sendBroadcastMessage.mutateAsync({
+          message: msgText,
+          title: 'Announcement',
+          expiration_days: expirationDays,
+        });
+      } else if (isDirect) {
         await sendDirectMessage.mutateAsync({
           recipient_id: targetId,
           message: msgText,
@@ -244,9 +267,6 @@ export function MessengerConversation({ chatId, onBack, onOpenPollDialog }: Mess
           expiration_days: expirationDays,
         });
       } else if (isGroup) {
-        // Prefer members from the persistent conversation record (currentConv),
-        // then fall back to the last message's metadata, then a minimal default.
-        // resolveGroupMembers() in the hook will re-fetch from DB anyway.
         const gMembers =
           currentConv?.members ||
           chatMessages[0]?.metadata?.group_members ||
@@ -418,10 +438,17 @@ export function MessengerConversation({ chatId, onBack, onOpenPollDialog }: Mess
                   key={m.id}
                   className={`flex flex-col group ${isOutgoing ? 'items-end' : 'items-start'}`}
                 >
-                  {/* Sender Name in Group Chat */}
-                  {isGroup && !isOutgoing && (
-                    <span className="text-[10px] font-bold text-primary mb-1 ml-3">
-                      {senderProfile?.full_name || 'Team Member'}
+                  {/* Sender Name in Group Chat or Broadcast */}
+                  {(isGroup || isBroadcast) && !isOutgoing && (
+                    <span className="text-[10px] font-bold text-primary mb-1 ml-3 flex items-center gap-1">
+                      {isBroadcast ? (
+                        <>
+                          <Radio className="w-3 h-3 text-primary animate-pulse" />
+                          <span>Announcement</span>
+                        </>
+                      ) : (
+                        senderProfile?.full_name || 'Team Member'
+                      )}
                     </span>
                   )}
 
@@ -433,6 +460,13 @@ export function MessengerConversation({ chatId, onBack, onOpenPollDialog }: Mess
                         : 'bg-card border border-border/80 text-foreground rounded-bl-sm'
                     }`}
                   >
+                    {/* Announcement Title (if present) */}
+                    {m.title && (
+                      <p className={`font-bold text-xs ${isOutgoing ? 'text-primary-foreground' : 'text-foreground'}`}>
+                        {m.title}
+                      </p>
+                    )}
+
                     {/* Quoted Reply Header */}
                     {reply && (
                       <div className={`p-2 rounded-xl text-xs border-l-2 mb-1.5 ${
@@ -589,56 +623,66 @@ export function MessengerConversation({ chatId, onBack, onOpenPollDialog }: Mess
       )}
 
       {/* ── COMPOSER — Always at bottom ── */}
-      <div
-        className="shrink-0 px-3 pt-2 pb-3 border-t border-border/80 bg-card/95 backdrop-blur space-y-2 z-20"
-        style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
-      >
-        {/* Formatting Toolbar */}
-        <div className="flex items-center gap-1 overflow-x-auto pb-0.5 text-muted-foreground">
-          <Button type="button" variant="ghost" size="icon" onClick={() => applyFormat('*')} className="h-7 w-7 rounded-lg shrink-0">
-            <Bold className="w-3.5 h-3.5" />
-          </Button>
-          <Button type="button" variant="ghost" size="icon" onClick={() => applyFormat('_')} className="h-7 w-7 rounded-lg shrink-0">
-            <Italic className="w-3.5 h-3.5" />
-          </Button>
-          <Button type="button" variant="ghost" size="icon" onClick={() => applyFormat('~')} className="h-7 w-7 rounded-lg shrink-0">
-            <Strikethrough className="w-3.5 h-3.5" />
-          </Button>
-          <Button type="button" variant="ghost" size="icon" onClick={() => applyFormat('`')} className="h-7 w-7 rounded-lg shrink-0">
-            <Code className="w-3.5 h-3.5" />
-          </Button>
-          <span className="w-px h-4 bg-border mx-1 shrink-0" />
-          <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-primary/20 text-primary font-bold shrink-0">
-            2-day retention ⏱
-          </Badge>
+      {isBroadcast && !isLeadership && !isCaptainOrVice ? (
+        <div
+          className="shrink-0 p-3 bg-muted/40 border-t border-border text-center text-xs font-semibold text-muted-foreground flex items-center justify-center gap-2 z-20"
+          style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
+        >
+          <Radio className="w-4 h-4 text-primary animate-pulse shrink-0" />
+          <span>Official System Broadcast Channel • Read-Only for Members</span>
         </div>
+      ) : (
+        <div
+          className="shrink-0 px-3 pt-2 pb-3 border-t border-border/80 bg-card/95 backdrop-blur space-y-2 z-20"
+          style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
+        >
+          {/* Formatting Toolbar */}
+          <div className="flex items-center gap-1 overflow-x-auto pb-0.5 text-muted-foreground">
+            <Button type="button" variant="ghost" size="icon" onClick={() => applyFormat('*')} className="h-7 w-7 rounded-lg shrink-0">
+              <Bold className="w-3.5 h-3.5" />
+            </Button>
+            <Button type="button" variant="ghost" size="icon" onClick={() => applyFormat('_')} className="h-7 w-7 rounded-lg shrink-0">
+              <Italic className="w-3.5 h-3.5" />
+            </Button>
+            <Button type="button" variant="ghost" size="icon" onClick={() => applyFormat('~')} className="h-7 w-7 rounded-lg shrink-0">
+              <Strikethrough className="w-3.5 h-3.5" />
+            </Button>
+            <Button type="button" variant="ghost" size="icon" onClick={() => applyFormat('`')} className="h-7 w-7 rounded-lg shrink-0">
+              <Code className="w-3.5 h-3.5" />
+            </Button>
+            <span className="w-px h-4 bg-border mx-1 shrink-0" />
+            <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-primary/20 text-primary font-bold shrink-0">
+              2-day retention ⏱
+            </Badge>
+          </div>
 
-        {/* Input Row */}
-        <div className="flex items-center gap-2">
-          <Input
-            ref={textareaRef}
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSendMessage();
-              }
-            }}
-            placeholder={`Message ${chatInfo.title}...`}
-            className="h-10 text-xs sm:text-sm rounded-xl bg-background border-border/80 focus-visible:ring-primary flex-1 min-w-0"
-          />
+          {/* Input Row */}
+          <div className="flex items-center gap-2">
+            <Input
+              ref={textareaRef}
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage();
+                }
+              }}
+              placeholder={isBroadcast ? 'Post official announcement...' : `Message ${chatInfo.title}...`}
+              className="h-10 text-xs sm:text-sm rounded-xl bg-background border-border/80 focus-visible:ring-primary flex-1 min-w-0"
+            />
 
-          <Button
-            onClick={handleSendMessage}
-            disabled={!inputText.trim() || sendDirectMessage.isPending || sendGroupMessage.isPending}
-            className="h-10 px-4 rounded-xl text-xs font-bold gap-1.5 shrink-0"
-          >
-            <Send className="w-4 h-4" />
-            <span className="hidden sm:inline">Send</span>
-          </Button>
+            <Button
+              onClick={handleSendMessage}
+              disabled={!inputText.trim() || sendDirectMessage.isPending || sendGroupMessage.isPending}
+              className="h-10 px-4 rounded-xl text-xs font-bold gap-1.5 shrink-0"
+            >
+              <Send className="w-4 h-4" />
+              <span className="hidden sm:inline">Send</span>
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

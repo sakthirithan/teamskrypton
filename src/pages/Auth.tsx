@@ -31,6 +31,13 @@ const Auth = () => {
     navigate(mode === 'grouping' ? '/grouping/home' : '/', { replace: true });
   };
 
+  // If user is logged in and mode already selected, redirect immediately
+  useEffect(() => {
+    if (!isLoading && user && isModeSelected) {
+      navigate('/grouping/home', { replace: true });
+    }
+  }, [user, isLoading, isModeSelected, navigate]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -39,9 +46,8 @@ const Auth = () => {
     );
   }
 
-  // If user is logged in and mode already selected, redirect immediately
   if (user && isModeSelected) {
-    return null; // Let useAppMode handle the default state
+    return null;
   }
 
   // Show mode selection dialog when user is logged in but hasn't selected mode

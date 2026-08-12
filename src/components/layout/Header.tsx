@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppMode } from '@/hooks/useAppMode';
 import { ROLE_LABELS, KryptonRole } from '@/lib/constants';
-import { LogOut, User, Users, Home, LayoutDashboard, Menu, X, Download, UserCog, Target, RefreshCw, Coins, Calendar, Bell } from 'lucide-react';
+import { LogOut, User, Users, Home, LayoutDashboard, Menu, X, Download, UserCog, Target, RefreshCw, Coins, Calendar, Bell, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -23,6 +23,8 @@ import { AppMode } from '@/lib/groupingConstants';
 import { GuestModeBadge } from '@/components/guest/GuestModeBadge';
 import { usePblProjectLead } from '@/components/grouping/LeaderboardPanel';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
+import { CommandMenu } from '@/components/layout/CommandMenu';
+import { OfflineStatusBanner } from '@/components/common/OfflineStatusBanner';
 
 function getRoleBadgeClass(role: KryptonRole | null): string {
   switch (role) {
@@ -53,6 +55,7 @@ export function Header() {
   const [pointsOpen, setPointsOpen] = useState(false);
   const [showModeSwitch, setShowModeSwitch] = useState(false);
   const [showModeDialog, setShowModeDialog] = useState(false);
+  const [commandMenuOpen, setCommandMenuOpen] = useState(false);
   
   const { data: isProjectLead } = usePblProjectLead(user?.id);
   const canManagePoints = isLeadership || isProjectLead;
@@ -146,86 +149,101 @@ export function Header() {
   // }, []);
 
   return (
-    <header className="krypton-gradient text-primary-foreground sticky top-0 z-50 shadow-lg safe-area-top">
-      <div className="container mx-auto px-3 sm:px-6 py-2 sm:py-4">
-        <div className="flex items-center justify-between">
-          {/* Logo and Title */}
-          <div className="flex items-center gap-2 sm:gap-6">
-            <div 
-              className="flex flex-col cursor-pointer group"
-              onClick={() => navigate('/')}
-            >
-              <h1 className="text-lg sm:text-2xl font-display font-bold tracking-tight transition-all duration-200 group-hover:tracking-wide">
-                Teams Krypton
-              </h1>
-              <p className="text-xs sm:text-sm opacity-80 transition-opacity duration-200 group-hover:opacity-100 hidden sm:block">
-                Where Work Becomes Visible
-              </p>
+    <>
+      <OfflineStatusBanner />
+      <header className="krypton-gradient text-primary-foreground sticky top-0 z-50 shadow-lg safe-area-top">
+        <div className="container mx-auto px-3 sm:px-6 py-2 sm:py-4">
+          <div className="flex items-center justify-between">
+            {/* Logo and Title */}
+            <div className="flex items-center gap-2 sm:gap-6">
+              <div 
+                className="flex flex-col cursor-pointer group"
+                onClick={() => navigate('/')}
+              >
+                <h1 className="text-lg sm:text-2xl font-display font-bold tracking-tight transition-all duration-200 group-hover:tracking-wide">
+                  Teams Krypton
+                </h1>
+                <p className="text-xs sm:text-sm opacity-80 transition-opacity duration-200 group-hover:opacity-100 hidden sm:block">
+                  Where Work Becomes Visible
+                </p>
+              </div>
+
+              {/* Desktop Navigation */}
+              <nav className="hidden md:flex items-center gap-1 ml-8">
+                {navLinks.map((link, index) => (
+                  <Button
+                    key={link.path}
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => navigate(link.path)}
+                    className={`text-primary-foreground hover:bg-primary-foreground/10 transition-all duration-200 ${
+                      isActive(link.path) 
+                        ? 'bg-primary-foreground/20 shadow-sm' 
+                        : 'hover:translate-y-[-1px]'
+                    }`}
+                    style={{ animationDelay: `${index * 50}ms` }}
+                  >
+                    <link.icon className="w-4 h-4 mr-1.5" />
+                    {link.label}
+                  </Button>
+                ))}
+              </nav>
             </div>
 
-            {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center gap-1 ml-8">
-              {navLinks.map((link, index) => (
-                <Button
-                  key={link.path}
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => navigate(link.path)}
-                  className={`text-primary-foreground hover:bg-primary-foreground/10 transition-all duration-200 ${
-                    isActive(link.path) 
-                      ? 'bg-primary-foreground/20 shadow-sm' 
-                      : 'hover:translate-y-[-1px]'
-                  }`}
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  <link.icon className="w-4 h-4 mr-1.5" />
-                  {link.label}
-                </Button>
-              ))}
-            </nav>
-          </div>
+            {/* Date and Time - Hidden on mobile */}
+            <div className="hidden lg:flex flex-col items-center px-3 py-2 rounded-lg bg-primary-foreground/5 backdrop-blur-sm">
+              <span className="text-sm opacity-80">{formatDate(currentTime)}</span>
+              <span className="text-xl font-mono font-semibold tabular-nums">{formatTime(currentTime)}</span>
+            </div>
 
-          {/* Date and Time - Hidden on mobile */}
-          <div className="hidden lg:flex flex-col items-center px-3 py-2 rounded-lg bg-primary-foreground/5 backdrop-blur-sm">
-            <span className="text-sm opacity-80">{formatDate(currentTime)}</span>
-            <span className="text-xl font-mono font-semibold tabular-nums">{formatTime(currentTime)}</span>
-          </div>
+            {/* User Info & Mobile Menu */}
+            <div className="flex items-center gap-2 sm:gap-4">
+              {/* Global Quick Search Button (Ctrl+K) */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setCommandMenuOpen(true)}
+                className="text-primary-foreground hover:bg-primary-foreground/10 flex items-center gap-2 px-2.5 sm:px-3 touch-target"
+                title="Global Search (Ctrl+K)"
+              >
+                <Search className="w-4 h-4" />
+                <span className="hidden md:inline-block text-xs font-mono opacity-80 bg-primary-foreground/10 px-1.5 py-0.5 rounded">Ctrl+K</span>
+              </Button>
 
-          {/* User Info & Mobile Menu */}
-          <div className="flex items-center gap-2 sm:gap-4">
-            {/* Guest Mode Badge */}
-            <GuestModeBadge />
-            
-            {/* Mode Indicator Badge (read-only, shows current mode) */}
-            <Badge 
-              variant="outline" 
-              className="hidden sm:flex items-center gap-1.5 bg-primary-foreground/10 text-primary-foreground border-primary-foreground/30"
-            >
-              {isGroupingMode ? (
-                <>
-                  <Target className="w-3 h-3" />
-                  Grouping
-                </>
-              ) : (
-                <>
-                  <LayoutDashboard className="w-3 h-3" />
-                  PBL
-                </>
-              )}
-            </Badge>
-            
-            <ThemeToggle className="text-primary-foreground hover:bg-primary-foreground/10" />
-            
-            {/* Calendar Shortcut */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/grouping/calendar')}
-              className="text-primary-foreground hover:bg-primary-foreground/10 touch-target"
-              title="My Calendar"
-            >
-              <Calendar className="w-5 h-5" />
-            </Button>
+              {/* Guest Mode Badge */}
+              <GuestModeBadge />
+              
+              {/* Mode Indicator Badge (read-only, shows current mode) */}
+              <Badge 
+                variant="outline" 
+                className="hidden sm:flex items-center gap-1.5 bg-primary-foreground/10 text-primary-foreground border-primary-foreground/30"
+              >
+                {isGroupingMode ? (
+                  <>
+                    <Target className="w-3 h-3" />
+                    Grouping
+                  </>
+                ) : (
+                  <>
+                    <LayoutDashboard className="w-3 h-3" />
+                    PBL
+                  </>
+                )
+              }
+              </Badge>
+              
+              <ThemeToggle className="text-primary-foreground hover:bg-primary-foreground/10" />
+              
+              {/* Calendar Shortcut */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate('/grouping/calendar')}
+                className="text-primary-foreground hover:bg-primary-foreground/10 touch-target"
+                title="My Calendar"
+              >
+                <Calendar className="w-5 h-5" />
+              </Button>
             
             {/* User Profile Dropdown */}
             <DropdownMenu>
@@ -469,6 +487,10 @@ export function Header() {
         onSelectMode={handleModeSwitch}
         disableAutoSelect={true}
       />
+
+      {/* Global Command Menu Dialog (Ctrl+K) */}
+      <CommandMenu open={commandMenuOpen} onOpenChange={setCommandMenuOpen} />
     </header>
+    </>
   );
 }

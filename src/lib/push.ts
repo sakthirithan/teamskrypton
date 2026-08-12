@@ -97,8 +97,14 @@ export async function initNativePush() {
 
     // Handle Tap on Notification (Foreground, Background, Cold-Start)
     PushNotifications.addListener('pushNotificationActionPerformed', (evt) => {
-      const path = (evt.notification.data as any)?.path || '/grouping/notifications';
-      handlePushRoute(path);
+      const data = (evt.notification.data as any) || {};
+      const targetPath =
+        data.path ||
+        (data.chat_id
+          ? `/grouping/notifications?chat_id=${data.chat_id}`
+          : '/grouping/notifications');
+      console.log('[PUSH] Deep linking to:', targetPath);
+      handlePushRoute(targetPath);
     });
 
     await PushNotifications.register();

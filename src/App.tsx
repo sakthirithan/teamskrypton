@@ -94,7 +94,8 @@ function ProtectedRouteGate({ children }: { children: ReactNode }) {
   const isPublic = publicPaths.includes(location.pathname);
 
   if (isLoading) {
-    return <>{children}</>;
+    if (isPublic) return <>{children}</>;
+    return <RouteFallback />;
   }
 
   if (!user && !isPublic) {

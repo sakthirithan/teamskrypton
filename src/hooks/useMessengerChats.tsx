@@ -60,6 +60,22 @@ export interface ConversationItem {
   members?: string[];
 }
 
+export function isBroadcastMessage(m: ChatMessage): boolean {
+  if (!m) return false;
+  const meta = m.metadata || {};
+  const gId = (m as any).group_id || meta.group_id;
+  const typeStr = (m.type || '').toLowerCase();
+  const audStr = (meta.target_audience || (m as any).target_audience || '').toLowerCase();
+  return (
+    typeStr === 'broadcast' ||
+    typeStr === 'announcement' ||
+    gId === 'announcement' ||
+    meta.is_broadcast === true ||
+    (m as any).is_broadcast === true ||
+    ['all', 'members', 'leads'].includes(audStr)
+  );
+}
+
 // ── Detect which tables/columns are actually available ──
 let _tableCapabilities: {
   messengerMessages: boolean;
@@ -72,21 +88,31 @@ let _tableCapabilities: {
 async function detectCapabilities() {
   if (_tableCapabilities) return _tableCapabilities;
 
-  const [mmRes, mcRes, gnRes, groupIdRes, musRes] = await Promise.all([
-    supabase.from('messenger_messages' as any).select('id').limit(1),
-    supabase.from('messenger_conversations' as any).select('id').limit(1),
-    supabase.from('grouping_notifications').select('id, metadata, expires_at').limit(1),
-    supabase.from('messenger_messages' as any).select('id, group_id, group_members').limit(1),
-    supabase.from('message_user_state' as any).select('id').limit(1),
-  ]);
+  try {
+    const [mmRes, mcRes, gnRes, groupIdRes, musRes] = await Promise.all([
+      supabase.from('messenger_messages' as any).select('id').limit(1),
+      supabase.from('messenger_conversations' as any).select('id').limit(1),
+      supabase.from('grouping_notifications').select('id, metadata, expires_at').limit(1),
+      supabase.from('messenger_messages' as any).select('id, group_id, group_members').limit(1),
+      supabase.from('message_user_state' as any).select('id').limit(1),
+    ]);
 
-  _tableCapabilities = {
-    messengerMessages: !mmRes.error,
-    messengerConversations: !mcRes.error,
-    gnMetadata: !gnRes.error,
-    groupIdColumn: !groupIdRes.error,
-    messageUserState: !musRes.error,
-  };
+    _tableCapabilities = {
+      messengerMessages: !mmRes.error,
+      messengerConversations: !mcRes.error,
+      gnMetadata: !gnRes.error,
+      groupIdColumn: !groupIdRes.error,
+      messageUserState: !musRes.error,
+    };
+  } catch (e) {
+    _tableCapabilities = {
+      messengerMessages: true,
+      messengerConversations: true,
+      gnMetadata: true,
+      groupIdColumn: true,
+      messageUserState: true,
+    };
+  }
 
   console.log('[MESSENGER CAPS]', _tableCapabilities);
   return _tableCapabilities;
@@ -101,11 +127,9 @@ async function resolveGroupMembers(groupId: string, fallback: string[]): Promise
     .single();
 
   if (!error && data?.metadata?.members?.length > 0) {
-    console.log('[GROUP MEMBERS] resolved from messenger_conversations:', data.metadata.members);
     return data.metadata.members as string[];
   }
 
-  console.warn('[GROUP MEMBERS] fallback used for group', groupId, fallback);
   return fallback;
 }
 
@@ -134,7 +158,7 @@ export function useMessengerChats() {
 
       const { data, error } = await (supabase as any)
         .from('messenger_conversations')
-        .select('*')
+        .select('id, creator_id, title, avatar_url, last_message, last_message_at, created_at, metadata, updated_at')
         .order('updated_at', { ascending: false });
 
       if (error) {
@@ -144,59 +168,67 @@ export function useMessengerChats() {
       return (data || []) as any[];
     },
     enabled: !!user,
-    staleTime: 5000,
+    staleTime: 30000,
   });
 
-  // ── 2. Fetch messages ──
+  // ── 2. Fetch messages (concurrently from messenger_messages AND grouping_notifications) ──
   const messagesQuery = useQuery({
     queryKey: ['messenger-messages', user?.id],
     queryFn: async () => {
       if (!user) return [];
       const caps = await detectCapabilities();
-      const nowIso = new Date().toISOString();
 
-      let rawMessages: ChatMessage[] = [];
+      const fetchPromises: Promise<ChatMessage[]>[] = [];
 
-      // Attempt 1: messenger_messages table (preferred)
+      // 1. Query messenger_messages
       if (caps.messengerMessages) {
-        // Build select — include group_id and group_members if the columns exist
         const selectCols = caps.groupIdColumn
           ? 'id, sender_id, recipient_id, group_id, group_members, title, message, type, is_read, created_at, expires_at, metadata'
           : 'id, sender_id, recipient_id, title, message, type, is_read, created_at, expires_at, metadata';
 
-        const res = await (supabase as any)
-          .from('messenger_messages')
-          .select(selectCols)
-          // RLS handles visibility — the policy now covers group membership
-          .order('created_at', { ascending: false })
-          .limit(500);
+        fetchPromises.push(
+          (async () => {
+            const res = await (supabase as any)
+              .from('messenger_messages')
+              .select(selectCols)
+              .order('created_at', { ascending: false })
+              .limit(300);
 
-        if (!res.error && res.data && res.data.length > 0) {
-          rawMessages = res.data as ChatMessage[];
-        } else if (res.error) {
-          console.warn('[messenger] messenger_messages fetch error:', res.error.message);
-        }
+            if (res.error) {
+              console.warn('[messenger_messages fetch error]:', res.error.message);
+              return [];
+            }
+            return (res.data || []) as ChatMessage[];
+          })()
+        );
       }
 
-      // Attempt 2: grouping_notifications fallback
-      if (rawMessages.length === 0) {
-        const gnSelect = caps.gnMetadata
-          ? 'id, sender_id, recipient_id, title, message, type, is_read, created_at, metadata, expires_at'
-          : 'id, sender_id, recipient_id, title, message, type, is_read, created_at';
+      // 2. Query grouping_notifications (DO NOT SKIP — contains broadcasts & targeted system notifications)
+      fetchPromises.push(
+        (async () => {
+          const gnSelect = caps.gnMetadata
+            ? 'id, sender_id, recipient_id, title, message, type, is_read, created_at, metadata, expires_at'
+            : 'id, sender_id, recipient_id, title, message, type, is_read, created_at';
 
-        const gnRes = await supabase
-          .from('grouping_notifications')
-          .select(gnSelect)
-          .or(`recipient_id.eq.${user.id},sender_id.eq.${user.id}`)
-          .order('created_at', { ascending: false })
-          .limit(300);
+          const gnRes = await supabase
+            .from('grouping_notifications')
+            .select(gnSelect)
+            .or(`recipient_id.eq.${user.id},sender_id.eq.${user.id},is_broadcast.eq.true,type.eq.broadcast`)
+            .order('created_at', { ascending: false })
+            .limit(200);
 
-        if (!gnRes.error && gnRes.data) {
-          rawMessages = gnRes.data as unknown as ChatMessage[];
-        }
-      }
+          if (gnRes.error) {
+            console.warn('[grouping_notifications fetch error]:', gnRes.error.message);
+            return [];
+          }
+          return (gnRes.data || []) as unknown as ChatMessage[];
+        })()
+      );
 
-      // Fetch hidden message IDs for soft delete
+      const results = await Promise.all(fetchPromises);
+      const combinedRaw = results.flat();
+
+      // Soft delete & expiration filtering
       let hiddenIds = new Set<string>();
       if (caps.messageUserState) {
         const hidRes = await (supabase as any)
@@ -209,24 +241,35 @@ export function useMessengerChats() {
         }
       }
 
-      // Deduplicate messages by ID, filter expired + hidden
+      const nowIso = new Date().toISOString();
       const messageMap = new Map<string, ChatMessage>();
-      rawMessages.forEach((m) => {
-        if (hiddenIds.has(m.id)) return; // soft-deleted for this user
+
+      combinedRaw.forEach((m) => {
+        if (!m || !m.id) return;
+        if (hiddenIds.has(m.id)) return;
+
+        // Expiration check (2-day retention)
         const exp = (m as any).expires_at || m.metadata?.expires_at;
         if (exp && new Date(exp).toISOString() <= nowIso) return;
-        if (!messageMap.has(m.id)) {
-          messageMap.set(m.id, m);
+
+        // Deduplicate by message ID or broadcast_id
+        const bId = m.metadata?.broadcast_id;
+        const key = bId ? `broadcast_${bId}` : m.id;
+
+        if (!messageMap.has(key)) {
+          messageMap.set(key, m);
         }
       });
 
-      return Array.from(messageMap.values()).reverse(); // chronological order
+      return Array.from(messageMap.values()).sort(
+        (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
     },
     enabled: !!user,
-    staleTime: 3000,
+    staleTime: 15000,
   });
 
-  // ── 3. Fetch User Profiles ──
+  // Profiles Query (Cached for 5 minutes)
   const profilesQuery = useQuery({
     queryKey: ['messenger-profiles-map'],
     queryFn: async () => {
@@ -245,7 +288,7 @@ export function useMessengerChats() {
       });
       return map;
     },
-    staleTime: 60000,
+    staleTime: 5 * 60 * 1000,
   });
 
   // ── 4. Realtime Subscriptions ──
@@ -281,10 +324,22 @@ export function useMessengerChats() {
   const profilesMap = profilesQuery.data || new Map();
   const persistentConversations = conversationsQuery.data || [];
 
-  // ── 5. Derive Conversation List (including persistent groups with 0 messages) ──
+  // ── 5. Derive Conversation List (including permanent Announcement broadcast channel) ──
   const conversations = useMemo(() => {
     if (!user) return [];
     const map = new Map<string, ConversationItem>();
+
+    // Seed system Announcement profile conversation (always available)
+    const ANNOUNCEMENT_ID = 'broadcast_announcement';
+    map.set(ANNOUNCEMENT_ID, {
+      chat_id: ANNOUNCEMENT_ID,
+      type: 'broadcast',
+      title: 'Announcement',
+      avatar_url: null,
+      last_message: 'Official System Broadcast Channel',
+      last_message_at: new Date(0).toISOString(),
+      unread_count: 0,
+    });
 
     // Step A: Seed persistent conversations from messenger_conversations table
     persistentConversations.forEach((conv) => {
@@ -314,9 +369,23 @@ export function useMessengerChats() {
     // Step B: Overlay messages data
     allMessages.forEach((m) => {
       const meta = m.metadata || {};
-      // Resolve group ID from top-level column first, then metadata
       const resolvedGroupId = (m as any).group_id || meta.group_id;
       const resolvedMembers: string[] = (m as any).group_members || meta.group_members || [];
+
+      // ── System Announcement / Broadcast ──
+      if (isBroadcastMessage(m)) {
+        const existing = map.get(ANNOUNCEMENT_ID);
+        const isUnread = !m.is_read && m.sender_id !== user.id;
+
+        if (existing) {
+          if (new Date(m.created_at) > new Date(existing.last_message_at)) {
+            existing.last_message = m.message;
+            existing.last_message_at = m.created_at;
+          }
+          if (isUnread) existing.unread_count += 1;
+        }
+        return;
+      }
 
       // ── Group Chat ──
       if (m.type === 'group' || resolvedGroupId) {
@@ -849,6 +918,105 @@ export function useMessengerChats() {
     }, 500);
   }, [user, allMessages, debouncedInvalidateMessages]);
 
+  // ── 12. Send Announcement / Broadcast Message ──
+  const sendBroadcastMessage = useMutation({
+    mutationFn: async (params: {
+      message: string;
+      title?: string;
+      recipients?: string[];
+      metadata?: ChatMessage['metadata'];
+      expiration_days?: number;
+    }) => {
+      if (!user) throw new Error('Not authenticated');
+      const caps = await detectCapabilities();
+
+      const expDays = params.expiration_days ?? MESSAGE_RETENTION_DAYS;
+      const expires_at = new Date(Date.now() + expDays * 24 * 60 * 60 * 1000).toISOString();
+      const titleText = params.title || 'Announcement';
+      const metaCombined = {
+        is_broadcast: true,
+        sender_name: 'Announcement',
+        broadcast_id: crypto.randomUUID(),
+        expiration_days: expDays,
+        expires_at,
+        ...(params.metadata || {}),
+      };
+
+      let resultData: any = null;
+
+      if (caps.messengerMessages) {
+        const payload = {
+          sender_id: user.id,
+          recipient_id: null,
+          group_id: 'announcement',
+          title: titleText,
+          message: params.message,
+          type: 'broadcast',
+          expires_at,
+          metadata: metaCombined,
+        };
+
+        const res = await (supabase as any).from('messenger_messages').insert(payload).select().single();
+        if (!res.error) {
+          resultData = res.data;
+        } else {
+          console.warn('[ANNOUNCEMENT] messenger_messages insert error:', res.error.message);
+        }
+      }
+
+      if (!resultData) {
+        const gnPayload = {
+          sender_id: user.id,
+          recipient_id: user.id,
+          title: titleText,
+          message: params.message,
+          type: 'broadcast',
+          is_broadcast: true,
+          expires_at,
+          metadata: metaCombined,
+        };
+        const res = await supabase.from('grouping_notifications').insert(gnPayload as any).select().single();
+        if (res.error) throw new Error(res.error.message || 'Failed to send announcement');
+        resultData = res.data;
+      }
+
+      triggerAnnouncementPush(params.recipients || [], titleText, params.message);
+      debouncedInvalidateMessages();
+      return resultData;
+    },
+    onError: (e: any) => {
+      toast({
+        variant: 'destructive',
+        title: 'Unable to send announcement',
+        description: e.message || 'Please check permissions.',
+      });
+    },
+  });
+
+  const triggerAnnouncementPush = async (
+    recipients: string[],
+    titleText: string,
+    messageText: string
+  ) => {
+    try {
+      const cleanBody = stripWhatsAppFormatting(messageText);
+      await supabase.functions.invoke('send-push', {
+        body: {
+          user_ids: recipients.length > 0 ? recipients : undefined,
+          title: `Announcement: ${titleText}`,
+          body: cleanBody,
+          data: {
+            path: '/grouping/notifications?chat_id=broadcast_announcement',
+            chat_id: 'broadcast_announcement',
+          },
+        },
+      });
+      console.log('[ANNOUNCEMENT PUSH] Triggered push to active recipients');
+    } catch (e) {
+      console.warn('[ANNOUNCEMENT PUSH ERROR]:', e);
+    }
+  };
+
   const allProfiles = useMemo(() => {
     return Array.from(profilesMap.entries()).map(([userId, p]) => ({
       user_id: userId,
@@ -867,6 +1035,7 @@ export function useMessengerChats() {
     isLoading: messagesQuery.isLoading,
     sendDirectMessage,
     sendGroupMessage,
+    sendBroadcastMessage,
     deleteGroup,
     toggleReaction,
     deleteMessage,

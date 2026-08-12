@@ -87,6 +87,7 @@ export function useIncharge() {
       if (error) throw error;
       return (data || []) as InchargeAppointment[];
     },
+    staleTime: 60_000,
   });
 
   const activitiesQuery = useQuery({
@@ -101,6 +102,7 @@ export function useIncharge() {
       if (error) throw error;
       return (data || []) as ScheduleActivity[];
     },
+    staleTime: 60_000,
   });
 
   const membersQuery = useQuery({
@@ -112,6 +114,7 @@ export function useIncharge() {
       if (error) throw error;
       return (data || []) as ActivityMember[];
     },
+    staleTime: 60_000,
   });
 
   useEffect(() => {
