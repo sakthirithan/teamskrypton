@@ -6,6 +6,9 @@ import { useToast } from '@/hooks/use-toast';
 import { stripWhatsAppFormatting } from '@/components/ui/whatsapp-text';
 import { VISIBLE_PROFILE_OR } from '@/lib/profileVisibility';
 
+/** Global Messenger retention: messages are kept for 2 days, then cleaned up. */
+export const MESSAGE_RETENTION_DAYS = 2;
+
 export interface ChatMessage {
   id: string;
   sender_id: string;
@@ -401,7 +404,7 @@ export function useMessengerChats() {
       if (!user) throw new Error('Not authenticated');
       const caps = await detectCapabilities();
 
-      const expDays = params.expiration_days ?? 1;
+      const expDays = params.expiration_days ?? MESSAGE_RETENTION_DAYS;
       const expires_at = new Date(Date.now() + expDays * 24 * 60 * 60 * 1000).toISOString();
       const titleText = params.title || 'Direct Message';
       const msgType = params.type || 'direct';
@@ -529,7 +532,7 @@ export function useMessengerChats() {
         ? resolvedMembers
         : [user.id, ...resolvedMembers];
 
-      const expDays = params.expiration_days ?? 1;
+      const expDays = params.expiration_days ?? MESSAGE_RETENTION_DAYS;
       const expires_at = new Date(Date.now() + expDays * 24 * 60 * 60 * 1000).toISOString();
       const msgType = params.type || 'group';
 

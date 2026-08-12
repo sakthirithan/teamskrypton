@@ -82,7 +82,7 @@ export function MessengerConversation({ chatId, onBack, onOpenPollDialog }: Mess
 
   const [inputText, setInputText] = useState('');
   const [replyTarget, setReplyTarget] = useState<ChatMessage | null>(null);
-  const [expirationDays, setExpirationDays] = useState<number>(1);
+  const expirationDays = MESSAGE_RETENTION_DAYS; // fixed 2-day retention policy
   const [searchInChat, setSearchInChat] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [showNewMsgBanner, setShowNewMsgBanner] = useState(false);
@@ -350,26 +350,11 @@ export function MessengerConversation({ chatId, onBack, onOpenPollDialog }: Mess
             <PopoverContent className="w-56 p-2 rounded-2xl" align="end">
               <div className="space-y-1">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-2 py-1 block">
-                  Disappearing Messages
+                  Message Retention
                 </span>
-                <button
-                  onClick={() => { setExpirationDays(1); toast({ title: 'Disappearing Messages: 24h' }); }}
-                  className={`w-full text-left px-2.5 py-1.5 text-xs font-semibold rounded-xl flex items-center justify-between ${
-                    expirationDays === 1 ? 'bg-primary/10 text-primary' : 'hover:bg-muted'
-                  }`}
-                >
-                  <span>24 Hours (1 Day)</span>
-                  {expirationDays === 1 && <Check className="w-3.5 h-3.5" />}
-                </button>
-                <button
-                  onClick={() => { setExpirationDays(2); toast({ title: 'Disappearing Messages: 48h' }); }}
-                  className={`w-full text-left px-2.5 py-1.5 text-xs font-semibold rounded-xl flex items-center justify-between ${
-                    expirationDays === 2 ? 'bg-primary/10 text-primary' : 'hover:bg-muted'
-                  }`}
-                >
-                  <span>48 Hours (2 Days)</span>
-                  {expirationDays === 2 && <Check className="w-3.5 h-3.5" />}
-                </button>
+                <p className="px-2.5 pb-1.5 text-xs text-muted-foreground">
+                  All direct, group and announcement messages are kept for 2 days and then cleaned up automatically.
+                </p>
 
                 {isGroup && (chatInfo as any).creator_id === user?.id && (
                   <>
@@ -624,7 +609,7 @@ export function MessengerConversation({ chatId, onBack, onOpenPollDialog }: Mess
           </Button>
           <span className="w-px h-4 bg-border mx-1 shrink-0" />
           <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-primary/20 text-primary font-bold shrink-0">
-            {expirationDays === 1 ? '24h' : '48h'} ⏱
+            2-day retention ⏱
           </Badge>
         </div>
 
