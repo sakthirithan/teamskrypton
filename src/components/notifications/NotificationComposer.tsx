@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { WhatsAppText } from '@/components/ui/whatsapp-text';
 import {
+import { VISIBLE_PROFILE_OR } from '@/lib/profileVisibility';
   Send,
   Bold,
   Italic,
@@ -73,7 +74,7 @@ export function NotificationComposer({ onSuccess, open, onOpenChange }: Notifica
       const [profilesRes, rolesRes] = await Promise.all([
         supabase
           .from('profiles')
-          .select('user_id, full_name, email, avatar_url, is_disabled, disabled_until')
+          .select('user_id, full_name, email, avatar_url, is_disabled, disabled_until').or(VISIBLE_PROFILE_OR)
           .or(`is_disabled.is.false,is_disabled.is.null,disabled_until.lt.${nowIso}`),
         supabase.from('user_roles').select('user_id, role'),
       ]);

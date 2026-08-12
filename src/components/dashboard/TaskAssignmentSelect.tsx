@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ROLE_LABELS, KryptonRole, LEADERSHIP_ROLES } from '@/lib/constants';
 import { ChevronDown, Users, Crown, UserCheck } from 'lucide-react';
+import { VISIBLE_PROFILE_OR } from '@/lib/profileVisibility';
 
 interface Member {
   user_id: string;
@@ -31,7 +32,7 @@ export function TaskAssignmentSelect({ value, onChange, disabled }: TaskAssignme
       const nowIso = new Date().toISOString();
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('user_id, full_name, is_disabled, disabled_until')
+        .select('user_id, full_name, is_disabled, disabled_until').or(VISIBLE_PROFILE_OR)
         .eq('is_test', false)
         .or(`is_disabled.is.false,is_disabled.is.null,disabled_until.lt.${nowIso}`);
       const { data: roles } = await supabase.from('user_roles').select('user_id, role');

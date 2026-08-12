@@ -23,6 +23,7 @@ import { calculateTargetStatus, calculateDaysRemaining, calculateSessionDays, TA
 import * as XLSX from 'xlsx';
 
 import { SKILL_TYPE_LABELS, SKILL_DOMAIN_LABELS, getEffectiveDomain, SkillType, SkillDomain } from '@/hooks/useMemberSkills';
+import { VISIBLE_PROFILE_OR } from '@/lib/profileVisibility';
 
 interface MemberSkillSummary {
   skill_name: string;
@@ -92,7 +93,7 @@ const Team = () => {
     const nowIso = new Date().toISOString();
     let query = supabase
       .from('profiles')
-      .select('*')
+      .select('*').or(VISIBLE_PROFILE_OR)
       .eq('is_test', false)
       .order('full_name');
     // Hide disabled users unless their disabled_until has passed

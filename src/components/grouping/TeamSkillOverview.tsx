@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { GroupingSession } from '@/hooks/useGroupingSessions';
 import { useNavigate } from 'react-router-dom';
+import { VISIBLE_PROFILE_OR } from '@/lib/profileVisibility';
 
 interface TeamSkillOverviewProps {
   session: GroupingSession;
@@ -33,7 +34,7 @@ export function TeamSkillOverview({ session }: TeamSkillOverviewProps) {
     queryFn: async () => {
       const { data } = await supabase
         .from('profiles')
-        .select('user_id, full_name')
+        .select('user_id, full_name').or(VISIBLE_PROFILE_OR)
         .eq('is_test', false)
         .eq('user_type', 'real');
       return data || [];

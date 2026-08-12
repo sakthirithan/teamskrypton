@@ -23,6 +23,7 @@ import { useGroupingNotifications } from '@/hooks/useGroupingNotifications';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useGroupingSessions } from '@/hooks/useGroupingSessions';
+import { VISIBLE_PROFILE_OR } from '@/lib/profileVisibility';
 
 interface Props {
   trigger?: React.ReactNode;
@@ -48,7 +49,7 @@ export function SendNotificationDialog({ trigger }: Props) {
       const [profilesRes, rolesRes] = await Promise.all([
         supabase
           .from('profiles')
-          .select('user_id, full_name, is_disabled, disabled_until')
+          .select('user_id, full_name, is_disabled, disabled_until').or(VISIBLE_PROFILE_OR)
           .or(`is_disabled.is.false,is_disabled.is.null,disabled_until.lt.${nowIso}`),
         supabase.from('user_roles').select('user_id, role')
       ]);

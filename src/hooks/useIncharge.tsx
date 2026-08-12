@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
+import { VISIBLE_PROFILE_OR } from '@/lib/profileVisibility';
 
 export interface InchargeAppointment {
   id: string;
@@ -57,7 +58,7 @@ export function useTeamMembers() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('user_id, full_name, email, department, avatar_url, is_disabled')
+        .select('user_id, full_name, email, department, avatar_url, is_disabled').or(VISIBLE_PROFILE_OR)
         .order('full_name');
       if (error) throw error;
       return (data || []).filter((p: any) => !p.is_disabled) as Array<{

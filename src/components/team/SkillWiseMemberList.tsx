@@ -10,6 +10,7 @@ import { User, Search, Filter, Layers, Users, ChevronRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom';
 import { useAppMode } from '@/hooks/useAppMode';
 import { MemberSkill, SkillType, SKILL_TYPE_LABELS, DOMAIN_OPTIONS, getEffectiveDomain } from '@/hooks/useMemberSkills';
+import { VISIBLE_PROFILE_OR } from '@/lib/profileVisibility';
 
 function getSkillTypeColor(type: SkillType): string {
   switch (type) {
@@ -47,7 +48,7 @@ export function SkillWiseMemberList() {
   const { data: profiles = [] } = useQuery({
     queryKey: ['team-profiles-basic'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('profiles').select('user_id, full_name, department').eq('is_test', false);
+      const { data, error } = await supabase.from('profiles').select('user_id, full_name, department').or(VISIBLE_PROFILE_OR).eq('is_test', false);
       if (error) throw error;
       return data as ProfileBasic[];
     },

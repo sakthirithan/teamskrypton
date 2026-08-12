@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { stripWhatsAppFormatting } from '@/components/ui/whatsapp-text';
+import { VISIBLE_PROFILE_OR } from '@/lib/profileVisibility';
 
 export interface ChatMessage {
   id: string;
@@ -228,7 +229,7 @@ export function useMessengerChats() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('user_id, full_name, avatar_url, email, department');
+        .select('user_id, full_name, avatar_url, email, department').or(VISIBLE_PROFILE_OR);
       if (error) throw error;
       const map = new Map<string, { full_name: string; avatar_url?: string | null; email?: string; department?: string }>();
       (data || []).forEach((p) => {
