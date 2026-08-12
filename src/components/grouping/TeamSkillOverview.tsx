@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -9,6 +9,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { GroupingSession } from '@/hooks/useGroupingSessions';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { BellRing, Loader2 } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { useGroupingNotifications } from '@/hooks/useGroupingNotifications';
 import { VISIBLE_PROFILE_OR } from '@/lib/profileVisibility';
 
 interface TeamSkillOverviewProps {
@@ -28,6 +32,9 @@ interface MemberSkillSummary {
 export function TeamSkillOverview({ session }: TeamSkillOverviewProps) {
   const navigate = useNavigate();
   const { allSkills } = useMemberSkills();
+  const { isLeadership } = useAuth();
+  const { sendTargetedNotification } = useGroupingNotifications();
+  const [alerting, setAlerting] = useState(false);
 
   const { data: profiles = [] } = useQuery({
     queryKey: ['all-profiles-for-skill-overview'],
@@ -159,6 +166,35 @@ export function TeamSkillOverview({ session }: TeamSkillOverviewProps) {
             <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-500/30 text-amber-600 dark:text-amber-500">
               {pendingPSMembers.length}/{stats.totalMembers}
             </Badge>
+            {isLeadership && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={alerting}
+                className="ml-auto h-7 rounded-xl border-amber-500/40 px-2.5 text-[11px] font-bold text-amber-600 hover:bg-amber-500/10 dark:text-amber-500"
+                onClick={() => {
+                  setAlerting(true);
+                  sendTargetedNotification.mutate(
+                    {
+                      recipient_ids: pendingPSMembers.map((m) => m.userId),
+                      target_audience: 'direct',
+                      title: 'Minimum 1 PS Entry Pending',
+                      message: `Reminder: please submit at least one PS entry for the current session (${session.name}).`,
+                      type: 'alert',
+                      session_id: session.id,
+                    },
+                    { onSettled: () => setAlerting(false) },
+                  );
+                }}
+              >
+                {alerting ? (
+                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <BellRing className="mr-1 h-3.5 w-3.5" />
+                )}
+                Alert All
+              </Button>
+            )}
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {pendingPSMembers.map(m => (
