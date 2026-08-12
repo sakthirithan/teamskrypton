@@ -270,7 +270,7 @@ export function ActivityDialog({
                   end_time: end,
                   category,
                   location,
-                  memberIds,
+                  memberIds: Array.from(new Set(memberIds)),
                 })
               }
             >
