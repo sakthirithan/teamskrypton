@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { useMessengerChats, ChatMessage } from '@/hooks/useMessengerChats';
+import { useMessengerChats, ChatMessage, MESSAGE_RETENTION_DAYS } from '@/hooks/useMessengerChats';
 import { WhatsAppText } from '@/components/ui/whatsapp-text';
 import { MessengerPollCard } from './MessengerPollCard';
 import { Button } from '@/components/ui/button';
