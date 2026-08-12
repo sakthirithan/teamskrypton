@@ -14,8 +14,8 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { WhatsAppText } from '@/components/ui/whatsapp-text';
-import {
 import { VISIBLE_PROFILE_OR } from '@/lib/profileVisibility';
+import {
   Send,
   Bold,
   Italic,
