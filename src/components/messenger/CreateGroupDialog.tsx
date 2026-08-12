@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useMessengerChats } from '@/hooks/useMessengerChats';
+import { VISIBLE_PROFILE_OR } from '@/lib/profileVisibility';
 
 interface CreateGroupDialogProps {
   open: boolean;
@@ -34,7 +35,7 @@ export function CreateGroupDialog({ open, onOpenChange, onGroupCreated }: Create
       const nowIso = new Date().toISOString();
       const { data, error } = await supabase
         .from('profiles')
-        .select('user_id, full_name, email, avatar_url, is_disabled, disabled_until')
+        .select('user_id, full_name, email, avatar_url, is_disabled, disabled_until').or(VISIBLE_PROFILE_OR)
         .or(`is_disabled.is.false,is_disabled.is.null,disabled_until.lt.${nowIso}`);
       if (error) throw error;
       return (data || []).filter((p) => p.user_id !== user?.id);

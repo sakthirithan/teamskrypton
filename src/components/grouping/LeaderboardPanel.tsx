@@ -19,6 +19,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { Progress } from '@/components/ui/progress';
 import { useNavigate } from 'react-router-dom';
+import { VISIBLE_PROFILE_OR } from '@/lib/profileVisibility';
 
 export function usePblProjectLead(userId?: string) {
   return useQuery({
@@ -57,7 +58,7 @@ export function LeaderboardPanel() {
       const nowIso = new Date().toISOString();
       const { data } = await supabase
         .from('profiles')
-        .select('user_id, full_name, is_disabled, disabled_until')
+        .select('user_id, full_name, is_disabled, disabled_until').or(VISIBLE_PROFILE_OR)
         .eq('is_test', false)
         .or(`is_disabled.is.false,is_disabled.is.null,disabled_until.lt.${nowIso}`);
       return data || [];

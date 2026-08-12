@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { useMemo } from 'react';
+import { VISIBLE_PROFILE_OR } from '@/lib/profileVisibility';
 
 interface TeamSkillLeaderboardProps {
   sessionId: string;
@@ -21,7 +22,7 @@ export function TeamSkillLeaderboard({ sessionId, limit = 10 }: TeamSkillLeaderb
   const { data: profiles = [] } = useQuery({
     queryKey: ['profiles-leaderboard-team'],
     queryFn: async () => {
-      const { data } = await supabase.from('profiles').select('user_id, full_name').eq('is_test', false);
+      const { data } = await supabase.from('profiles').select('user_id, full_name').or(VISIBLE_PROFILE_OR).eq('is_test', false);
       return data || [];
     },
   });

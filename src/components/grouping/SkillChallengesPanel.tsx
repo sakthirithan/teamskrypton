@@ -20,6 +20,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { useUserPoints } from '@/hooks/useUserPoints';
+import { VISIBLE_PROFILE_OR } from '@/lib/profileVisibility';
 
 interface SkillChallengesPanelProps {
   sessionId: string;
@@ -57,7 +58,7 @@ export function SkillChallengesPanel({ sessionId }: SkillChallengesPanelProps) {
   const { data: profiles = [] } = useQuery({
     queryKey: ['profiles-challenges'],
     queryFn: async () => {
-      const { data } = await supabase.from('profiles').select('user_id, full_name').eq('is_test', false);
+      const { data } = await supabase.from('profiles').select('user_id, full_name').or(VISIBLE_PROFILE_OR).eq('is_test', false);
       return data || [];
     },
   });

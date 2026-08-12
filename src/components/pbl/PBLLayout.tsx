@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useRef } from 'react';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { PBLSidebar } from './PBLSidebar';
 import { NotificationBell } from '@/components/grouping/NotificationBell';
@@ -28,6 +28,8 @@ import { PointsManagementPanel } from '@/components/admin/PointsManagementPanel'
 import { ModeSelectionDialog } from '@/components/auth/ModeSelectionDialog';
 import { AppMode } from '@/lib/groupingConstants';
 import { useState } from 'react';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { PullToRefreshIndicator } from '@/components/layout/PullToRefreshIndicator';
 
 interface PBLLayoutProps {
   children: ReactNode;
@@ -35,6 +37,8 @@ interface PBLLayoutProps {
 }
 
 export function PBLLayout({ children, title }: PBLLayoutProps) {
+  const mainRef = useRef<HTMLElement>(null);
+  const { pull, refreshing } = usePullToRefresh(mainRef);
   const { profile, role, signOut, isCaptainOrVice } = useAuth();
   const { clearMode, setMode } = useAppMode();
   const navigate = useNavigate();
@@ -130,7 +134,8 @@ export function PBLLayout({ children, title }: PBLLayoutProps) {
           </header>
 
           {/* Main Content — Full Canvas for Notifications/Messenger */}
-          <main className={location.pathname.includes('/notifications') ? "flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden p-0" : "flex-1 overflow-auto p-4 sm:p-6 page-enter pb-16 md:pb-6"}>
+          <main ref={mainRef} className={location.pathname.includes('/notifications') ? "flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden p-0" : "flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 page-enter pb-20 md:pb-6"}>
+            <PullToRefreshIndicator pull={pull} refreshing={refreshing} />
             {children}
           </main>
           <MobileBottomNav />

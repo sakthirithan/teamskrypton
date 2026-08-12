@@ -94,7 +94,9 @@ export function MobileBottomNav() {
   const isPbl = mode === 'pbl' || location.pathname.startsWith('/pbl');
 
   const activeNavItems = useMemo(() => {
+    // Team was replaced by My Calendar in the mobile bottom bar
     return navPrefIds
+      .map((id) => (id === 'team' ? 'my-calendar' : id))
       .map((id) => allAvailableItems.find((opt) => opt.id === id))
       .filter(Boolean) as typeof allAvailableItems;
   }, [navPrefIds, allAvailableItems]);

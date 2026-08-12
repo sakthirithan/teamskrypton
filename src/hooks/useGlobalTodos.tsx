@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { VISIBLE_PROFILE_OR } from '@/lib/profileVisibility';
 
 export interface GlobalTodo {
   id: string;
@@ -65,7 +66,7 @@ export function useGlobalTodos(mode?: string) {
   const profilesQuery = useQuery({
     queryKey: ['profiles-for-todos'],
     queryFn: async () => {
-      const { data } = await supabase.from('profiles').select('user_id, full_name').eq('is_test', false);
+      const { data } = await supabase.from('profiles').select('user_id, full_name').or(VISIBLE_PROFILE_OR).eq('is_test', false);
       return data || [];
     },
   });

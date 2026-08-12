@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
+import { VISIBLE_PROFILE_OR } from '@/lib/profileVisibility';
 
 interface SkillLeaderboardProps {
   sessionId: string;
@@ -24,7 +25,7 @@ export function SkillLeaderboard({ sessionId }: SkillLeaderboardProps) {
     queryFn: async () => {
       const { data } = await supabase
         .from('profiles')
-        .select('user_id, full_name')
+        .select('user_id, full_name').or(VISIBLE_PROFILE_OR)
         .eq('is_test', false);
       return data || [];
     },

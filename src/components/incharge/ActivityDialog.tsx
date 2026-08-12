@@ -73,6 +73,8 @@ export function ActivityDialog({
   const [memberIds, setMemberIds] = useState<string[]>([]);
   const [search, setSearch] = useState('');
 
+  const allSelected = members.length > 0 && members.every((m) => memberIds.includes(m.user_id));
+
   useEffect(() => {
     if (!open) return;
     if (activity) {
@@ -188,12 +190,25 @@ export function ActivityDialog({
             <div className="space-y-1.5">
               <Label>Assigned members ({memberIds.length})</Label>
               {!readOnly && (
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search members…"
-                  className="mb-2"
-                />
+                <>
+                  <label className="mb-2 flex cursor-pointer items-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-2 py-2 text-sm font-semibold">
+                    <Checkbox
+                      checked={allSelected}
+                      onCheckedChange={(c) =>
+                        // Assign to every eligible member — de-duplicated via a Set
+                        setMemberIds(c ? Array.from(new Set(members.map((m) => m.user_id))) : [])
+                      }
+                    />
+                    <span className="flex-1">All eligible members</span>
+                    <span className="text-xs font-normal text-muted-foreground">{members.length}</span>
+                  </label>
+                  <Input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search members…"
+                    className="mb-2"
+                  />
+                </>
               )}
               <ScrollArea className="h-44 rounded-md border border-border">
                 <div className="p-2 space-y-1">
@@ -207,7 +222,9 @@ export function ActivityDialog({
                         checked={memberIds.includes(m.user_id)}
                         onCheckedChange={(c) =>
                           setMemberIds((prev) =>
-                            c ? [...prev, m.user_id] : prev.filter((id) => id !== m.user_id),
+                            c
+                              ? Array.from(new Set([...prev, m.user_id]))
+                              : prev.filter((id) => id !== m.user_id),
                           )
                         }
                       />
@@ -253,7 +270,7 @@ export function ActivityDialog({
                   end_time: end,
                   category,
                   location,
-                  memberIds,
+                  memberIds: Array.from(new Set(memberIds)),
                 })
               }
             >

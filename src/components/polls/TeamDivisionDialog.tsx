@@ -8,6 +8,7 @@ import { Poll, PollOption, PollVote, usePollTeams } from '@/hooks/usePolls';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
+import { VISIBLE_PROFILE_OR } from '@/lib/profileVisibility';
 
 interface Props {
   poll: Poll;
@@ -128,7 +129,7 @@ function DialogBody({ poll, options, votes, onDone }: Props & { onDone: () => vo
   const { data: profiles = {} } = useQuery({
     queryKey: ['profiles-map'],
     queryFn: async () => {
-      const { data } = await supabase.from('profiles').select('user_id, full_name');
+      const { data } = await supabase.from('profiles').select('user_id, full_name').or(VISIBLE_PROFILE_OR);
       const map: Record<string, string> = {};
       (data || []).forEach((p: any) => { map[p.user_id] = p.full_name; });
       return map;

@@ -21,7 +21,7 @@ import {
 } from '@/lib/navConfig';
 import { usePblProjectLead } from '@/components/grouping/LeaderboardPanel';
 
-export const DEFAULT_NAV_IDS = ['dashboard', 'team', 'ps-entries', 'notifications'];
+export const DEFAULT_NAV_IDS = ['dashboard', 'my-calendar', 'ps-entries', 'notifications'];
 
 export function getUserNavPreferences(userId?: string): string[] {
   if (!userId) return DEFAULT_NAV_IDS;

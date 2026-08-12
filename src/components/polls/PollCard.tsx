@@ -10,6 +10,7 @@ import { TeamDivisionDialog } from './TeamDivisionDialog';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { VISIBLE_PROFILE_OR } from '@/lib/profileVisibility';
 
 interface Props {
   poll: Poll;
@@ -25,7 +26,7 @@ export function PollCard({ poll, options, votes }: Props) {
   const { data: profiles = {} } = useQuery({
     queryKey: ['profiles-map'],
     queryFn: async () => {
-      const { data } = await supabase.from('profiles').select('user_id, full_name, email');
+      const { data } = await supabase.from('profiles').select('user_id, full_name, email').or(VISIBLE_PROFILE_OR);
       const map: Record<string, { name: string; email: string }> = {};
       (data || []).forEach((p: any) => { map[p.user_id] = { name: p.full_name, email: p.email }; });
       return map;

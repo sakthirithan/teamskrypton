@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useIncharge, useTeamMembers, ScheduleActivity } from '@/hooks/useIncharge';
 import { ActivityDialog } from '@/components/incharge/ActivityDialog';
+import { ActivityDetailsDialog } from '@/components/incharge/ActivityDetailsDialog';
 import { ScheduleCalendar, toISODate } from '@/components/incharge/ScheduleCalendar';
 import { GroupingLayout } from '@/components/grouping/GroupingLayout';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,6 +24,7 @@ export default function GroupingCalendar() {
   const [view, setView] = useState<'day' | 'week'>('day');
   const [anchor, setAnchor] = useState(new Date());
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [editing, setEditing] = useState<ScheduleActivity | null>(null);
 
   const nameOf = (id: string) => members.find((m) => m.user_id === id)?.full_name || 'Member';
@@ -46,7 +48,7 @@ export default function GroupingCalendar() {
 
   const openActivity = (a: ScheduleActivity) => {
     setEditing(a);
-    setDialogOpen(true);
+    setDetailsOpen(true);
   };
 
   const canEdit = (a: ScheduleActivity | null) => {
@@ -82,6 +84,14 @@ export default function GroupingCalendar() {
           emptyHint="No finalized schedule activities assigned to you yet."
         />
       </div>
+
+      <ActivityDetailsDialog
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+        activity={editing}
+        memberNames={editing ? membersOf(editing.id).map(nameOf) : []}
+        organiser={editing ? nameOf(editing.created_by) : undefined}
+      />
 
       <ActivityDialog
         open={dialogOpen}

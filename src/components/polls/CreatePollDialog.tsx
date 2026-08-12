@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { usePolls, PollMode } from '@/hooks/usePolls';
+import { VISIBLE_PROFILE_OR } from '@/lib/profileVisibility';
 
 interface Props {
   mode: PollMode;
@@ -35,7 +36,7 @@ export function CreatePollDialog({ mode, trigger }: Props) {
   const { data: members = [] } = useQuery({
     queryKey: ['poll-members'],
     queryFn: async () => {
-      const { data } = await supabase.from('profiles').select('user_id, full_name, email').order('full_name');
+      const { data } = await supabase.from('profiles').select('user_id, full_name, email').or(VISIBLE_PROFILE_OR).order('full_name');
       return (data || []).filter((m: any) => m.user_id !== user?.id);
     },
     enabled: open,

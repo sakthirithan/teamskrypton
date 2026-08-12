@@ -4,6 +4,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { stripWhatsAppFormatting } from '@/components/ui/whatsapp-text';
+import { VISIBLE_PROFILE_OR } from '@/lib/profileVisibility';
+
+/** Global Messenger retention: messages are kept for 2 days, then cleaned up. */
+export const MESSAGE_RETENTION_DAYS = 2;
 
 export interface ChatMessage {
   id: string;
@@ -228,7 +232,7 @@ export function useMessengerChats() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('user_id, full_name, avatar_url, email, department');
+        .select('user_id, full_name, avatar_url, email, department').or(VISIBLE_PROFILE_OR);
       if (error) throw error;
       const map = new Map<string, { full_name: string; avatar_url?: string | null; email?: string; department?: string }>();
       (data || []).forEach((p) => {
@@ -400,7 +404,7 @@ export function useMessengerChats() {
       if (!user) throw new Error('Not authenticated');
       const caps = await detectCapabilities();
 
-      const expDays = params.expiration_days ?? 1;
+      const expDays = params.expiration_days ?? MESSAGE_RETENTION_DAYS;
       const expires_at = new Date(Date.now() + expDays * 24 * 60 * 60 * 1000).toISOString();
       const titleText = params.title || 'Direct Message';
       const msgType = params.type || 'direct';
@@ -528,7 +532,7 @@ export function useMessengerChats() {
         ? resolvedMembers
         : [user.id, ...resolvedMembers];
 
-      const expDays = params.expiration_days ?? 1;
+      const expDays = params.expiration_days ?? MESSAGE_RETENTION_DAYS;
       const expires_at = new Date(Date.now() + expDays * 24 * 60 * 60 * 1000).toISOString();
       const msgType = params.type || 'group';
 
