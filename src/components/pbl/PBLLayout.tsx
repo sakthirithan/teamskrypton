@@ -1,7 +1,7 @@
 import { ReactNode, useRef } from 'react';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { PBLSidebar } from './PBLSidebar';
-import { NotificationBell } from '@/components/grouping/NotificationBell';
+
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { useAuth } from '@/hooks/useAuth';
