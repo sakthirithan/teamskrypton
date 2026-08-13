@@ -118,12 +118,25 @@ export function SkillHistoryExport({ sessionId, userId, userName }: SkillHistory
 
       // Sheet 6: Endorsements
       if (endorsements.length > 0) {
-        const endData = endorsements.map((e, i) => ({
-          'S.No': i + 1,
-          'Skill ID': e.member_skill_id,
-          'Endorsed At': format(new Date(e.created_at), 'yyyy-MM-dd HH:mm'),
+        const endData = endorsements.map(e => ({
+          'Skill': e.skill_name,
+          'Endorsed By': e.endorser_name,
+          'Comment': e.comment || '-',
+          'Date': format(new Date(e.created_at), 'yyyy-MM-dd'),
         }));
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(endData), 'Endorsements');
+      }
+
+      // Sheet 7: Activity Points (AP)
+      const { data: apData } = await supabase.from('activity_points').select('*').eq('user_id', userId);
+      if (apData && apData.length > 0) {
+        const apSheetData = apData.map((a, i) => ({
+          'S.No': i + 1,
+          'Points': a.points,
+          'Reason': a.reason || 'Manual AP Entry',
+          'Updated At': format(new Date(a.updated_at || a.created_at), 'yyyy-MM-dd HH:mm'),
+        }));
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(apSheetData), 'Activity Points');
       }
 
       const filename = `Skill_History_${userName.replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;

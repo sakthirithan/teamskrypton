@@ -129,6 +129,7 @@ export function GroupingSidebar() {
   const mySpaceItems: NavItem[] = [
     { title: 'Overview', url: '/grouping/me', icon: Compass },
     { title: 'Skill Developement', url: '/grouping/me?tab=skills', icon: Target, tabParam: 'skills' },
+    { title: 'Monitoring & Alerts', url: '/grouping/me?tab=monitoring', icon: Target, tabParam: 'monitoring' },
     ...(isLeadership
       ? [{ title: 'Reports', url: '/grouping/me?tab=feed-reports', icon: TrendingUp, tabParam: 'feed-reports' }]
       : []),
@@ -154,6 +155,10 @@ export function GroupingSidebar() {
   ];
 
   const managementItems: NavItem[] = [
+    { title: 'Monitoring & Alerts', url: '/grouping/monitoring', icon: Target },
+    ...(canManagePoints
+      ? [{ title: 'Point Management', url: '/grouping/management/points', icon: Coins }]
+      : []),
     ...(isCaptainOrVice
       ? [{ title: 'Sessions', url: '/grouping/sessions', icon: Calendar }]
       : []),
@@ -418,6 +423,9 @@ export function GroupingSidebar() {
 
         {/* Workspace */}
         {renderCollapsibleSection('workspace', 'Workspace', workspaceItems)}
+
+        {/* Management */}
+        {renderCollapsibleSection('management', 'Management', managementItems)}
       </SidebarContent>
 
       <SidebarFooter className="p-3">

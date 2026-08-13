@@ -10,7 +10,8 @@ import { AppModeProvider } from "@/hooks/useAppMode";
 import { PWAInstallPrompt } from "@/components/pwa/PWAInstallPrompt";
 import { SuspensionScreen } from "@/components/auth/SuspensionScreen";
 import { AppLoadingScreen } from "@/components/common/AppLoadingScreen";
-import { initNativePush, setPushNavigationHandler } from "./lib/push";
+import { initNativePush, setPushNavigationHandler, getAndClearPendingPath } from "./lib/push";
+import { resolveDeepLink } from "./lib/deeplink";
 
 // Critical paths — eagerly loaded for fast first paint
 import Index from "./pages/Index";
@@ -37,6 +38,7 @@ const GroupingPointManagement = lazy(() => import("./pages/GroupingPointManageme
 const GroupingPolls = lazy(() => import("./pages/GroupingPolls"));
 const GroupingIncharge = lazy(() => import("./pages/GroupingIncharge"));
 const GroupingCalendar = lazy(() => import("./pages/GroupingCalendar"));
+const CentralizedMonitoring = lazy(() => import("./pages/CentralizedMonitoring"));
 const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
 const PBLDashboard = lazy(() => import("./pages/PBLDashboard"));
 const PBLProjects = lazy(() => import("./pages/PBLProjects"));
@@ -47,6 +49,7 @@ const PBLNotifications = lazy(() => import("./pages/PBLNotifications"));
 const PBLMySpace = lazy(() => import("./pages/PBLMySpace"));
 const PBLTodos = lazy(() => import("./pages/PBLTodos"));
 const PBLPolls = lazy(() => import("./pages/PBLPolls"));
+const ExpiredContentPage = lazy(() => import("./pages/ExpiredContentPage"));
 
 // Route-level loading fallback
 function RouteFallback() {
@@ -56,7 +59,6 @@ function RouteFallback() {
     </div>
   );
 }
-
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -69,19 +71,29 @@ const queryClient = new QueryClient({
     },
   },
 });
+
 function NativePushBootstrap() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    setPushNavigationHandler((path) => {
-      navigate(path);
-    });
-  }, [navigate]);
+    if (!isLoading && user) {
+      setPushNavigationHandler((path) => {
+        const safePath = resolveDeepLink(path);
+        console.log('[NativePushBootstrap] Directing to resolved path:', safePath);
+        navigate(safePath);
+      });
 
-  useEffect(() => {
-    if (user) initNativePush();
-  }, [user]);
+      const pending = getAndClearPendingPath();
+      if (pending) {
+        const safePath = resolveDeepLink(pending);
+        console.log('[NativePushBootstrap] Consuming cold start pending path:', safePath);
+        navigate(safePath);
+      }
+
+      initNativePush();
+    }
+  }, [isLoading, user, navigate]);
 
   return null;
 }
@@ -90,7 +102,7 @@ function ProtectedRouteGate({ children }: { children: ReactNode }) {
   const { user, isLoading } = useAuth();
   const location = useLocation();
 
-  const publicPaths = ['/auth', '/', '/index.html'];
+  const publicPaths = ['/auth', '/', '/index.html', '/expired-content'];
   const isPublic = publicPaths.includes(location.pathname);
 
   if (isLoading) {
@@ -110,12 +122,10 @@ function SuspensionGate({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [continueReadOnly, setContinueReadOnly] = useState(false);
 
-  // Always allow /auth to render (so the suspended user can sign out cleanly)
   if (isLoading) return <>{children}</>;
-  if (location.pathname === '/auth' || location.pathname === '/' || location.pathname === '/index.html') return <>{children}</>;
+  if (location.pathname === '/auth' || location.pathname === '/' || location.pathname === '/index.html' || location.pathname === '/expired-content') return <>{children}</>;
   if (!isDisabled) return <>{children}</>;
 
-  // Read-only mode: user may opt to continue into the app in view-only.
   if (disabledMode === 'read_only' && continueReadOnly) {
     return <>{children}</>;
   }
@@ -148,42 +158,45 @@ const App = () => (
                 <SuspensionGate>
                   <Suspense fallback={<RouteFallback />}>
                     <Routes>
-                    <Route path="/" element={<Index />} />
-                    <Route path="/index.html" element={<Index />} />
-                    <Route path="/auth" element={<Auth />} />
-                    <Route path="/team" element={<Team />} />
-                    <Route path="/my-space" element={<MySpace />} />
-                    <Route path="/member/:userId" element={<MemberProfile />} />
-                    <Route path="/profile/:userId" element={<MemberPublicProfile />} />
-                    <Route path="/profile/settings" element={<ProfileSettingsPage />} />
-                    {/* Grouping Mode Routes */}
-                    <Route path="/grouping/home" element={<GroupingHome />} />
-                    <Route path="/grouping/me" element={<GroupingMe />} />
-                    <Route path="/grouping/skills" element={<GroupingSkills />} />
-                    <Route path="/grouping/ps" element={<GroupingPS />} />
-                    <Route path="/grouping/reflections" element={<GroupingReflections />} />
-                    <Route path="/grouping/notes" element={<GroupingNotes />} />
-                    <Route path="/grouping/sessions" element={<GroupingSessions />} />
-                    <Route path="/grouping/habits" element={<GroupingHabits />} />
-                    <Route path="/grouping/todos" element={<GroupingTodos />} />
-                    <Route path="/grouping/leaderboard" element={<GroupingLeaderboard />} />
-                    <Route path="/grouping/management/points" element={<GroupingPointManagement />} />
-                    <Route path="/grouping/polls" element={<GroupingPolls />} />
-                    <Route path="/grouping/incharge" element={<GroupingIncharge />} />
-                    <Route path="/grouping/calendar" element={<GroupingCalendar />} />
-                    <Route path="/grouping/notifications" element={<NotificationsPage />} />
-                    <Route path="/notifications" element={<NotificationsPage />} />
-                    {/* PBL Mode Routes */}
-                    <Route path="/pbl/dashboard" element={<PBLDashboard />} />
-                    <Route path="/pbl/my-space" element={<PBLMySpace />} />
-                    <Route path="/pbl/projects" element={<PBLProjects />} />
-                    <Route path="/pbl/projects/:projectId" element={<ProjectDetail />} />
-                    <Route path="/pbl/analytics" element={<PBLAnalytics />} />
-                    <Route path="/pbl/docs" element={<PBLDocumentation />} />
-                    <Route path="/pbl/notifications" element={<PBLNotifications />} />
-                    <Route path="/pbl/todos" element={<PBLTodos />} />
-                    <Route path="/pbl/polls" element={<PBLPolls />} />
-                    <Route path="*" element={<NotFound />} />
+                      <Route path="/" element={<Index />} />
+                      <Route path="/index.html" element={<Index />} />
+                      <Route path="/auth" element={<Auth />} />
+                      <Route path="/team" element={<Team />} />
+                      <Route path="/my-space" element={<MySpace />} />
+                      <Route path="/member/:userId" element={<MemberProfile />} />
+                      <Route path="/profile/:userId" element={<MemberPublicProfile />} />
+                      <Route path="/profile/settings" element={<ProfileSettingsPage />} />
+                      {/* Grouping Mode Routes */}
+                      <Route path="/grouping/home" element={<GroupingHome />} />
+                      <Route path="/grouping/me" element={<GroupingMe />} />
+                      <Route path="/grouping/skills" element={<GroupingSkills />} />
+                      <Route path="/grouping/ps" element={<GroupingPS />} />
+                      <Route path="/grouping/reflections" element={<GroupingReflections />} />
+                      <Route path="/grouping/notes" element={<GroupingNotes />} />
+                      <Route path="/grouping/sessions" element={<GroupingSessions />} />
+                      <Route path="/grouping/habits" element={<GroupingHabits />} />
+                      <Route path="/grouping/todos" element={<GroupingTodos />} />
+                      <Route path="/grouping/leaderboard" element={<GroupingLeaderboard />} />
+                      <Route path="/grouping/management/points" element={<GroupingPointManagement />} />
+                      <Route path="/grouping/polls" element={<GroupingPolls />} />
+                      <Route path="/grouping/incharge" element={<GroupingIncharge />} />
+                      <Route path="/grouping/calendar" element={<GroupingCalendar />} />
+                      <Route path="/grouping/notifications" element={<NotificationsPage />} />
+                      <Route path="/grouping/monitoring" element={<CentralizedMonitoring />} />
+                      <Route path="/monitoring" element={<CentralizedMonitoring />} />
+                      <Route path="/notifications" element={<NotificationsPage />} />
+                      <Route path="/expired-content" element={<ExpiredContentPage />} />
+                      {/* PBL Mode Routes */}
+                      <Route path="/pbl/dashboard" element={<PBLDashboard />} />
+                      <Route path="/pbl/my-space" element={<PBLMySpace />} />
+                      <Route path="/pbl/projects" element={<PBLProjects />} />
+                      <Route path="/pbl/projects/:projectId" element={<ProjectDetail />} />
+                      <Route path="/pbl/analytics" element={<PBLAnalytics />} />
+                      <Route path="/pbl/docs" element={<PBLDocumentation />} />
+                      <Route path="/pbl/notifications" element={<PBLNotifications />} />
+                      <Route path="/pbl/todos" element={<PBLTodos />} />
+                      <Route path="/pbl/polls" element={<PBLPolls />} />
+                      <Route path="*" element={<NotFound />} />
                     </Routes>
                   </Suspense>
                 </SuspensionGate>

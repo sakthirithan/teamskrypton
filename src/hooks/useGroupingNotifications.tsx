@@ -61,11 +61,20 @@ export function useGroupingNotifications() {
 
       if (error) throw error;
 
-      // Filter out expired 24-hour broadcasts
-      const now = new Date().toISOString();
+      // Filter out expired notifications based on original created_at or expires_at
+      const nowMs = Date.now();
       const validNotifs = ((data || []) as GroupingNotification[]).filter((n) => {
-        if (n.expires_at && new Date(n.expires_at).toISOString() <= now) {
-          return false;
+        if (n.expires_at) {
+          if (new Date(n.expires_at).getTime() <= nowMs) return false;
+        }
+        const expHours = (n.metadata as any)?.expiry_hours || (n.metadata as any)?.expiryHours;
+        if (expHours && typeof expHours === 'number') {
+          const createdAtMs = new Date(n.created_at).getTime();
+          if (createdAtMs + expHours * 3600000 <= nowMs) return false;
+        } else if (n.type === 'daily_survey_alert' || n.type === 'general_requirement_alert' || n.type === 'broadcast') {
+          // Default 24-hour disappearance period for alert/broadcast notifications
+          const createdAtMs = new Date(n.created_at).getTime();
+          if (createdAtMs + 24 * 3600000 <= nowMs) return false;
         }
         return true;
       });
@@ -88,10 +97,18 @@ export function useGroupingNotifications() {
 
       if (error) throw error;
 
-      const now = new Date().toISOString();
+      const nowMs = Date.now();
       const valid = ((data || []) as GroupingNotification[]).filter((n) => {
-        if (n.expires_at && new Date(n.expires_at).toISOString() <= now) {
-          return false;
+        if (n.expires_at) {
+          if (new Date(n.expires_at).getTime() <= nowMs) return false;
+        }
+        const expHours = (n.metadata as any)?.expiry_hours || (n.metadata as any)?.expiryHours;
+        if (expHours && typeof expHours === 'number') {
+          const createdAtMs = new Date(n.created_at).getTime();
+          if (createdAtMs + expHours * 3600000 <= nowMs) return false;
+        } else if (n.type === 'daily_survey_alert' || n.type === 'general_requirement_alert' || n.type === 'broadcast') {
+          const createdAtMs = new Date(n.created_at).getTime();
+          if (createdAtMs + 24 * 3600000 <= nowMs) return false;
         }
         return true;
       });

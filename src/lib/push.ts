@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/integrations/supabase/client';
+import { resolveDeepLink } from '@/lib/deeplink';
 
 let initialized = false;
 let navigationHandler: ((path: string) => void) | null = null;
@@ -8,23 +9,26 @@ let pendingPath: string | null = null;
 export function setPushNavigationHandler(handler: (path: string) => void) {
   navigationHandler = handler;
   if (pendingPath) {
-    handler(pendingPath);
+    const safePath = resolveDeepLink(pendingPath);
     pendingPath = null;
+    handler(safePath);
   }
 }
 
+export function getAndClearPendingPath(): string | null {
+  const path = pendingPath;
+  pendingPath = null;
+  return path;
+}
+
 export function handlePushRoute(rawPath?: string) {
-  const targetPath = rawPath || '/grouping/notifications';
+  const safePath = resolveDeepLink(rawPath || '/grouping/notifications');
+  console.log('[PUSH Route] Dispatched path:', safePath);
+
   if (navigationHandler) {
-    navigationHandler(targetPath);
+    navigationHandler(safePath);
   } else {
-    pendingPath = targetPath;
-    try {
-      window.history.pushState({}, '', targetPath);
-      window.dispatchEvent(new Event('popstate'));
-    } catch (e) {
-      console.warn('[push] fallback nav error:', e);
-    }
+    pendingPath = safePath;
   }
 }
 
@@ -43,7 +47,6 @@ export async function initNativePush() {
     const { PushNotifications } = await import('@capacitor/push-notifications');
     const platform = Capacitor.getPlatform() === 'ios' ? 'ios' : 'android';
 
-    // Create Android High-Priority Notification Channel
     if (Capacitor.getPlatform() === 'android') {
       await PushNotifications.createChannel({
         id: 'teams_krypton_default',
@@ -56,12 +59,9 @@ export async function initNativePush() {
       }).catch((e) => console.warn('[push] channel creation error:', e));
     }
 
-    // Check & request runtime notification permissions (POST_NOTIFICATIONS on Android 13+)
     let perm = await PushNotifications.checkPermissions();
-    console.log('[PUSH] permission:', perm.receive);
     if (perm.receive === 'prompt' || perm.receive === 'prompt-with-rationale') {
       perm = await PushNotifications.requestPermissions();
-      console.log('[PUSH] permission:', perm.receive);
     }
     if (perm.receive !== 'granted') {
       console.warn('[PUSH] permission not granted');
@@ -69,42 +69,29 @@ export async function initNativePush() {
     }
 
     PushNotifications.addListener('registration', async (t) => {
-      console.log('[PUSH] token:', maskToken(t.value));
       const { data: { user }, error: userError } = await supabase.auth.getUser();
-      console.log('[PUSH] user:', user ? user.id : 'not authenticated');
-      if (userError) {
-        console.error('[PUSH] user lookup failed:', userError);
-        return;
-      }
-      if (!user) return;
+      if (userError || !user) return;
 
-      const { error } = await supabase
+      await supabase
         .from('device_tokens' as any)
         .upsert(
           { user_id: user.id, token: t.value, platform, last_seen: new Date().toISOString() },
           { onConflict: 'user_id,token' } as any
         );
-
-      console.log('[PUSH] token saved:', error ? 'failed' : 'success');
-      if (error) {
-        console.error('[PUSH] token save error:', error);
-        return;
-      }
-      console.log('[PUSH] token registration result:', { ok: true, userId: user.id, platform, token: maskToken(t.value) });
     });
 
     PushNotifications.addListener('registrationError', (e) => console.error('[PUSH] registrationError', e));
 
-    // Handle Tap on Notification (Foreground, Background, Cold-Start)
     PushNotifications.addListener('pushNotificationActionPerformed', (evt) => {
       const data = (evt.notification.data as any) || {};
-      const targetPath =
+      const rawTargetPath =
         data.path ||
         (data.chat_id
           ? `/grouping/notifications?chat_id=${data.chat_id}`
           : '/grouping/notifications');
-      console.log('[PUSH] Deep linking to:', targetPath);
-      handlePushRoute(targetPath);
+      const safePath = resolveDeepLink(rawTargetPath);
+      console.log('[PUSH Action Performed] Resolved path:', safePath);
+      handlePushRoute(safePath);
     });
 
     await PushNotifications.register();
@@ -112,5 +99,3 @@ export async function initNativePush() {
     console.error('[push] init failed', e);
   }
 }
-
-

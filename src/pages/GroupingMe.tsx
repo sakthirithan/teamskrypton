@@ -51,6 +51,7 @@ import { DailyStudyBoard } from '@/components/grouping/DailyStudyBoard';
 import { BalancePointsCard } from '@/components/grouping/BalancePointsCard';
 import { ActivityPointsCard } from '@/components/grouping/ActivityPointsCard';
 import { MySpaceNotificationsPanel } from '@/components/grouping/MySpaceNotificationsPanel';
+import { CentralizedMonitoringContent } from './CentralizedMonitoring';
 import { ROLE_LABELS, KryptonRole } from '@/lib/constants';
 import { 
   calculateSessionDays, 
@@ -1185,6 +1186,13 @@ const GroupingMe = () => {
                 userId={viewingUserId}
                 isReadOnly={isReadOnlyMode}
               />
+            </div>
+          )}
+
+          {/* Centralized Monitoring & Alerts Tab */}
+          {activeTab === 'monitoring' && (
+            <div className="pt-2">
+              <CentralizedMonitoringContent />
             </div>
           )}
         </div>
