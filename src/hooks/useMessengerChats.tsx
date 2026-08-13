@@ -848,32 +848,60 @@ export function useMessengerChats() {
 
       // Hard delete for sender who chooses "delete for everyone"
       if (isSender && forEveryone) {
-        // Broadcasts/announcements are fanned out into grouping_notifications rows —
-        // remove every recipient copy so the sender can truly unsend.
-        const broadcastId = (msg?.metadata as any)?.broadcast_id;
-        if (broadcastId) {
-          const { data: fanned } = await supabase
-            .from('grouping_notifications')
-            .select('id, metadata')
-            .eq('sender_id', user.id);
-          const ids = (fanned || [])
-            .filter((n: any) => (n.metadata as any)?.broadcast_id === broadcastId)
-            .map((n: any) => n.id);
-          if (ids.length > 0) {
-            await supabase.from('grouping_notifications').delete().in('id', ids);
-          }
-        }
+        let removed = 0;
 
+        // 1. Remove the messenger copy (may not exist for legacy bell-sent messages)
         if (caps.messengerMessages) {
-          const { error } = await (supabase as any)
+          const res = await (supabase as any)
             .from('messenger_messages')
             .delete()
-            .eq('id', msgId);
-          if (!error) return;
+            .eq('id', msgId)
+            .select('id');
+          removed += (res.data?.length || 0);
         }
-        await supabase.from('grouping_notifications').delete().eq('id', msgId);
+
+        // 2. Remove the notification row with the same id (legacy notification-only messages)
+        const direct = await supabase
+          .from('grouping_notifications')
+          .delete()
+          .eq('id', msgId)
+          .select('id');
+        removed += (direct.data?.length || 0);
+
+        // 3. Broadcasts/announcements are fanned out into one row per recipient —
+        //    remove every copy so the sender can truly unsend (including old messages
+        //    that have no broadcast_id: match on title + message instead).
+        const broadcastId = (msg?.metadata as any)?.broadcast_id;
+        const { data: fanned } = await supabase
+          .from('grouping_notifications')
+          .select('id, metadata, title, message')
+          .eq('sender_id', user.id);
+
+        const ids = (fanned || [])
+          .filter((n: any) => {
+            const bId = (n.metadata as any)?.broadcast_id;
+            if (broadcastId) return bId === broadcastId;
+            return (
+              (n.title || '') === (msg?.title || '') &&
+              (n.message || '') === (msg?.message || '')
+            );
+          })
+          .map((n: any) => n.id);
+
+        if (ids.length > 0) {
+          const res = await supabase
+            .from('grouping_notifications')
+            .delete()
+            .in('id', ids)
+            .select('id');
+          removed += (res.data?.length || 0);
+        }
+
+        if (removed === 0) throw new Error('This message could no longer be found.');
         return;
       }
+
+
 
 
       // Soft delete: record hidden state only for this user
@@ -885,14 +913,23 @@ export function useMessengerChats() {
       }
 
       // Fallback: hard delete (old behavior if message_user_state table not available)
+      let removedSelf = 0;
       if (caps.messengerMessages) {
-        const { error } = await (supabase as any)
+        const res = await (supabase as any)
           .from('messenger_messages')
           .delete()
-          .eq('id', msgId);
-        if (!error) return;
+          .eq('id', msgId)
+          .select('id');
+        removedSelf += (res.data?.length || 0);
       }
-      await supabase.from('grouping_notifications').delete().eq('id', msgId);
+      const own = await supabase
+        .from('grouping_notifications')
+        .delete()
+        .eq('id', msgId)
+        .select('id');
+      removedSelf += (own.data?.length || 0);
+      if (removedSelf === 0) throw new Error('This message could no longer be found.');
+
     },
     onSuccess: () => {
       debouncedInvalidateMessages();
