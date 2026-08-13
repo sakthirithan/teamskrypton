@@ -41,6 +41,11 @@ export interface ChatMessage {
     reactions?: Record<string, string>; // userId -> emoji
     broadcast_id?: string;
     expiration_days?: number;
+    target_audience?: string;
+    is_broadcast?: boolean;
+    sender_name?: string;
+    recipient_count?: number;
+
   };
 }
 
