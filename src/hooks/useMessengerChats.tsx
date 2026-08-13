@@ -913,14 +913,23 @@ export function useMessengerChats() {
       }
 
       // Fallback: hard delete (old behavior if message_user_state table not available)
+      let removedSelf = 0;
       if (caps.messengerMessages) {
-        const { error } = await (supabase as any)
+        const res = await (supabase as any)
           .from('messenger_messages')
           .delete()
-          .eq('id', msgId);
-        if (!error) return;
+          .eq('id', msgId)
+          .select('id');
+        removedSelf += (res.data?.length || 0);
       }
-      await supabase.from('grouping_notifications').delete().eq('id', msgId);
+      const own = await supabase
+        .from('grouping_notifications')
+        .delete()
+        .eq('id', msgId)
+        .select('id');
+      removedSelf += (own.data?.length || 0);
+      if (removedSelf === 0) throw new Error('This message could no longer be found.');
+
     },
     onSuccess: () => {
       debouncedInvalidateMessages();
