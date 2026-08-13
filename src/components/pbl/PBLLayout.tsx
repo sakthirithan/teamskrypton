@@ -85,7 +85,7 @@ export function PBLLayout({ children, title }: PBLLayoutProps) {
               </Badge>
 
               <ThemeToggle />
-              <NotificationBell />
+
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
