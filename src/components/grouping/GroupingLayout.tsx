@@ -82,7 +82,7 @@ export function GroupingLayout({ children, title }: GroupingLayoutProps) {
               </Badge>
 
               <ThemeToggle />
-              <NotificationBell />
+
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
