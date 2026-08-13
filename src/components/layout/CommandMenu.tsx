@@ -47,7 +47,7 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
     staleTime: 30_000,
   });
 
-  const handleSelect = (path: string, itemInfo?: { id: string; title: string; type: 'member' | 'chat' | 'activity' }) => {
+  const handleSelect = (path: string, itemInfo?: { id: string; title: string; type: 'member' | 'chat' | 'activity'; subtitle?: string }) => {
     onOpenChange(false);
     setSearch('');
     if (itemInfo) {

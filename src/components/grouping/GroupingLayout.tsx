@@ -15,7 +15,7 @@ import { UserCog, Coins, RefreshCw, LogOut, User } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { UserListPanel } from '@/components/admin/UserListPanel';
 import { PointsManagementPanel } from '@/components/admin/PointsManagementPanel';
-import { NotificationBell } from '@/components/grouping/NotificationBell';
+
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
@@ -82,7 +82,7 @@ export function GroupingLayout({ children, title }: GroupingLayoutProps) {
               </Badge>
 
               <ThemeToggle />
-              <NotificationBell />
+
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
