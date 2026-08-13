@@ -1,4 +1,5 @@
 import {
+  Activity,
   LayoutDashboard,
   Users,
   TrendingUp,
@@ -91,6 +92,7 @@ export function getAvailableNavCategories(userPermissions: {
       id: 'management',
       category: 'MANAGEMENT',
       items: [
+        { id: 'monitoring', label: 'Monitoring & Alerts', path: '/grouping/monitoring', iconName: 'Activity', category: 'MANAGEMENT' },
         ...(isCaptainOrVice
           ? [{ id: 'sessions', label: 'Sessions', path: '/grouping/sessions', iconName: 'Calendar', category: 'MANAGEMENT', requiresCaptainOrVice: true }]
           : []),

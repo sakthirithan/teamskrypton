@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { KryptonLogo } from '@/components/common/KryptonLogo';
 import {
+  Activity,
   CalendarClock,
   LayoutDashboard,
   BookOpen,
@@ -154,6 +155,7 @@ export function GroupingSidebar() {
   ];
 
   const managementItems: NavItem[] = [
+    { title: 'Monitoring & Alerts', url: '/grouping/monitoring', icon: Activity },
     ...(isCaptainOrVice
       ? [{ title: 'Sessions', url: '/grouping/sessions', icon: Calendar }]
       : []),
