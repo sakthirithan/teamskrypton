@@ -843,6 +843,22 @@ export function useMessengerChats() {
 
       // Hard delete for sender who chooses "delete for everyone"
       if (isSender && forEveryone) {
+        // Broadcasts/announcements are fanned out into grouping_notifications rows —
+        // remove every recipient copy so the sender can truly unsend.
+        const broadcastId = (msg?.metadata as any)?.broadcast_id;
+        if (broadcastId) {
+          const { data: fanned } = await supabase
+            .from('grouping_notifications')
+            .select('id, metadata')
+            .eq('sender_id', user.id);
+          const ids = (fanned || [])
+            .filter((n: any) => (n.metadata as any)?.broadcast_id === broadcastId)
+            .map((n: any) => n.id);
+          if (ids.length > 0) {
+            await supabase.from('grouping_notifications').delete().in('id', ids);
+          }
+        }
+
         if (caps.messengerMessages) {
           const { error } = await (supabase as any)
             .from('messenger_messages')
@@ -853,6 +869,7 @@ export function useMessengerChats() {
         await supabase.from('grouping_notifications').delete().eq('id', msgId);
         return;
       }
+
 
       // Soft delete: record hidden state only for this user
       if (caps.messageUserState) {
