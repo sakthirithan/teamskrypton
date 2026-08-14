@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -56,92 +56,130 @@ export interface ScheduledAlert {
   target_filter: string;
   target_user_ids?: string[];
   scheduled_at: string;
-  status: 'scheduled' | 'sent' | 'cancelled';
-  idempotent_key?: string;
-  created_by?: string;
+  status: string;
+  created_by?: string | null;
   created_at: string;
 }
 
-const STORAGE_KEYS = {
-  TARGETS: 'krypton_monitoring_global_targets',
-  INDIVIDUAL_TARGETS: 'krypton_monitoring_individual_targets',
-  SURVEY_RESPONSES: 'krypton_daily_survey_responses',
-  MEETING_RECORDS: 'krypton_monitoring_meeting_records',
-  SCHEDULED_ALERTS: 'krypton_scheduled_alerts',
-  VIEW_MODE: 'krypton_monitoring_view_mode',
+export interface MonitoringAuditEntry {
+  id: string;
+  actor_id: string | null;
+  target_user_id: string | null;
+  field: string;
+  old_value: string | null;
+  new_value: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+const VIEW_MODE_KEY = 'krypton_monitoring_view_mode';
+
+const DEFAULT_TARGETS: MonitoringTargets = {
+  required_ap_target: 4200,
+  required_ps_target: 1,
+  required_meeting_target: 1,
+  required_survey_target: 4,
 };
 
-function isMissingTableError(error: any): boolean {
-  if (!error) return false;
-  const msg = typeof error === 'string' ? error : error.message || error.details || '';
-  const code = error.code || '';
-  return code === 'PGRST205' || code === '42P01' || msg.toLowerCase().includes('schema cache') || msg.toLowerCase().includes('could not find the table');
+export const today = () => new Date().toISOString().split('T')[0];
+
+function buildCriterion(achieved: number, target: number, textFmt?: (a: number, t: number, met: boolean) => string): CriterionStatus {
+  const remaining = Math.max(0, target - achieved);
+  const isMet = achieved >= target;
+  const percentage = target > 0 ? Math.min(100, Math.round((achieved / target) * 100)) : 100;
+  return {
+    target,
+    achieved,
+    remaining,
+    percentage,
+    isMet,
+    displayText: textFmt ? textFmt(achieved, target, isMet) : `${achieved} / ${target}`,
+  };
+}
+
+function recomputeOverall(m: MemberMonitoringStatus): MemberMonitoringStatus {
+  return { ...m, overallMet: m.ap.isMet && m.ps.isMet && m.groupMeeting.isMet && m.dailySurvey.isMet };
 }
 
 export function useCentralizedMonitoring() {
-  const { user, role, isLeadership } = useAuth();
+  const { user, isLeadership } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const [viewMode, setViewModeState] = useState<'compact' | 'grid' | 'detailed'>(() => {
-    return (localStorage.getItem(STORAGE_KEYS.VIEW_MODE) as any) || 'detailed';
-  });
+  const [viewMode, setViewModeState] = useState<'compact' | 'grid' | 'detailed'>(
+    () => (localStorage.getItem(VIEW_MODE_KEY) as any) || 'detailed'
+  );
 
   const setViewMode = (mode: 'compact' | 'grid' | 'detailed') => {
     setViewModeState(mode);
-    localStorage.setItem(STORAGE_KEYS.VIEW_MODE, mode);
+    localStorage.setItem(VIEW_MODE_KEY, mode);
   };
 
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
 
-  // 1. Fetch Global Targets
+  const fail = useCallback(
+    (title: string) => (err: any) => {
+      toast({ variant: 'destructive', title, description: err?.message || 'Please try again.' });
+    },
+    [toast]
+  );
+
+  const writeAudit = useCallback(
+    async (entries: { target_user_id?: string | null; field: string; old_value?: string | null; new_value?: string | null; note?: string }[]) => {
+      if (!user || entries.length === 0) return;
+      try {
+        await supabase.from('monitoring_audit_log').insert(
+          entries.map((e) => ({
+            actor_id: user.id,
+            target_user_id: e.target_user_id ?? null,
+            field: e.field,
+            old_value: e.old_value ?? null,
+            new_value: e.new_value ?? null,
+            note: e.note ?? null,
+          }))
+        );
+      } catch {
+        /* audit failures must never block the primary action */
+      }
+    },
+    [user]
+  );
+
+  /* ---------------------------------------------------------------- targets */
+
   const targetsQuery = useQuery({
     queryKey: ['monitoring-targets'],
-    queryFn: async () => {
-      try {
-        const { data, error } = await supabase
-          .from('monitoring_targets' as any)
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (error && isMissingTableError(error)) {
-          const cached = localStorage.getItem(STORAGE_KEYS.TARGETS);
-          return cached ? JSON.parse(cached) : { required_ap_target: 4200, required_ps_target: 1, required_meeting_target: 1, required_survey_target: 4 };
-        }
-
-        if (data) {
-          localStorage.setItem(STORAGE_KEYS.TARGETS, JSON.stringify(data));
-          return data as MonitoringTargets;
-        }
-      } catch {
-        console.warn('[monitoring] Using local targets fallback');
-      }
-
-      const cached = localStorage.getItem(STORAGE_KEYS.TARGETS);
-      return (cached ? JSON.parse(cached) : {
-        required_ap_target: 4200,
-        required_ps_target: 1,
-        required_meeting_target: 1,
-        required_survey_target: 4,
-      }) as MonitoringTargets;
+    queryFn: async (): Promise<MonitoringTargets> => {
+      const { data, error } = await supabase
+        .from('monitoring_targets')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return DEFAULT_TARGETS;
+      return {
+        id: data.id,
+        required_ap_target: data.required_ap_target,
+        required_ps_target: data.required_ps_target,
+        required_meeting_target: data.required_meeting_target,
+        required_survey_target: data.required_survey_target,
+      };
     },
     enabled: !!user,
-    staleTime: 10000,
+    staleTime: 30000,
+    placeholderData: keepPreviousData,
   });
 
-  const globalTargets = targetsQuery.data || {
-    required_ap_target: 4200,
-    required_ps_target: 1,
-    required_meeting_target: 1,
-    required_survey_target: 4,
-  };
+  const globalTargets = targetsQuery.data || DEFAULT_TARGETS;
 
-  // 2. Fetch Aggregated Monitoring Data
+  /* ------------------------------------------------------- monitoring board */
+
+  const monitoringKey = ['centralized-monitoring-data', globalTargets] as const;
+
   const monitoringDataQuery = useQuery({
-    queryKey: ['centralized-monitoring-data', globalTargets],
-    queryFn: async () => {
+    queryKey: monitoringKey,
+    queryFn: async (): Promise<MemberMonitoringStatus[]> => {
       const { data: profiles, error: pErr } = await supabase
         .from('profiles')
         .select('user_id, full_name, email, department, avatar_url, updated_at')
@@ -152,55 +190,32 @@ export function useCentralizedMonitoring() {
       if (!profiles || profiles.length === 0) return [];
 
       const userIds = profiles.map((p) => p.user_id);
-      const todayStr = new Date().toISOString().split('T')[0];
+      const todayStr = today();
 
-      const [rolesRes, apRes, psRes] = await Promise.all([
+      const [rolesRes, apRes, psRes, surveyRes, meetingRes, indivRes] = await Promise.all([
         supabase.from('user_roles').select('user_id, role').in('user_id', userIds),
         supabase.from('activity_points').select('user_id, points, updated_at').in('user_id', userIds),
-        supabase.from('ps_daily_entries').select('user_id, status, entry_date').eq('status', 'completed').in('user_id', userIds),
+        supabase
+          .from('ps_daily_entries')
+          .select('user_id, status, entry_date')
+          .eq('status', 'completed')
+          .eq('entry_date', todayStr)
+          .in('user_id', userIds),
+        supabase
+          .from('daily_survey_responses')
+          .select('user_id, response_count')
+          .eq('survey_date', todayStr)
+          .in('user_id', userIds),
+        supabase
+          .from('monitoring_meeting_records')
+          .select('user_id, status')
+          .eq('meeting_date', todayStr)
+          .in('user_id', userIds),
+        supabase.from('individual_monitoring_targets').select('*').in('user_id', userIds),
       ]);
 
-      let surveyData: any[] = [];
-      try {
-        const res = await supabase.from('daily_survey_responses' as any).select('*').in('user_id', userIds);
-        if (res.error && isMissingTableError(res.error)) {
-          const cached = localStorage.getItem(STORAGE_KEYS.SURVEY_RESPONSES);
-          surveyData = cached ? JSON.parse(cached) : [];
-        } else {
-          surveyData = res.data || [];
-        }
-      } catch {
-        const cached = localStorage.getItem(STORAGE_KEYS.SURVEY_RESPONSES);
-        surveyData = cached ? JSON.parse(cached) : [];
-      }
-
-      let meetingData: any[] = [];
-      try {
-        const res = await supabase.from('monitoring_meeting_records' as any).select('user_id, status, meeting_date').in('user_id', userIds);
-        if (res.error && isMissingTableError(res.error)) {
-          const cached = localStorage.getItem(STORAGE_KEYS.MEETING_RECORDS);
-          meetingData = cached ? JSON.parse(cached) : [];
-        } else {
-          meetingData = res.data || [];
-        }
-      } catch {
-        const cached = localStorage.getItem(STORAGE_KEYS.MEETING_RECORDS);
-        meetingData = cached ? JSON.parse(cached) : [];
-      }
-
-      let indivTargetsData: any[] = [];
-      try {
-        const res = await supabase.from('individual_monitoring_targets' as any).select('*').in('user_id', userIds);
-        if (res.error && isMissingTableError(res.error)) {
-          const cached = localStorage.getItem(STORAGE_KEYS.INDIVIDUAL_TARGETS);
-          indivTargetsData = cached ? JSON.parse(cached) : [];
-        } else {
-          indivTargetsData = res.data || [];
-        }
-      } catch {
-        const cached = localStorage.getItem(STORAGE_KEYS.INDIVIDUAL_TARGETS);
-        indivTargetsData = cached ? JSON.parse(cached) : [];
-      }
+      const firstError = [rolesRes, apRes, psRes, surveyRes, meetingRes, indivRes].find((r) => r.error)?.error;
+      if (firstError) throw firstError;
 
       const rolesMap = new Map<string, KryptonRole>();
       (rolesRes.data || []).forEach((r) => rolesMap.set(r.user_id, r.role as KryptonRole));
@@ -214,33 +229,19 @@ export function useCentralizedMonitoring() {
         });
       });
 
-      // PS Entries for Today
       const psCountMap = new Map<string, number>();
-      (psRes.data || []).forEach((r) => {
-        if (r.entry_date === todayStr || !r.entry_date) {
-          psCountMap.set(r.user_id, (psCountMap.get(r.user_id) || 0) + 1);
-        }
-      });
+      (psRes.data || []).forEach((r) => psCountMap.set(r.user_id, (psCountMap.get(r.user_id) || 0) + 1));
 
-      // Daily Survey Count Calculation from Source of Truth
       const surveyCountMap = new Map<string, number>();
-      surveyData.forEach((r: any) => {
-        if (r.survey_date === todayStr || !r.survey_date) {
-          const countVal = typeof r.answers?.response_count === 'number' ? r.answers.response_count : 1;
-          surveyCountMap.set(r.user_id, (surveyCountMap.get(r.user_id) || 0) + countVal);
-        }
-      });
+      (surveyRes.data || []).forEach((r) => surveyCountMap.set(r.user_id, r.response_count || 0));
 
-      // Meeting Count
       const meetingCountMap = new Map<string, number>();
-      meetingData.forEach((r: any) => {
-        if ((r.meeting_date === todayStr || !r.meeting_date) && r.status === 'completed') {
-          meetingCountMap.set(r.user_id, (meetingCountMap.get(r.user_id) || 0) + 1);
-        }
+      (meetingRes.data || []).forEach((r) => {
+        if (r.status === 'completed') meetingCountMap.set(r.user_id, 1);
       });
 
       const indivTargetsMap = new Map<string, IndividualMonitoringTarget>();
-      indivTargetsData.forEach((r: any) => {
+      (indivRes.data || []).forEach((r) => {
         indivTargetsMap.set(r.user_id, {
           userId: r.user_id,
           required_ap_target: r.required_ap_target,
@@ -251,37 +252,22 @@ export function useCentralizedMonitoring() {
       });
 
       const results: MemberMonitoringStatus[] = profiles.map((p) => {
-        const userRole = rolesMap.get(p.user_id) || 'team_member';
-        const apData = apMap.get(p.user_id) || { points: 0, lastUpdated: p.updated_at };
         const indivTarget = indivTargetsMap.get(p.user_id);
+        const apData = apMap.get(p.user_id) || { points: 0, lastUpdated: p.updated_at };
 
         const apTarget = indivTarget?.required_ap_target ?? globalTargets.required_ap_target;
         const psTarget = indivTarget?.required_ps_target ?? globalTargets.required_ps_target;
         const meetingTarget = indivTarget?.required_meeting_target ?? globalTargets.required_meeting_target;
         const surveyTarget = indivTarget?.required_survey_target ?? globalTargets.required_survey_target;
 
-        const apAchieved = apData.points;
-        const apRem = Math.max(0, apTarget - apAchieved);
-        const apMet = apAchieved >= apTarget;
-        const apPct = apTarget > 0 ? Math.min(100, Math.round((apAchieved / apTarget) * 100)) : 100;
-
-        const psAchieved = psCountMap.get(p.user_id) || 0;
-        const psRem = Math.max(0, psTarget - psAchieved);
-        const psMet = psAchieved >= psTarget;
-        const psPct = psTarget > 0 ? Math.min(100, Math.round((psAchieved / psTarget) * 100)) : 100;
-        const psText = psTarget === 1 ? (psMet ? 'Completed' : 'Pending') : `${psAchieved} / ${psTarget}`;
-
-        const meetingAchieved = meetingCountMap.get(p.user_id) || 1;
-        const meetingRem = Math.max(0, meetingTarget - meetingAchieved);
-        const meetingMet = meetingAchieved >= meetingTarget;
-        const meetingPct = meetingTarget > 0 ? Math.min(100, Math.round((meetingAchieved / meetingTarget) * 100)) : 100;
-
-        const surveyAchieved = surveyCountMap.get(p.user_id) || 0;
-        const surveyRem = Math.max(0, surveyTarget - surveyAchieved);
-        const surveyMet = surveyAchieved >= surveyTarget;
-        const surveyPct = surveyTarget > 0 ? Math.min(100, Math.round((surveyAchieved / surveyTarget) * 100)) : 100;
-
-        const overallMet = apMet && psMet && meetingMet && surveyMet;
+        const ap = buildCriterion(apData.points, apTarget);
+        const ps = buildCriterion(psCountMap.get(p.user_id) || 0, psTarget, (a, t, met) =>
+          t === 1 ? (met ? 'Completed' : 'Pending') : `${a} / ${t}`
+        );
+        const groupMeeting = buildCriterion(meetingCountMap.get(p.user_id) || 0, meetingTarget, (a, t, met) =>
+          t === 1 ? (met ? 'Attended' : 'Pending') : `${a} / ${t}`
+        );
+        const dailySurvey = buildCriterion(surveyCountMap.get(p.user_id) || 0, surveyTarget);
 
         return {
           userId: p.user_id,
@@ -289,41 +275,13 @@ export function useCentralizedMonitoring() {
           email: p.email,
           department: p.department,
           avatarUrl: p.avatar_url,
-          role: userRole,
-          ap: {
-            target: apTarget,
-            achieved: apAchieved,
-            remaining: apRem,
-            percentage: apPct,
-            isMet: apMet,
-            displayText: `${apAchieved} / ${apTarget}`,
-          },
-          ps: {
-            target: psTarget,
-            achieved: psAchieved,
-            remaining: psRem,
-            percentage: psPct,
-            isMet: psMet,
-            displayText: psText,
-          },
-          groupMeeting: {
-            target: meetingTarget,
-            achieved: meetingAchieved,
-            remaining: meetingRem,
-            percentage: meetingPct,
-            isMet: meetingMet,
-            displayText: `${meetingAchieved} / ${meetingTarget}`,
-          },
-          dailySurvey: {
-            target: surveyTarget,
-            achieved: surveyAchieved,
-            remaining: surveyRem,
-            percentage: surveyPct,
-            isMet: surveyMet,
-            displayText: `${surveyAchieved} / ${surveyTarget}`,
-          },
+          role: rolesMap.get(p.user_id) || 'team_member',
+          ap,
+          ps,
+          groupMeeting,
+          dailySurvey,
           hasPenalty: false,
-          overallMet,
+          overallMet: ap.isMet && ps.isMet && groupMeeting.isMet && dailySurvey.isMet,
           lastUpdated: apData.lastUpdated || p.updated_at,
           customTargets: indivTarget,
         };
@@ -333,576 +291,844 @@ export function useCentralizedMonitoring() {
       return results;
     },
     enabled: !!user,
-    staleTime: 10000,
+    staleTime: 15000,
+    placeholderData: keepPreviousData,
   });
 
-  // Scheduled Alerts Query
+  const members = monitoringDataQuery.data || [];
+
+  /** Optimistically patch a single member row in the cache. */
+  const patchMember = useCallback(
+    (userId: string, patch: (m: MemberMonitoringStatus) => MemberMonitoringStatus) => {
+      const previous = queryClient.getQueryData<MemberMonitoringStatus[]>(monitoringKey);
+      queryClient.setQueryData<MemberMonitoringStatus[]>(monitoringKey, (old) =>
+        Array.isArray(old) ? old.map((m) => (m.userId === userId ? recomputeOverall(patch(m)) : m)) : old
+      );
+      return previous;
+    },
+    [queryClient, globalTargets]
+  );
+
+  const rollback = useCallback(
+    (previous?: MemberMonitoringStatus[]) => {
+      if (previous) queryClient.setQueryData(monitoringKey, previous);
+    },
+    [queryClient, globalTargets]
+  );
+
+  const invalidateBoard = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['centralized-monitoring-data'] });
+  }, [queryClient]);
+
+  /* -------------------------------------------------------- scheduled alerts */
+
   const scheduledAlertsQuery = useQuery({
     queryKey: ['scheduled-monitoring-alerts'],
-    queryFn: async () => {
-      try {
-        const { data, error } = await supabase
-          .from('scheduled_monitoring_alerts' as any)
-          .select('*')
-          .order('scheduled_at', { ascending: true });
-
-        if (error && isMissingTableError(error)) {
-          const cached = localStorage.getItem(STORAGE_KEYS.SCHEDULED_ALERTS);
-          return cached ? JSON.parse(cached) : [];
-        }
-        if (data) {
-          localStorage.setItem(STORAGE_KEYS.SCHEDULED_ALERTS, JSON.stringify(data));
-          return data as ScheduledAlert[];
-        }
-      } catch {
-        const cached = localStorage.getItem(STORAGE_KEYS.SCHEDULED_ALERTS);
-        return (cached ? JSON.parse(cached) : []) as ScheduledAlert[];
-      }
-      return [] as ScheduledAlert[];
+    queryFn: async (): Promise<ScheduledAlert[]> => {
+      const { data, error } = await supabase
+        .from('scheduled_monitoring_alerts')
+        .select('*')
+        .order('scheduled_at', { ascending: true });
+      if (error) throw error;
+      return (data || []) as ScheduledAlert[];
     },
     enabled: !!user,
+    staleTime: 15000,
+    placeholderData: keepPreviousData,
   });
 
-  // Automated Dispatch Worker for Due Scheduled Alerts
-  const processDueAlerts = useCallback(async () => {
-    const alertsList = scheduledAlertsQuery.data || [];
-    const now = new Date();
-    const dueAlerts = alertsList.filter((a) => a.status === 'scheduled' && new Date(a.scheduled_at) <= now);
+  /* ------------------------------------------------------------ audit / history */
 
-    if (dueAlerts.length === 0 || !user) return;
+  const auditQuery = useQuery({
+    queryKey: ['monitoring-audit-log'],
+    queryFn: async (): Promise<MonitoringAuditEntry[]> => {
+      const { data, error } = await supabase
+        .from('monitoring_audit_log')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return (data || []) as MonitoringAuditEntry[];
+    },
+    enabled: !!user,
+    staleTime: 20000,
+    placeholderData: keepPreviousData,
+  });
 
-    const membersList = monitoringDataQuery.data || [];
-    const resolvedPath = resolveDeepLink('/grouping/monitoring?open=survey');
+  /* ------------------------------------------------------- notification fanout */
 
-    for (const alert of dueAlerts) {
-      let targetUserIds: string[] = [];
-      if (alert.target_filter === 'missing_survey') {
-        targetUserIds = membersList.filter((m) => !m.dailySurvey.isMet).map((m) => m.userId);
-      } else if (alert.target_filter === 'missing_all') {
-        targetUserIds = membersList.filter((m) => !m.overallMet).map((m) => m.userId);
-      } else if (alert.target_user_ids && alert.target_user_ids.length > 0) {
-        targetUserIds = alert.target_user_ids;
-      } else {
-        targetUserIds = membersList.map((m) => m.userId);
+  const dispatchNotifications = useCallback(
+    async (opts: { userIds: string[]; title: string; message: string; type: string; path?: string; metadata?: Record<string, any> }) => {
+      if (!user || opts.userIds.length === 0) return 0;
+      const resolvedPath = resolveDeepLink(opts.path || '/grouping/monitoring');
+
+      const rows = opts.userIds.map((uid) => ({
+        sender_id: user.id,
+        recipient_id: uid,
+        title: opts.title,
+        message: opts.message,
+        type: opts.type,
+        is_read: false,
+        metadata: { actionable: true, path: resolvedPath, ...(opts.metadata || {}) },
+      }));
+
+      const { error } = await supabase.from('grouping_notifications').insert(rows as any);
+      if (error) throw error;
+
+      try {
+        await supabase.functions.invoke('send-push', {
+          body: {
+            user_ids: opts.userIds,
+            title: opts.title,
+            body: opts.message,
+            data: { type: opts.type, actionable: 'true', path: resolvedPath },
+          },
+        });
+      } catch {
+        /* push is best-effort */
       }
+      return opts.userIds.length;
+    },
+    [user]
+  );
 
-      if (targetUserIds.length > 0) {
-        const notifications = targetUserIds.map((uid) => ({
-          sender_id: alert.created_by || user.id,
-          recipient_id: uid,
+  const resolveAudience = useCallback(
+    (filter: string, explicitIds?: string[] | null) => {
+      if (explicitIds && explicitIds.length > 0) return explicitIds;
+      switch (filter) {
+        case 'missing_survey':
+          return members.filter((m) => !m.dailySurvey.isMet).map((m) => m.userId);
+        case 'missing_ap':
+          return members.filter((m) => !m.ap.isMet).map((m) => m.userId);
+        case 'missing_ps':
+          return members.filter((m) => !m.ps.isMet).map((m) => m.userId);
+        case 'missing_meeting':
+          return members.filter((m) => !m.groupMeeting.isMet).map((m) => m.userId);
+        case 'missing_all':
+        case 'any':
+          return members.filter((m) => !m.overallMet).map((m) => m.userId);
+        default:
+          return members.map((m) => m.userId);
+      }
+    },
+    [members]
+  );
+
+  /* ---------------------------------------------------------- dispatch worker */
+
+  const processDueAlerts = useCallback(async () => {
+    if (!user || !isLeadership) return;
+
+    const alertsList = scheduledAlertsQuery.data || [];
+    const due = alertsList.filter((a) => a.status === 'scheduled' && new Date(a.scheduled_at) <= new Date());
+    let didWork = false;
+
+    for (const alert of due) {
+      const targetUserIds = resolveAudience(alert.target_filter, alert.target_user_ids);
+      try {
+        await dispatchNotifications({
+          userIds: targetUserIds,
           title: alert.title,
           message: alert.message,
           type: 'daily_survey_alert',
-          is_read: false,
-          metadata: {
-            actionable: true,
-            path: resolvedPath,
-            scheduled_alert_id: alert.id,
-          },
-        }));
-
-        await supabase.from('grouping_notifications').insert(notifications as any);
-
-        try {
-          await supabase.functions.invoke('send-push', {
-            body: {
-              user_ids: targetUserIds,
-              title: `⏰ ${alert.title}`,
-              body: alert.message,
-              data: { type: 'daily_survey_alert', actionable: 'true', path: resolvedPath },
-            },
-          });
-        } catch {}
-      }
-
-      // Mark status as 'sent'
-      try {
-        await supabase.from('scheduled_monitoring_alerts' as any).update({ status: 'sent' }).eq('id', alert.id);
-      } catch {
-        const cached = localStorage.getItem(STORAGE_KEYS.SCHEDULED_ALERTS);
-        let list = cached ? JSON.parse(cached) : [];
-        const item = list.find((a: any) => a.id === alert.id);
-        if (item) item.status = 'sent';
-        localStorage.setItem(STORAGE_KEYS.SCHEDULED_ALERTS, JSON.stringify(list));
+          path: '/grouping/monitoring?open=survey',
+          metadata: { scheduled_alert_id: alert.id, self_update: true },
+        });
+        await supabase.from('scheduled_monitoring_alerts').update({ status: 'sent' }).eq('id', alert.id);
+        didWork = true;
+      } catch (err: any) {
+        console.warn('[monitoring] scheduled alert dispatch failed', err?.message);
       }
     }
 
-    queryClient.invalidateQueries({ queryKey: ['scheduled-monitoring-alerts'] });
-    queryClient.invalidateQueries({ queryKey: ['grouping-notifications'] });
-  }, [scheduledAlertsQuery.data, monitoringDataQuery.data, user, queryClient]);
+    // Recurring automation rules
+    const { data: rules } = await supabase.from('monitoring_alert_rules').select('*').eq('is_enabled', true);
+    const now = new Date();
+    const todayStr = today();
+    const dow = now.getDay();
+
+    for (const rule of rules || []) {
+      const [hh, mm] = (rule.run_at_time || '18:00').split(':').map((n: string) => parseInt(n, 10));
+      const runAt = new Date();
+      runAt.setHours(hh || 0, mm || 0, 0, 0);
+      if (now < runAt) continue;
+      if (rule.repeat_mode === 'weekdays' && (dow === 0 || dow === 6)) continue;
+      if (rule.last_run_at) {
+        const last = new Date(rule.last_run_at);
+        if (rule.repeat_mode === 'once') continue;
+        if (last.toISOString().split('T')[0] === todayStr) continue;
+      }
+
+      const targetUserIds = resolveAudience(rule.criterion);
+      try {
+        await dispatchNotifications({
+          userIds: targetUserIds,
+          title: rule.title,
+          message: rule.message,
+          type: 'monitoring_reminder',
+          path: '/grouping/monitoring?open=survey',
+          metadata: { rule_id: rule.id, self_update: true },
+        });
+        await supabase
+          .from('monitoring_alert_rules')
+          .update({
+            last_run_at: now.toISOString(),
+            last_run_count: targetUserIds.length,
+            is_enabled: rule.repeat_mode === 'once' ? false : rule.is_enabled,
+          })
+          .eq('id', rule.id);
+        didWork = true;
+      } catch (err: any) {
+        console.warn('[monitoring] rule dispatch failed', err?.message);
+      }
+    }
+
+    if (didWork) {
+      queryClient.invalidateQueries({ queryKey: ['scheduled-monitoring-alerts'] });
+      queryClient.invalidateQueries({ queryKey: ['monitoring-alert-rules'] });
+      queryClient.invalidateQueries({ queryKey: ['grouping-notifications'] });
+    }
+  }, [scheduledAlertsQuery.data, resolveAudience, dispatchNotifications, user, isLeadership, queryClient]);
 
   useEffect(() => {
     processDueAlerts();
-    const interval = setInterval(processDueAlerts, 15000);
+    const interval = setInterval(processDueAlerts, 30000);
     return () => clearInterval(interval);
   }, [processDueAlerts]);
 
-  // Realtime Incremental Event Handlers
+  /* ------------------------------------------------------------- realtime sync */
+
   const handleIncrementalRealtimeUpdate = useCallback(() => {
     setLastSyncTime(new Date());
-    queryClient.invalidateQueries({ queryKey: ['centralized-monitoring-data'] });
-    queryClient.invalidateQueries({ queryKey: ['scheduled-monitoring-alerts'] });
-  }, [queryClient]);
+    invalidateBoard();
+  }, [invalidateBoard]);
 
+  useRealtimeSubscription({ channelName: 'monitoring-ap-v7', table: 'activity_points', onPayload: handleIncrementalRealtimeUpdate });
+  useRealtimeSubscription({ channelName: 'monitoring-ps-v7', table: 'ps_daily_entries', onPayload: handleIncrementalRealtimeUpdate });
+  useRealtimeSubscription({ channelName: 'monitoring-survey-v7', table: 'daily_survey_responses', onPayload: handleIncrementalRealtimeUpdate });
+  useRealtimeSubscription({ channelName: 'monitoring-meeting-v7', table: 'monitoring_meeting_records', onPayload: handleIncrementalRealtimeUpdate });
   useRealtimeSubscription({
-    channelName: 'monitoring-ap-realtime-v6',
-    table: 'activity_points',
-    onPayload: handleIncrementalRealtimeUpdate,
+    channelName: 'monitoring-targets-v7',
+    table: 'monitoring_targets',
+    onPayload: () => queryClient.invalidateQueries({ queryKey: ['monitoring-targets'] }),
+  });
+  useRealtimeSubscription({
+    channelName: 'monitoring-sched-v7',
+    table: 'scheduled_monitoring_alerts',
+    onPayload: () => queryClient.invalidateQueries({ queryKey: ['scheduled-monitoring-alerts'] }),
   });
 
-  useRealtimeSubscription({
-    channelName: 'monitoring-ps-realtime-v6',
-    table: 'ps_daily_entries',
-    onPayload: handleIncrementalRealtimeUpdate,
-  });
+  /* ------------------------------------------------------------ target writes */
 
-  // 3. Target Mutations
   const updateTargets = useMutation({
     mutationFn: async (changedTargets: Partial<MonitoringTargets>) => {
-      if (!isLeadership) throw new Error('Unauthorized');
-      const payload = {
-        ...globalTargets,
-        ...changedTargets,
-        updated_by: user!.id,
-        updated_at: new Date().toISOString(),
-      };
+      if (!isLeadership) throw new Error('Only leadership can change team targets');
 
-      try {
-        const { data: existing } = await supabase.from('monitoring_targets' as any).select('id').limit(1).maybeSingle();
-        if (existing?.id) {
-          const { error } = await supabase.from('monitoring_targets' as any).update(changedTargets).eq('id', existing.id);
-          if (error && isMissingTableError(error)) {
-            localStorage.setItem(STORAGE_KEYS.TARGETS, JSON.stringify(payload));
-            return;
-          }
-          if (error) throw error;
-        } else {
-          const { error } = await supabase.from('monitoring_targets' as any).insert(payload);
-          if (error && isMissingTableError(error)) {
-            localStorage.setItem(STORAGE_KEYS.TARGETS, JSON.stringify(payload));
-            return;
-          }
-          if (error) throw error;
-        }
-      } catch {
-        localStorage.setItem(STORAGE_KEYS.TARGETS, JSON.stringify(payload));
+      const { data: existing, error: readErr } = await supabase
+        .from('monitoring_targets')
+        .select('id')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (readErr) throw readErr;
+
+      if (existing?.id) {
+        const { error } = await supabase
+          .from('monitoring_targets')
+          .update({ ...changedTargets, updated_by: user!.id })
+          .eq('id', existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('monitoring_targets')
+          .insert({ ...DEFAULT_TARGETS, ...changedTargets, updated_by: user!.id });
+        if (error) throw error;
       }
-      localStorage.setItem(STORAGE_KEYS.TARGETS, JSON.stringify(payload));
+
+      await writeAudit(
+        Object.entries(changedTargets).map(([field, value]) => ({
+          field: `team_target.${field}`,
+          new_value: String(value),
+          note: 'Team target updated',
+        }))
+      );
     },
     onMutate: async (newTargets) => {
       await queryClient.cancelQueries({ queryKey: ['monitoring-targets'] });
-      queryClient.setQueryData(['monitoring-targets'], (old: any) => ({ ...old, ...newTargets }));
+      const previous = queryClient.getQueryData<MonitoringTargets>(['monitoring-targets']);
+      queryClient.setQueryData(['monitoring-targets'], (old: any) => ({ ...(old || DEFAULT_TARGETS), ...newTargets }));
+      return { previous };
+    },
+    onError: (err: any, _v, ctx: any) => {
+      if (ctx?.previous) queryClient.setQueryData(['monitoring-targets'], ctx.previous);
+      fail('Failed to update targets')(err);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['monitoring-targets'] });
-      queryClient.invalidateQueries({ queryKey: ['centralized-monitoring-data'] });
-      toast({ title: 'Global Targets Updated' });
+      invalidateBoard();
+      queryClient.invalidateQueries({ queryKey: ['monitoring-audit-log'] });
+      toast({ title: 'Team targets updated' });
     },
   });
 
   const updateIndividualTargets = useMutation({
-    mutationFn: async ({
-      userId,
-      required_ap_target,
-      required_ps_target,
-      required_meeting_target,
-      required_survey_target,
-    }: {
+    mutationFn: async (vars: {
       userId: string;
       required_ap_target?: number | null;
       required_ps_target?: number | null;
       required_meeting_target?: number | null;
       required_survey_target?: number | null;
     }) => {
-      if (!isLeadership) throw new Error('Unauthorized');
+      if (!isLeadership) throw new Error('Only leadership can change member targets');
+      const { userId, ...fields } = vars;
 
-      const overrideObj: any = {
-        user_id: userId,
-        updated_by: user!.id,
-        updated_at: new Date().toISOString(),
-      };
-      if (required_ap_target !== undefined) overrideObj.required_ap_target = required_ap_target;
-      if (required_ps_target !== undefined) overrideObj.required_ps_target = required_ps_target;
-      if (required_meeting_target !== undefined) overrideObj.required_meeting_target = required_meeting_target;
-      if (required_survey_target !== undefined) overrideObj.required_survey_target = required_survey_target;
+      const payload: any = { user_id: userId, updated_by: user!.id };
+      Object.entries(fields).forEach(([k, v]) => {
+        if (v !== undefined) payload[k] = v;
+      });
 
-      try {
-        const { error } = await supabase.from('individual_monitoring_targets' as any).upsert(overrideObj, { onConflict: 'user_id' });
-        if (error && isMissingTableError(error)) {
-          const cached = localStorage.getItem(STORAGE_KEYS.INDIVIDUAL_TARGETS);
-          const list = cached ? JSON.parse(cached) : [];
-          const idx = list.findIndex((item: any) => item.user_id === userId);
-          if (idx >= 0) list[idx] = { ...list[idx], ...overrideObj };
-          else list.push(overrideObj);
-          localStorage.setItem(STORAGE_KEYS.INDIVIDUAL_TARGETS, JSON.stringify(list));
-          return;
+      const { error } = await supabase.from('individual_monitoring_targets').upsert(payload, { onConflict: 'user_id' });
+      if (error) throw error;
+
+      await writeAudit(
+        Object.entries(fields)
+          .filter(([, v]) => v !== undefined)
+          .map(([field, value]) => ({
+            target_user_id: userId,
+            field: `member_target.${field}`,
+            new_value: value === null ? 'team default' : String(value),
+            note: 'Member target override',
+          }))
+      );
+    },
+    onMutate: async (vars) => {
+      await queryClient.cancelQueries({ queryKey: ['centralized-monitoring-data'] });
+      const previous = patchMember(vars.userId, (m) => ({
+        ...m,
+        ap: vars.required_ap_target != null ? buildCriterion(m.ap.achieved, vars.required_ap_target) : m.ap,
+        dailySurvey:
+          vars.required_survey_target != null ? buildCriterion(m.dailySurvey.achieved, vars.required_survey_target) : m.dailySurvey,
+      }));
+      return { previous };
+    },
+    onError: (err: any, _v, ctx: any) => {
+      rollback(ctx?.previous);
+      fail('Failed to update member targets')(err);
+    },
+    onSuccess: () => {
+      invalidateBoard();
+      queryClient.invalidateQueries({ queryKey: ['monitoring-audit-log'] });
+      toast({ title: 'Member targets saved' });
+    },
+  });
+
+  /* -------------------------------------------------------------- AP mutation */
+
+  const updateMemberAP = useMutation({
+    mutationFn: async ({ userId, points, reason }: { userId: string; points: number; reason?: string }) => {
+      if (!isLeadership) throw new Error('Only leadership can edit activity points');
+      if (isNaN(points) || points < 0) throw new Error('Activity points must be a non-negative number');
+
+      const { data: session } = await supabase.from('grouping_sessions').select('id').limit(1).maybeSingle();
+      const { data: existingRows, error: readErr } = await supabase
+        .from('activity_points')
+        .select('id, points')
+        .eq('user_id', userId);
+      if (readErr) throw readErr;
+
+      const previousTotal = (existingRows || []).reduce((s, r) => s + (r.points || 0), 0);
+
+      if (existingRows && existingRows.length > 0) {
+        const { error: updateErr } = await supabase
+          .from('activity_points')
+          .update({ points, reason: reason || 'Lead manual AP override', awarded_by: user!.id })
+          .eq('id', existingRows[0].id);
+        if (updateErr) throw updateErr;
+
+        if (existingRows.length > 1) {
+          const { error: delErr } = await supabase
+            .from('activity_points')
+            .delete()
+            .in('id', existingRows.slice(1).map((r) => r.id));
+          if (delErr) throw delErr;
         }
-        if (error) throw error;
-      } catch {
-        const cached = localStorage.getItem(STORAGE_KEYS.INDIVIDUAL_TARGETS);
-        const list = cached ? JSON.parse(cached) : [];
-        const idx = list.findIndex((item: any) => item.user_id === userId);
-        if (idx >= 0) list[idx] = { ...list[idx], ...overrideObj };
-        else list.push(overrideObj);
-        localStorage.setItem(STORAGE_KEYS.INDIVIDUAL_TARGETS, JSON.stringify(list));
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['centralized-monitoring-data'] });
-      toast({ title: 'Member Target Column Updated' });
-    },
-  });
-
-  // 4. Send Actionable Daily Survey Notification Prompt with Resolved Route
-  const sendDailySurveyActionablePrompt = useMutation({
-    mutationFn: async (targetUserId?: string) => {
-      if (!user) throw new Error('Not authenticated');
-      const recipientId = targetUserId || user.id;
-
-      const membersList = monitoringDataQuery.data || [];
-      const member = membersList.find((m) => m.userId === recipientId);
-
-      const apAchieved = member ? member.ap.achieved : 0;
-      const apTarget = member ? member.ap.target : 4200;
-      const psMet = member ? member.ps.isMet : false;
-      const surveyAchieved = member ? member.dailySurvey.achieved : 0;
-      const surveyTarget = member ? member.dailySurvey.target : 4;
-
-      const promptTitle = '📋 Daily Survey Requirement Status';
-      const promptMessage = `Your current status:\n• Your current AP: ${apAchieved} / ${apTarget} AP\n• Minimum PS: ${psMet ? 'Completed' : 'Not Completed'}\n• Daily survey: ${surveyAchieved} / ${surveyTarget}`;
-      const resolvedPath = resolveDeepLink('/grouping/monitoring?open=survey');
-
-      await supabase.from('grouping_notifications').insert({
-        sender_id: user.id,
-        recipient_id: recipientId,
-        title: promptTitle,
-        message: promptMessage,
-        type: 'daily_survey_alert',
-        is_read: false,
-        metadata: {
-          actionable: true,
-          path: resolvedPath,
-          ap_status: `${apAchieved} / ${apTarget}`,
-          ps_status: psMet ? 'Completed' : 'Not Completed',
-          survey_status: `${surveyAchieved} / ${surveyTarget}`,
-        },
-      } as any);
-
-      try {
-        await supabase.functions.invoke('send-push', {
-          body: {
-            user_ids: [recipientId],
-            title: promptTitle,
-            body: promptMessage,
-            data: { type: 'daily_survey_alert', actionable: 'true', path: resolvedPath },
-          },
+      } else {
+        if (!session?.id) throw new Error('No grouping session found to attach points to');
+        const { error: insertErr } = await supabase.from('activity_points').insert({
+          user_id: userId,
+          session_id: session.id,
+          points,
+          reason: reason || 'Lead manual AP override',
+          awarded_by: user!.id,
         });
-      } catch {}
+        if (insertErr) throw insertErr;
+      }
+
+      await writeAudit([
+        { target_user_id: userId, field: 'activity_points', old_value: String(previousTotal), new_value: String(points), note: reason },
+      ]);
+    },
+    onMutate: async ({ userId, points }) => {
+      await queryClient.cancelQueries({ queryKey: ['centralized-monitoring-data'] });
+      const previous = patchMember(userId, (m) => ({
+        ...m,
+        ap: buildCriterion(points, m.ap.target),
+        lastUpdated: new Date().toISOString(),
+      }));
+      return { previous };
+    },
+    onError: (err: any, _v, ctx: any) => {
+      rollback(ctx?.previous);
+      fail('Failed to update activity points')(err);
     },
     onSuccess: () => {
-      toast({ title: 'Survey Action Prompt Sent!', description: 'Actionable prompt delivered with deep link.' });
+      invalidateBoard();
+      queryClient.invalidateQueries({ queryKey: ['activity-points'] });
+      queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
+      queryClient.invalidateQueries({ queryKey: ['grouping-home-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['monitoring-audit-log'] });
+      toast({ title: 'Activity points saved' });
     },
   });
 
-  // 5. Actionable Response Handler: Source of Truth Increment
+  /* -------------------------------------------------------------- PS mutation */
+
+  const applyPsStatus = async (userId: string, newStatus: 'completed' | 'pending', count = 1) => {
+    const todayStr = today();
+
+    if (newStatus === 'completed') {
+      const { data: existing, error: exErr } = await supabase
+        .from('ps_daily_entries')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('entry_date', todayStr);
+      if (exErr) throw exErr;
+
+      const existingCount = existing?.length || 0;
+      if (existingCount < count) {
+        const { data: activeSession } = await supabase
+          .from('grouping_sessions')
+          .select('id')
+          .eq('status', 'active')
+          .limit(1)
+          .maybeSingle();
+        if (!activeSession?.id) throw new Error('No active session — start a session before recording PS entries');
+
+        const newEntries = Array.from({ length: count - existingCount }).map((_, i) => ({
+          s_no: existingCount + i + 1,
+          session_id: activeSession.id,
+          user_id: userId,
+          entry_date: todayStr,
+          skill_name: 'PS Requirement (Monitoring)',
+          reward_points: 0,
+          attempt_count: 1,
+          entered_by: user!.id,
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+        }));
+        const { error } = await supabase.from('ps_daily_entries').insert(newEntries as any);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('ps_daily_entries')
+          .update({ status: 'completed', completed_at: new Date().toISOString() })
+          .eq('user_id', userId)
+          .eq('entry_date', todayStr);
+        if (error) throw error;
+      }
+    } else {
+      const { error } = await supabase
+        .from('ps_daily_entries')
+        .update({ status: 'pending', completed_at: null })
+        .eq('user_id', userId)
+        .eq('entry_date', todayStr);
+      if (error) throw error;
+    }
+  };
+
+  const setMemberPsStatus = useMutation({
+    mutationFn: async ({ userId, newStatus, count = 1 }: { userId: string; newStatus: 'completed' | 'pending'; count?: number }) => {
+      if (!isLeadership && userId !== user?.id) throw new Error('You can only update your own PS status');
+      await applyPsStatus(userId, newStatus, count);
+      await writeAudit([{ target_user_id: userId, field: 'ps_status', new_value: newStatus }]);
+    },
+    onMutate: async ({ userId, newStatus, count = 1 }) => {
+      await queryClient.cancelQueries({ queryKey: ['centralized-monitoring-data'] });
+      const previous = patchMember(userId, (m) => ({
+        ...m,
+        ps: buildCriterion(newStatus === 'completed' ? Math.max(count, m.ps.target) : 0, m.ps.target, (a, t, met) =>
+          t === 1 ? (met ? 'Completed' : 'Pending') : `${a} / ${t}`
+        ),
+      }));
+      return { previous };
+    },
+    onError: (err: any, _v, ctx: any) => {
+      rollback(ctx?.previous);
+      fail('Failed to update PS status')(err);
+    },
+    onSuccess: () => {
+      invalidateBoard();
+      queryClient.invalidateQueries({ queryKey: ['ps-daily-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['monitoring-audit-log'] });
+      toast({ title: 'PS status updated' });
+    },
+  });
+
+  /* --------------------------------------------------------- meeting mutation */
+
+  const setMemberMeetingStatus = useMutation({
+    mutationFn: async ({ userId, status }: { userId: string; status: 'completed' | 'pending' }) => {
+      if (!isLeadership && userId !== user?.id) throw new Error('You can only update your own meeting status');
+      const { error } = await supabase
+        .from('monitoring_meeting_records')
+        .upsert({ user_id: userId, meeting_date: today(), status, recorded_by: user!.id }, { onConflict: 'user_id,meeting_date' });
+      if (error) throw error;
+      await writeAudit([{ target_user_id: userId, field: 'group_meeting', new_value: status }]);
+    },
+    onMutate: async ({ userId, status }) => {
+      await queryClient.cancelQueries({ queryKey: ['centralized-monitoring-data'] });
+      const previous = patchMember(userId, (m) => ({
+        ...m,
+        groupMeeting: buildCriterion(status === 'completed' ? m.groupMeeting.target : 0, m.groupMeeting.target, (a, t, met) =>
+          t === 1 ? (met ? 'Attended' : 'Pending') : `${a} / ${t}`
+        ),
+      }));
+      return { previous };
+    },
+    onError: (err: any, _v, ctx: any) => {
+      rollback(ctx?.previous);
+      fail('Failed to update meeting status')(err);
+    },
+    onSuccess: () => {
+      invalidateBoard();
+      queryClient.invalidateQueries({ queryKey: ['monitoring-audit-log'] });
+      toast({ title: 'Meeting status updated' });
+    },
+  });
+
+  /* ---------------------------------------------------------- survey mutations */
+
+  const upsertSurveyCount = async (userId: string, count: number, source: string, answers?: Record<string, any>) => {
+    const { error } = await supabase.from('daily_survey_responses').upsert(
+      {
+        user_id: userId,
+        survey_date: today(),
+        response_count: Math.max(0, count),
+        answers: { source, ...(answers || {}) },
+        submitted_by: user!.id,
+      },
+      { onConflict: 'user_id,survey_date' }
+    );
+    if (error) throw error;
+  };
+
+  const setMemberSurveyCount = useMutation({
+    mutationFn: async ({ userId, count }: { userId: string; count: number }) => {
+      if (!isLeadership && userId !== user?.id) throw new Error('You can only update your own survey count');
+      await upsertSurveyCount(userId, count, isLeadership ? 'lead_override' : 'self_update');
+      await writeAudit([{ target_user_id: userId, field: 'daily_survey', new_value: String(count) }]);
+    },
+    onMutate: async ({ userId, count }) => {
+      await queryClient.cancelQueries({ queryKey: ['centralized-monitoring-data'] });
+      const previous = patchMember(userId, (m) => ({ ...m, dailySurvey: buildCriterion(count, m.dailySurvey.target) }));
+      return { previous };
+    },
+    onError: (err: any, _v, ctx: any) => {
+      rollback(ctx?.previous);
+      fail('Failed to update survey count')(err);
+    },
+    onSuccess: () => {
+      invalidateBoard();
+      queryClient.invalidateQueries({ queryKey: ['monitoring-audit-log'] });
+      toast({ title: 'Survey count updated' });
+    },
+  });
+
+  const submitDailySurvey = useMutation({
+    mutationFn: async (answers: Record<string, any>) => {
+      if (!user) throw new Error('Not authenticated');
+      const me = members.find((m) => m.userId === user.id);
+      const next = Math.min(me?.dailySurvey.target ?? 4, (me?.dailySurvey.achieved ?? 0) + 1);
+      await upsertSurveyCount(user.id, next, 'self_survey_form', answers);
+    },
+    onMutate: async () => {
+      if (!user) return {};
+      await queryClient.cancelQueries({ queryKey: ['centralized-monitoring-data'] });
+      const previous = patchMember(user.id, (m) => ({
+        ...m,
+        dailySurvey: buildCriterion(Math.min(m.dailySurvey.target, m.dailySurvey.achieved + 1), m.dailySurvey.target),
+      }));
+      return { previous };
+    },
+    onError: (err: any, _v, ctx: any) => {
+      rollback(ctx?.previous);
+      fail('Failed to submit survey')(err);
+    },
+    onSuccess: () => {
+      invalidateBoard();
+      toast({ title: 'Daily survey recorded' });
+    },
+  });
+
+  /* ------------------------------------- self-service update from notifications */
+
+  const selfUpdateStatus = useMutation({
+    mutationFn: async (vars: {
+      alertId?: string;
+      surveyCount?: number;
+      psDone?: boolean;
+      meetingDone?: boolean;
+      apPoints?: number;
+    }) => {
+      if (!user) throw new Error('Not authenticated');
+
+      if (vars.surveyCount !== undefined) {
+        await upsertSurveyCount(user.id, vars.surveyCount, 'self_update_notification');
+      }
+      if (vars.psDone !== undefined) {
+        await applyPsStatus(user.id, vars.psDone ? 'completed' : 'pending', 1);
+      }
+      if (vars.meetingDone !== undefined) {
+        const { error } = await supabase.from('monitoring_meeting_records').upsert(
+          { user_id: user.id, meeting_date: today(), status: vars.meetingDone ? 'completed' : 'pending', recorded_by: user.id },
+          { onConflict: 'user_id,meeting_date' }
+        );
+        if (error) throw error;
+      }
+      if (vars.apPoints !== undefined && isLeadership) {
+        await updateMemberAP.mutateAsync({ userId: user.id, points: vars.apPoints });
+      }
+
+      if (vars.alertId) {
+        await supabase.from('grouping_notifications').update({ is_read: true }).eq('id', vars.alertId);
+      }
+
+      await writeAudit([
+        {
+          target_user_id: user.id,
+          field: 'self_update',
+          new_value: JSON.stringify({
+            survey: vars.surveyCount,
+            ps: vars.psDone,
+            meeting: vars.meetingDone,
+          }),
+          note: 'Updated from actionable notification',
+        },
+      ]);
+    },
+    onMutate: async (vars) => {
+      if (!user) return {};
+      await queryClient.cancelQueries({ queryKey: ['centralized-monitoring-data'] });
+      const previous = patchMember(user.id, (m) => ({
+        ...m,
+        dailySurvey: vars.surveyCount !== undefined ? buildCriterion(vars.surveyCount, m.dailySurvey.target) : m.dailySurvey,
+        ps:
+          vars.psDone !== undefined
+            ? buildCriterion(vars.psDone ? m.ps.target : 0, m.ps.target, (a, t, met) =>
+                t === 1 ? (met ? 'Completed' : 'Pending') : `${a} / ${t}`
+              )
+            : m.ps,
+        groupMeeting:
+          vars.meetingDone !== undefined
+            ? buildCriterion(vars.meetingDone ? m.groupMeeting.target : 0, m.groupMeeting.target, (a, t, met) =>
+                t === 1 ? (met ? 'Attended' : 'Pending') : `${a} / ${t}`
+              )
+            : m.groupMeeting,
+      }));
+      return { previous };
+    },
+    onError: (err: any, _v, ctx: any) => {
+      rollback(ctx?.previous);
+      fail('Could not save your update')(err);
+    },
+    onSuccess: () => {
+      invalidateBoard();
+      queryClient.invalidateQueries({ queryKey: ['ps-daily-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['grouping-notifications'] });
+      toast({ title: 'Your status is updated' });
+    },
+  });
+
+  /** Legacy quick-response used by notification panels: [Completed] / [Not Yet]. */
   const handleActionableResponse = useMutation({
     mutationFn: async ({ alertId, action }: { alertId?: string; action: 'completed' | 'not_yet' }) => {
       if (!user) throw new Error('Not authenticated');
 
       if (action === 'completed') {
-        const todayStr = new Date().toISOString().split('T')[0];
+        const me = members.find((m) => m.userId === user.id);
+        const next = Math.min(me?.dailySurvey.target ?? 4, (me?.dailySurvey.achieved ?? 0) + 1);
+        await upsertSurveyCount(user.id, next, 'actionable_completed');
+      }
 
-        // Find current user's current survey count
-        const membersList = monitoringDataQuery.data || [];
-        const currentMember = membersList.find((m) => m.userId === user.id);
-        const currentCount = currentMember ? currentMember.dailySurvey.achieved : 0;
-        const targetCount = currentMember ? currentMember.dailySurvey.target : 4;
-        const nextCount = Math.min(targetCount, currentCount + 1);
-
-        const surveyRecord = {
-          user_id: user.id,
-          survey_date: todayStr,
-          answers: { response_count: nextCount, source: 'actionable_push_completed_click', alert_id: alertId || null },
-          completed_at: new Date().toISOString(),
-        };
-
-        try {
-          const { error } = await supabase.from('daily_survey_responses' as any).upsert(surveyRecord, { onConflict: 'user_id,survey_date' });
-          if (error && isMissingTableError(error)) {
-            const cached = localStorage.getItem(STORAGE_KEYS.SURVEY_RESPONSES);
-            let list = cached ? JSON.parse(cached) : [];
-            list = list.filter((r: any) => !(r.user_id === user.id && r.survey_date === todayStr));
-            list.push(surveyRecord);
-            localStorage.setItem(STORAGE_KEYS.SURVEY_RESPONSES, JSON.stringify(list));
-          }
-        } catch {
-          const cached = localStorage.getItem(STORAGE_KEYS.SURVEY_RESPONSES);
-          let list = cached ? JSON.parse(cached) : [];
-          list = list.filter((r: any) => !(r.user_id === user.id && r.survey_date === todayStr));
-          list.push(surveyRecord);
-          localStorage.setItem(STORAGE_KEYS.SURVEY_RESPONSES, JSON.stringify(list));
-        }
-
-        // Also record PS completion
-        try {
-          const { data: psEntries } = await supabase
-            .from('ps_daily_entries')
-            .select('id')
-            .eq('user_id', user.id)
-            .eq('entry_date', todayStr);
-
-          if (!psEntries || psEntries.length === 0) {
-            const { data: activeSession } = await supabase.from('grouping_sessions').select('id').eq('status', 'active').limit(1).maybeSingle();
-            await supabase.from('ps_daily_entries').insert({
-              s_no: 1,
-              session_id: activeSession?.id || '00000000-0000-0000-0000-000000000000',
-              user_id: user.id,
-              entry_date: todayStr,
-              skill_name: 'PS Requirement (Actionable Click)',
-              reward_points: 10,
-              attempt_count: 1,
-              entered_by: user.id,
-              status: 'completed',
-              completed_at: new Date().toISOString(),
-            } as any);
-          }
-        } catch {}
-
-        if (alertId) {
-          try {
-            await supabase.from('grouping_notifications').update({ is_read: true }).eq('id', alertId);
-          } catch {}
-        }
+      if (alertId) {
+        await supabase.from('grouping_notifications').update({ is_read: true }).eq('id', alertId);
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['centralized-monitoring-data'] });
-      queryClient.invalidateQueries({ queryKey: ['ps-daily-entries'] });
-      toast({ title: 'Survey Count Updated Instantly!', description: 'Survey count +1 & PS verified in DB.' });
+    onMutate: async ({ action }) => {
+      if (!user || action !== 'completed') return {};
+      await queryClient.cancelQueries({ queryKey: ['centralized-monitoring-data'] });
+      const previous = patchMember(user.id, (m) => ({
+        ...m,
+        dailySurvey: buildCriterion(Math.min(m.dailySurvey.target, m.dailySurvey.achieved + 1), m.dailySurvey.target),
+      }));
+      return { previous };
+    },
+    onError: (err: any, _v, ctx: any) => {
+      rollback(ctx?.previous);
+      fail('Could not record your response')(err);
+    },
+    onSuccess: (_d, vars) => {
+      invalidateBoard();
+      queryClient.invalidateQueries({ queryKey: ['grouping-notifications'] });
+      if (vars.action === 'completed') toast({ title: 'Survey response recorded' });
     },
   });
 
-  // 6. Set Member Daily Survey Count (Upsert with response_count)
-  const setMemberSurveyCount = useMutation({
-    mutationFn: async ({ userId, count }: { userId: string; count: number }) => {
-      if (!isLeadership) throw new Error('Unauthorized: Leads only');
-      const todayStr = new Date().toISOString().split('T')[0];
+  /* --------------------------------------------------------------- bulk update */
 
-      const record = {
-        user_id: userId,
-        survey_date: todayStr,
-        answers: { response_count: count, source: 'lead_override', updated_by: user!.id },
-        completed_at: new Date().toISOString(),
-      };
-
-      try {
-        const { error } = await supabase.from('daily_survey_responses' as any).upsert(record, { onConflict: 'user_id,survey_date' });
-        if (error && isMissingTableError(error)) {
-          const cached = localStorage.getItem(STORAGE_KEYS.SURVEY_RESPONSES);
-          let list = cached ? JSON.parse(cached) : [];
-          list = list.filter((r: any) => !(r.user_id === userId && r.survey_date === todayStr));
-          list.push(record);
-          localStorage.setItem(STORAGE_KEYS.SURVEY_RESPONSES, JSON.stringify(list));
-        }
-      } catch {
-        const cached = localStorage.getItem(STORAGE_KEYS.SURVEY_RESPONSES);
-        let list = cached ? JSON.parse(cached) : [];
-        list = list.filter((r: any) => !(r.user_id === userId && r.survey_date === todayStr));
-        list.push(record);
-        localStorage.setItem(STORAGE_KEYS.SURVEY_RESPONSES, JSON.stringify(list));
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['centralized-monitoring-data'] });
-      toast({ title: 'Survey Count Updated' });
-    },
-  });
-
-  // 7. Bulk Member Operations
   const bulkUpdateMembers = useMutation({
-    mutationFn: async ({
-      userIds,
-      field,
-      value,
-    }: {
-      userIds: string[];
-      field: 'ap' | 'ps' | 'meeting' | 'survey';
-      value: any;
-    }) => {
-      if (!isLeadership) throw new Error('Unauthorized');
-      if (userIds.length === 0) return;
-
-      const todayStr = new Date().toISOString().split('T')[0];
+    mutationFn: async ({ userIds, field, value }: { userIds: string[]; field: 'ap' | 'ps' | 'meeting' | 'survey'; value: any }) => {
+      if (!isLeadership) throw new Error('Only leadership can run bulk updates');
+      if (userIds.length === 0) throw new Error('No members selected');
 
       if (field === 'ap') {
         const delta = typeof value === 'number' ? value : parseInt(value, 10);
         const { data: session } = await supabase.from('grouping_sessions').select('id').limit(1).maybeSingle();
-        const sessionId = session?.id || '00000000-0000-0000-0000-000000000000';
-
         for (const uid of userIds) {
           const { data: existing } = await supabase.from('activity_points').select('id, points').eq('user_id', uid).limit(1).maybeSingle();
           if (existing?.id) {
-            await supabase.from('activity_points').update({ points: (existing.points || 0) + delta }).eq('id', existing.id);
+            const { error } = await supabase
+              .from('activity_points')
+              .update({ points: (existing.points || 0) + delta })
+              .eq('id', existing.id);
+            if (error) throw error;
           } else {
-            await supabase.from('activity_points').insert({ user_id: uid, session_id: sessionId, points: delta, reason: 'Bulk AP update', awarded_by: user!.id });
+            if (!session?.id) throw new Error('No grouping session found to attach points to');
+            const { error } = await supabase.from('activity_points').insert({
+              user_id: uid,
+              session_id: session.id,
+              points: delta,
+              reason: 'Bulk AP update',
+              awarded_by: user!.id,
+            });
+            if (error) throw error;
           }
         }
       } else if (field === 'ps') {
-        const status = value as 'completed' | 'pending';
-        const { data: activeSession } = await supabase.from('grouping_sessions').select('id').eq('status', 'active').limit(1).maybeSingle();
-        const sessionId = activeSession?.id || '00000000-0000-0000-0000-000000000000';
-
-        for (const uid of userIds) {
-          if (status === 'completed') {
-            await supabase.from('ps_daily_entries').insert({
-              s_no: 1,
-              session_id: sessionId,
-              user_id: uid,
-              entry_date: todayStr,
-              skill_name: 'PS Requirement (Bulk Lead Override)',
-              reward_points: 0, // NO POINTS AWARDED FOR BULK OVERRIDE ENTRIES
-              attempt_count: 1,
-              entered_by: user!.id,
-              status: 'completed',
-              completed_at: new Date().toISOString(),
-            } as any);
-          } else {
-            await supabase.from('ps_daily_entries').update({ status: 'pending', completed_at: null }).eq('user_id', uid).eq('entry_date', todayStr);
-          }
-        }
+        for (const uid of userIds) await applyPsStatus(uid, value as 'completed' | 'pending', 1);
       } else if (field === 'meeting') {
-        const status = value as 'completed' | 'pending';
-        for (const uid of userIds) {
-          const record = { user_id: uid, meeting_date: todayStr, status, updated_by: user!.id };
-          try {
-            await supabase.from('monitoring_meeting_records' as any).upsert(record, { onConflict: 'user_id,meeting_date' });
-          } catch {
-            const cached = localStorage.getItem(STORAGE_KEYS.MEETING_RECORDS);
-            let list = cached ? JSON.parse(cached) : [];
-            list = list.filter((m: any) => !(m.user_id === uid && m.meeting_date === todayStr));
-            if (status === 'completed') list.push(record);
-            localStorage.setItem(STORAGE_KEYS.MEETING_RECORDS, JSON.stringify(list));
-          }
-        }
+        const { error } = await supabase.from('monitoring_meeting_records').upsert(
+          userIds.map((uid) => ({ user_id: uid, meeting_date: today(), status: value as string, recorded_by: user!.id })),
+          { onConflict: 'user_id,meeting_date' }
+        );
+        if (error) throw error;
       } else if (field === 'survey') {
         const count = typeof value === 'number' ? value : parseInt(value, 10);
-        for (const uid of userIds) {
-          const record = {
+        const { error } = await supabase.from('daily_survey_responses').upsert(
+          userIds.map((uid) => ({
             user_id: uid,
-            survey_date: todayStr,
-            answers: { response_count: count, source: 'bulk_lead_override', updated_by: user!.id },
-            completed_at: new Date().toISOString(),
-          };
-
-          try {
-            await supabase.from('daily_survey_responses' as any).upsert(record, { onConflict: 'user_id,survey_date' });
-          } catch {
-            const cached = localStorage.getItem(STORAGE_KEYS.SURVEY_RESPONSES);
-            let list = cached ? JSON.parse(cached) : [];
-            list = list.filter((r: any) => !(r.user_id === uid && r.survey_date === todayStr));
-            list.push(record);
-            localStorage.setItem(STORAGE_KEYS.SURVEY_RESPONSES, JSON.stringify(list));
-          }
-        }
+            survey_date: today(),
+            response_count: Math.max(0, count),
+            answers: { source: 'bulk_lead_override' },
+            submitted_by: user!.id,
+          })),
+          { onConflict: 'user_id,survey_date' }
+        );
+        if (error) throw error;
       }
+
+      await writeAudit(userIds.map((uid) => ({ target_user_id: uid, field: `bulk.${field}`, new_value: String(value) })));
     },
-    onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({ queryKey: ['centralized-monitoring-data'] });
+    onError: (err: any) => {
+      invalidateBoard();
+      fail('Bulk update failed')(err);
+    },
+    onSuccess: (_d, vars) => {
+      invalidateBoard();
       queryClient.invalidateQueries({ queryKey: ['ps-daily-entries'] });
-      toast({ title: 'Bulk Update Success', description: `Updated ${vars.userIds.length} members.` });
+      queryClient.invalidateQueries({ queryKey: ['monitoring-audit-log'] });
+      toast({ title: 'Bulk update applied', description: `${vars.userIds.length} member(s) updated.` });
     },
   });
 
-  // 8. Scheduled Alert Mutations
+  /* ------------------------------------------------------------ alert mutations */
+
   const createScheduledAlert = useMutation({
-    mutationFn: async ({
-      title,
-      message,
-      target_filter,
-      target_user_ids,
-      scheduled_at,
-    }: {
+    mutationFn: async (vars: {
       title: string;
       message: string;
       target_filter: string;
       target_user_ids?: string[];
       scheduled_at: string;
     }) => {
-      if (!isLeadership) throw new Error('Unauthorized');
-      const idempotent_key = `sched_alert_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-
-      const newAlert = {
-        title,
-        message,
-        target_filter,
-        target_user_ids,
-        scheduled_at,
+      if (!isLeadership) throw new Error('Only leadership can schedule alerts');
+      const { error } = await supabase.from('scheduled_monitoring_alerts').insert({
+        title: vars.title,
+        message: vars.message,
+        target_filter: vars.target_filter,
+        target_user_ids: vars.target_user_ids || [],
+        scheduled_at: vars.scheduled_at,
         status: 'scheduled',
-        idempotent_key,
         created_by: user!.id,
-        created_at: new Date().toISOString(),
-      };
-
-      try {
-        const { error } = await supabase.from('scheduled_monitoring_alerts' as any).insert(newAlert);
-        if (error && isMissingTableError(error)) {
-          const cached = localStorage.getItem(STORAGE_KEYS.SCHEDULED_ALERTS);
-          const list = cached ? JSON.parse(cached) : [];
-          list.push({ ...newAlert, id: idempotent_key });
-          localStorage.setItem(STORAGE_KEYS.SCHEDULED_ALERTS, JSON.stringify(list));
-          return;
-        }
-        if (error) throw error;
-      } catch {
-        const cached = localStorage.getItem(STORAGE_KEYS.SCHEDULED_ALERTS);
-        const list = cached ? JSON.parse(cached) : [];
-        list.push({ ...newAlert, id: idempotent_key });
-        localStorage.setItem(STORAGE_KEYS.SCHEDULED_ALERTS, JSON.stringify(list));
-      }
+      });
+      if (error) throw error;
     },
+    onError: fail('Failed to schedule alert'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['scheduled-monitoring-alerts'] });
-      toast({ title: 'Survey Alert Scheduled', description: 'Idempotent schedule registered.' });
+      toast({ title: 'Alert scheduled' });
     },
   });
 
   const cancelScheduledAlert = useMutation({
     mutationFn: async (alertId: string) => {
-      if (!isLeadership) throw new Error('Unauthorized');
-      try {
-        const { error } = await supabase.from('scheduled_monitoring_alerts' as any).update({ status: 'cancelled' }).eq('id', alertId);
-        if (error && isMissingTableError(error)) {
-          const cached = localStorage.getItem(STORAGE_KEYS.SCHEDULED_ALERTS);
-          const list = cached ? JSON.parse(cached) : [];
-          const item = list.find((a: any) => a.id === alertId);
-          if (item) item.status = 'cancelled';
-          localStorage.setItem(STORAGE_KEYS.SCHEDULED_ALERTS, JSON.stringify(list));
-          return;
-        }
-      } catch {
-        const cached = localStorage.getItem(STORAGE_KEYS.SCHEDULED_ALERTS);
-        const list = cached ? JSON.parse(cached) : [];
-        const item = list.find((a: any) => a.id === alertId);
-        if (item) item.status = 'cancelled';
-        localStorage.setItem(STORAGE_KEYS.SCHEDULED_ALERTS, JSON.stringify(list));
-      }
+      if (!isLeadership) throw new Error('Only leadership can cancel alerts');
+      const { error } = await supabase.from('scheduled_monitoring_alerts').update({ status: 'cancelled' }).eq('id', alertId);
+      if (error) throw error;
+    },
+    onMutate: async (alertId) => {
+      await queryClient.cancelQueries({ queryKey: ['scheduled-monitoring-alerts'] });
+      const previous = queryClient.getQueryData<ScheduledAlert[]>(['scheduled-monitoring-alerts']);
+      queryClient.setQueryData<ScheduledAlert[]>(['scheduled-monitoring-alerts'], (old) =>
+        (old || []).map((a) => (a.id === alertId ? { ...a, status: 'cancelled' } : a))
+      );
+      return { previous };
+    },
+    onError: (err: any, _v, ctx: any) => {
+      if (ctx?.previous) queryClient.setQueryData(['scheduled-monitoring-alerts'], ctx.previous);
+      fail('Failed to cancel alert')(err);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['scheduled-monitoring-alerts'] });
-      toast({ title: 'Scheduled Alert Cancelled' });
+      toast({ title: 'Scheduled alert cancelled' });
     },
   });
 
-  // 9. Send Alert ONLY to Incomplete Members
+  const sendDailySurveyActionablePrompt = useMutation({
+    mutationFn: async (targetUserId?: string) => {
+      if (!user) throw new Error('Not authenticated');
+      const recipientId = targetUserId || user.id;
+      const member = members.find((m) => m.userId === recipientId);
+
+      const apStatus = member ? `${member.ap.achieved} / ${member.ap.target}` : '0 / 0';
+      const psStatus = member?.ps.isMet ? 'Completed' : 'Not Completed';
+      const surveyStatus = member ? `${member.dailySurvey.achieved} / ${member.dailySurvey.target}` : '0 / 0';
+
+      await dispatchNotifications({
+        userIds: [recipientId],
+        title: '📋 Daily Survey Requirement Status',
+        message: `Your current status:\n• Your current AP: ${apStatus}\n• Minimum PS: ${psStatus}\n• Daily survey: ${surveyStatus}`,
+        type: 'daily_survey_alert',
+        path: '/grouping/monitoring?open=survey',
+        metadata: { ap_status: apStatus, ps_status: psStatus, survey_status: surveyStatus, self_update: true },
+      });
+    },
+    onError: fail('Failed to send prompt'),
+    onSuccess: () => toast({ title: 'Survey prompt sent' }),
+  });
+
   const sendLeadAlert = useMutation({
-    mutationFn: async ({
-      recipientIds,
-      title,
-      messagePrefix,
-      alertType,
-      onlyIncomplete = true,
-      expiryHours = 24,
-    }: {
+    mutationFn: async (vars: {
       recipientIds: string[];
       title: string;
       messagePrefix?: string;
@@ -910,81 +1136,75 @@ export function useCentralizedMonitoring() {
       onlyIncomplete?: boolean;
       expiryHours?: number;
     }) => {
-      if (!isLeadership) throw new Error('Unauthorized');
+      if (!isLeadership) throw new Error('Only leadership can send alerts');
+      const onlyIncomplete = vars.onlyIncomplete ?? true;
 
-      const membersList = monitoringDataQuery.data || [];
-      const filteredRecipients = recipientIds.filter((uid) => {
-        const m = membersList.find((mem) => mem.userId === uid);
+      const recipients = vars.recipientIds.filter((uid) => {
+        const m = members.find((mem) => mem.userId === uid);
         if (!m) return false;
-        if (onlyIncomplete) return !m.overallMet;
-        return true;
+        return onlyIncomplete ? !m.overallMet : true;
       });
 
-      if (filteredRecipients.length === 0) {
-        toast({ title: 'No Alerts Sent', description: 'All selected members have already completed their requirements!' });
-        return;
-      }
+      if (recipients.length === 0) throw new Error('Everyone selected has already completed their requirements');
 
-      const expHours = expiryHours === 48 ? 48 : 24;
+      const expHours = vars.expiryHours === 48 ? 48 : 24;
       const expiresAtIso = new Date(Date.now() + expHours * 60 * 60 * 1000).toISOString();
-      const notificationsToInsert = [];
-      const resolvedPath = resolveDeepLink('/grouping/monitoring');
+      const resolvedPath = resolveDeepLink('/grouping/monitoring?open=survey');
 
-      for (const uid of filteredRecipients) {
-        const member = membersList.find((m) => m.userId === uid);
-        const missingParts: string[] = [];
+      const rows = recipients.map((uid) => {
+        const member = members.find((m) => m.userId === uid)!;
+        const missing: string[] = [];
+        if (!member.ap.isMet) missing.push(`AP (needs ${member.ap.remaining})`);
+        if (!member.ps.isMet) missing.push(`PS (needs ${member.ps.remaining} entry)`);
+        if (!member.dailySurvey.isMet) missing.push(`Daily Survey (needs ${member.dailySurvey.remaining})`);
+        if (!member.groupMeeting.isMet) missing.push(`Group Meeting (needs ${member.groupMeeting.remaining})`);
 
-        if (member) {
-          if (!member.ap.isMet) missingParts.push(`AP (Needs ${member.ap.remaining} AP)`);
-          if (!member.ps.isMet) missingParts.push(`PS (Needs ${member.ps.remaining} entry)`);
-          if (!member.dailySurvey.isMet) missingParts.push(`Daily Survey (Needs ${member.dailySurvey.remaining} response(s))`);
-          if (!member.groupMeeting.isMet) missingParts.push(`Group Meeting (Needs ${member.groupMeeting.remaining})`);
-        }
-
-        const missingDetailsStr = missingParts.length > 0 ? `Missing Requirements: ${missingParts.join(', ')}.` : 'Requirements Pending.';
-        const fullMessage = messagePrefix ? `${messagePrefix} ${missingDetailsStr}` : missingDetailsStr;
-
-        notificationsToInsert.push({
+        const detail = missing.length > 0 ? `Missing: ${missing.join(', ')}.` : 'Requirements pending.';
+        return {
           sender_id: user!.id,
           recipient_id: uid,
-          title,
-          message: fullMessage,
-          type: alertType,
+          title: vars.title,
+          message: vars.messagePrefix ? `${vars.messagePrefix} ${detail}` : detail,
+          type: vars.alertType,
           is_read: false,
           expires_at: expiresAtIso,
-          metadata: {
-            actionable: true,
-            path: resolvedPath,
-            missing_details: missingParts,
-            expiry_hours: expHours,
+          metadata: { actionable: true, self_update: true, path: resolvedPath, missing_details: missing, expiry_hours: expHours },
+        };
+      });
+
+      const { error } = await supabase.from('grouping_notifications').insert(rows as any);
+      if (error) throw error;
+
+      try {
+        await supabase.functions.invoke('send-push', {
+          body: {
+            user_ids: recipients,
+            title: `⚠️ ${vars.title}`,
+            body: vars.messagePrefix || 'You have pending requirements.',
+            data: { type: vars.alertType, actionable: 'true', path: resolvedPath },
           },
         });
-
-        try {
-          await supabase.functions.invoke('send-push', {
-            body: {
-              user_ids: [uid],
-              title: `⚠️ ${title}`,
-              body: fullMessage,
-              data: { type: alertType, actionable: 'true', path: resolvedPath },
-            },
-          });
-        } catch {}
+      } catch {
+        /* push best-effort */
       }
 
-      await supabase.from('grouping_notifications').insert(notificationsToInsert as any);
+      return recipients.length;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['centralized-monitoring-data'] });
-      toast({ title: 'Alert Dispatched!', description: 'Sent ONLY to members who are still incomplete.' });
+    onError: fail('Alert not sent'),
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey: ['grouping-notifications'] });
+      toast({ title: 'Alert dispatched', description: `Sent to ${count} member(s).` });
     },
   });
 
   return {
     targets: globalTargets,
-    membersMonitoring: monitoringDataQuery.data || [],
+    membersMonitoring: members,
     scheduledAlerts: scheduledAlertsQuery.data || [],
+    auditLog: auditQuery.data || [],
     isLoading: monitoringDataQuery.isLoading || targetsQuery.isLoading,
+    isFetching: monitoringDataQuery.isFetching,
+    error: (monitoringDataQuery.error || targetsQuery.error) as Error | null,
     viewMode,
     setViewMode,
     lastSyncTime,
@@ -994,183 +1214,13 @@ export function useCentralizedMonitoring() {
     bulkUpdateMembers,
     createScheduledAlert,
     cancelScheduledAlert,
-    updateMemberAP: useMutation({
-      mutationFn: async ({ userId, points, reason }: { userId: string; points: number; reason?: string }) => {
-        if (!isLeadership) throw new Error('Unauthorized: Only authorized leads can manually edit AP');
-        if (isNaN(points) || points < 0) {
-          throw new Error('Invalid AP value. AP points must be a valid non-negative number.');
-        }
-
-        const { data: session } = await supabase
-          .from('grouping_sessions')
-          .select('id')
-          .limit(1)
-          .maybeSingle();
-
-        const sessionId = session?.id || '00000000-0000-0000-0000-000000000000';
-
-        // Fetch ALL existing activity_points rows for this user
-        const { data: existingRows } = await supabase
-          .from('activity_points')
-          .select('id, points')
-          .eq('user_id', userId);
-
-        if (existingRows && existingRows.length > 0) {
-          // Update primary row to the exact target points
-          const mainRowId = existingRows[0].id;
-          const { error: updateErr } = await supabase
-            .from('activity_points')
-            .update({
-              points,
-              reason: reason || 'Lead manual total AP override',
-              awarded_by: user!.id,
-              updated_at: new Date().toISOString(),
-            } as any)
-            .eq('id', mainRowId);
-
-          if (updateErr) throw updateErr;
-
-          // Delete any secondary rows so the database SUM equals EXACTLY `points`
-          if (existingRows.length > 1) {
-            const extraRowIds = existingRows.slice(1).map((r) => r.id);
-            await supabase
-              .from('activity_points')
-              .delete()
-              .in('id', extraRowIds);
-          }
-        } else {
-          // Insert single row with exact target points
-          const { error: insertErr } = await supabase
-            .from('activity_points')
-            .insert({
-              user_id: userId,
-              session_id: sessionId,
-              points,
-              reason: reason || 'Lead manual total AP override',
-              awarded_by: user!.id,
-            } as any);
-
-          if (insertErr) throw insertErr;
-        }
-      },
-      onMutate: async ({ userId, points }) => {
-        // 0ms Optimistic UI Update in React Query cache
-        await queryClient.cancelQueries({ queryKey: ['centralized-monitoring-data'] });
-        queryClient.setQueryData(['centralized-monitoring-data', globalTargets], (oldData: any) => {
-          if (!Array.isArray(oldData)) return oldData;
-          return oldData.map((m: MemberMonitoringStatus) => {
-            if (m.userId !== userId) return m;
-            const apTarget = m.ap.target;
-            const apAchieved = points;
-            const apRem = Math.max(0, apTarget - apAchieved);
-            const apMet = apAchieved >= apTarget;
-            const apPct = apTarget > 0 ? Math.min(100, Math.round((apAchieved / apTarget) * 100)) : 100;
-            const overallMet = apMet && m.ps.isMet && m.groupMeeting.isMet && m.dailySurvey.isMet;
-
-            return {
-              ...m,
-              ap: {
-                ...m.ap,
-                achieved: apAchieved,
-                remaining: apRem,
-                percentage: apPct,
-                isMet: apMet,
-                displayText: `${apAchieved} / ${apTarget}`,
-              },
-              overallMet,
-              lastUpdated: new Date().toISOString(),
-            };
-          });
-        });
-      },
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['centralized-monitoring-data'] });
-        queryClient.invalidateQueries({ queryKey: ['activity-points'] });
-        queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
-        queryClient.invalidateQueries({ queryKey: ['grouping-home-stats'] });
-        toast({ title: 'Activity Points (AP) Saved!', description: 'AP updated across all dashboards.' });
-      },
-      onError: (err: any) => {
-        queryClient.invalidateQueries({ queryKey: ['centralized-monitoring-data'] });
-        toast({ variant: 'destructive', title: 'Failed to update AP', description: err.message });
-      },
-    }),
-    setMemberPsStatus: useMutation({
-      mutationFn: async ({ userId, newStatus, count = 1 }: { userId: string; newStatus: 'completed' | 'pending'; count?: number }) => {
-        if (!isLeadership) throw new Error('Unauthorized: Leads only');
-        const todayStr = new Date().toISOString().split('T')[0];
-
-        if (newStatus === 'completed') {
-          const { data: existing } = await supabase.from('ps_daily_entries').select('id').eq('user_id', userId).eq('entry_date', todayStr);
-          const { data: activeSession } = await supabase.from('grouping_sessions').select('id').eq('status', 'active').limit(1).maybeSingle();
-          const existingCount = existing?.length || 0;
-          if (existingCount < count) {
-            const newEntries = Array.from({ length: count - existingCount }).map((_, i) => ({
-              s_no: existingCount + i + 1,
-              session_id: activeSession?.id || '00000000-0000-0000-0000-000000000000',
-              user_id: userId,
-              entry_date: todayStr,
-              skill_name: 'PS Requirement (Lead Override)',
-              reward_points: 0,
-              attempt_count: 1,
-              entered_by: user!.id,
-              status: 'completed',
-              completed_at: new Date().toISOString(),
-            }));
-            await supabase.from('ps_daily_entries').insert(newEntries as any);
-          } else {
-            await supabase.from('ps_daily_entries').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('user_id', userId).eq('entry_date', todayStr);
-          }
-        } else {
-          await supabase.from('ps_daily_entries').update({ status: 'pending', completed_at: null }).eq('user_id', userId).eq('entry_date', todayStr);
-        }
-      },
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['centralized-monitoring-data'] });
-        toast({ title: 'PS Board Updated Instantly' });
-      },
-    }),
-    setMemberMeetingStatus: useMutation({
-      mutationFn: async ({ userId, status }: { userId: string; status: 'completed' | 'pending' }) => {
-        if (!isLeadership) throw new Error('Unauthorized: Leads only');
-        const todayStr = new Date().toISOString().split('T')[0];
-        const record = { user_id: userId, meeting_date: todayStr, status, updated_by: user!.id };
-        try {
-          await supabase.from('monitoring_meeting_records' as any).upsert(record, { onConflict: 'user_id,meeting_date' });
-        } catch {
-          const cached = localStorage.getItem(STORAGE_KEYS.MEETING_RECORDS);
-          let list = cached ? JSON.parse(cached) : [];
-          list = list.filter((m: any) => !(m.user_id === userId && m.meeting_date === todayStr));
-          if (status === 'completed') list.push(record);
-          localStorage.setItem(STORAGE_KEYS.MEETING_RECORDS, JSON.stringify(list));
-        }
-      },
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['centralized-monitoring-data'] });
-        toast({ title: 'Meeting Board Updated Instantly' });
-      },
-    }),
+    updateMemberAP,
+    setMemberPsStatus,
+    setMemberMeetingStatus,
     setMemberSurveyCount,
+    submitDailySurvey,
+    selfUpdateStatus,
     handleActionableResponse,
-    submitDailySurvey: useMutation({
-      mutationFn: async (answers: Record<string, any>) => {
-        if (!user) throw new Error('Not authenticated');
-        const todayStr = new Date().toISOString().split('T')[0];
-        const record = { user_id: user.id, survey_date: todayStr, answers, completed_at: new Date().toISOString() };
-        try {
-          await supabase.from('daily_survey_responses' as any).insert(record);
-        } catch {
-          const cached = localStorage.getItem(STORAGE_KEYS.SURVEY_RESPONSES);
-          const list = cached ? JSON.parse(cached) : [];
-          list.push(record);
-          localStorage.setItem(STORAGE_KEYS.SURVEY_RESPONSES, JSON.stringify(list));
-        }
-      },
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['centralized-monitoring-data'] });
-        toast({ title: 'Daily Survey Board Updated (+1 Count)' });
-      },
-    }),
     sendLeadAlert,
     isLeadership,
     user,
