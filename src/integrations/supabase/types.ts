@@ -338,6 +338,39 @@ export type Database = {
           },
         ]
       }
+      daily_survey_responses: {
+        Row: {
+          answers: Json
+          created_at: string
+          id: string
+          response_count: number
+          submitted_by: string | null
+          survey_date: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          answers?: Json
+          created_at?: string
+          id?: string
+          response_count?: number
+          submitted_by?: string | null
+          survey_date?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          answers?: Json
+          created_at?: string
+          id?: string
+          response_count?: number
+          submitted_by?: string | null
+          survey_date?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       device_tokens: {
         Row: {
           created_at: string
@@ -1009,6 +1042,42 @@ export type Database = {
           },
         ]
       }
+      individual_monitoring_targets: {
+        Row: {
+          created_at: string
+          id: string
+          required_ap_target: number | null
+          required_meeting_target: number | null
+          required_ps_target: number | null
+          required_survey_target: number | null
+          updated_at: string
+          updated_by: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          required_ap_target?: number | null
+          required_meeting_target?: number | null
+          required_ps_target?: number | null
+          required_survey_target?: number | null
+          updated_at?: string
+          updated_by?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          required_ap_target?: number | null
+          required_meeting_target?: number | null
+          required_ps_target?: number | null
+          required_survey_target?: number | null
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       industry_visit_requests: {
         Row: {
           admin_note: string | null
@@ -1319,6 +1388,150 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      monitoring_alert_rules: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          criterion: string
+          id: string
+          is_enabled: boolean
+          last_run_at: string | null
+          last_run_count: number
+          message: string
+          name: string
+          repeat_mode: string
+          run_at_time: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          criterion?: string
+          id?: string
+          is_enabled?: boolean
+          last_run_at?: string | null
+          last_run_count?: number
+          message: string
+          name: string
+          repeat_mode?: string
+          run_at_time?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          criterion?: string
+          id?: string
+          is_enabled?: boolean
+          last_run_at?: string | null
+          last_run_count?: number
+          message?: string
+          name?: string
+          repeat_mode?: string
+          run_at_time?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      monitoring_audit_log: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          field: string
+          id: string
+          new_value: string | null
+          note: string | null
+          old_value: string | null
+          target_user_id: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          field: string
+          id?: string
+          new_value?: string | null
+          note?: string | null
+          old_value?: string | null
+          target_user_id?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          field?: string
+          id?: string
+          new_value?: string | null
+          note?: string | null
+          old_value?: string | null
+          target_user_id?: string | null
+        }
+        Relationships: []
+      }
+      monitoring_meeting_records: {
+        Row: {
+          created_at: string
+          id: string
+          meeting_date: string
+          recorded_by: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          meeting_date?: string
+          recorded_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          meeting_date?: string
+          recorded_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      monitoring_targets: {
+        Row: {
+          created_at: string
+          id: string
+          required_ap_target: number
+          required_meeting_target: number
+          required_ps_target: number
+          required_survey_target: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          required_ap_target?: number
+          required_meeting_target?: number
+          required_ps_target?: number
+          required_survey_target?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          required_ap_target?: number
+          required_meeting_target?: number
+          required_ps_target?: number
+          required_survey_target?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
       }
       points_history: {
         Row: {
@@ -2246,6 +2459,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      scheduled_monitoring_alerts: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          message: string
+          scheduled_at: string
+          status: string
+          target_filter: string
+          target_user_ids: string[]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          message: string
+          scheduled_at: string
+          status?: string
+          target_filter?: string
+          target_user_ids?: string[]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          message?: string
+          scheduled_at?: string
+          status?: string
+          target_filter?: string
+          target_user_ids?: string[]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       skill_activity_log: {
         Row: {
