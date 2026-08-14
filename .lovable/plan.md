@@ -1,115 +1,117 @@
-# Profile Enable/Disable (Soft-Suspend) System
+# Monitoring & Alerts — Full Restructure
 
-Team Captain (TC) and Vice Captain (VC) can toggle any user profile between **Active** and **Disabled**. Disabled users vanish from the entire app surface for everyone else, but the account is preserved and fully restorable — no data loss, no cascading deletes.
+## The real problem first
 
-## Core Concept: "Soft Suspend"
+The Monitoring & Alerts tab writes to five tables that **do not exist** in the database:
+`monitoring_targets`, `individual_monitoring_targets`, `daily_survey_responses`,
+`monitoring_meeting_records`, `scheduled_monitoring_alerts`.
 
-A disabled profile is **hidden**, not deleted. Their historical contributions (tasks, PS entries, XP, projects, uploads, votes) remain intact in the database for audit/history, but they are filtered out of every live surface: team directory, ID cards, leaderboards, assignment dropdowns, mentions, polls, staffing, notifications targets, chats, marketplace, etc.
+Today the code silently swallows those errors and falls back to `localStorage`. That is why targets,
+meeting status, survey counts and scheduled alerts look saved but do not persist, do not sync between
+users, and behave differently on each device. Nothing else in this plan works reliably until this is fixed.
 
-The disabled user themselves gets a **graceful lockout screen** on sign-in explaining their status — not a hard error.
+So step one is creating those tables properly (with access rules), then removing every silent-failure
+fallback so a genuine failure surfaces as a toast instead of fake success.
 
-## The "Flexible Option" — Two-Tier Disable
+## New structure — one tabbed workspace
 
-To make it flexible instead of binary, disable supports **two modes** set at toggle time:
+A single page with a sticky header (title, live status, search, Refresh, Targets, Send Alert) and five tabs.
+Nothing else scrolls the whole page away — filters and bulk bar stay pinned.
 
-1. **Hidden (default)** — user cannot sign in at all. Sees a "Profile Suspended" screen with the reason and who to contact. All their data stays hidden across the app.
-2. **Read-Only Access** — user CAN sign in but lands in a restricted view: they can view their own historical data (own tasks, own points, own uploads, own reflections) but cannot create, edit, delete, vote, chat, or assign anything. Still hidden from every other user's view. Useful for graceful offboarding, exam breaks, or probation.
+```text
+Monitoring & Alerts            [Live]  [search]  [Targets] [Send Alert]
+[ Overview | Members | Alerts | Daily Survey | History ]
+------------------------------------------------------------------
+KPI chips (click to filter): Eligible / Completed / Missing / AP / PS / Survey / Meeting
+------------------------------------------------------------------
+tab content (only this region scrolls)
+```
 
-TC/VC can switch a user between the two modes or re-enable at any time. Optional auto-expiry date can be set (e.g. "disable until Jan 15") — profile auto-reactivates.
+1. **Overview** — compliance snapshot: the KPI chips, team completion ring, today's biggest gaps,
+   and a "needs attention" shortlist where each row has one-click actions.
+2. **Members** — the matrix (table / list / cards, same three view modes as today) with inline
+   editing of AP, PS, survey count and meeting status. Row click opens the **member drawer**.
+3. **Alerts** — send now (all / filtered / selected members), plus automation rules and the
+   scheduled-alert queue with cancel.
+4. **Daily Survey** — the survey command center: who has responded, who hasn't, one-tap nudge,
+   and the survey form for the current user.
+5. **History** — recent changes: AP edits, PS/meeting/survey status flips, alerts sent, by whom and when.
 
-## Data Model
+## Member detail drawer — "everything in one place"
 
-New columns on `profiles`:
+Click any member → side sheet (bottom sheet on mobile), no page navigation, no scroll hunting:
 
-- `is_disabled boolean default false`
-- `disabled_mode text` — `null | 'hidden' | 'read_only'`
-- `disabled_reason text` — shown to the user on their lockout screen
-- `disabled_by uuid` — who toggled
-- `disabled_at timestamptz`
-- `disabled_until timestamptz` — optional auto-restore
+- Header: avatar, name, role, department, overall met/missing badge.
+- **Edit all four criteria inline in the drawer**: AP points, PS status, survey count, meeting status —
+  each saved on change, optimistically.
+- **Per-member target overrides** edited right here (AP / PS / survey / meeting targets), so leads never
+  have to leave for the Targets modal to change one person.
+- Recent activity for that member (AP changes, PS entries, survey responses, alerts received).
+- Footer actions: Send alert to this member, Request survey, Mark all complete.
 
-New table `profile_status_history` — full audit log of every enable/disable action (who, when, mode, reason, duration) so TC/VC can review past suspensions.
+## Alert automation rules
 
-## Enforcement Layers
+New `monitoring_alert_rules` table. A rule is: *criterion* (AP / PS / survey / meeting / any) +
+*time of day* + *repeat* (once, weekdays, daily) + title/message. At the scheduled time the existing
+dispatch worker evaluates who is still unmet and sends an actionable notification + push to exactly
+those members. Rules list shows enabled/disabled toggle, last run, recipients last run, and delete.
 
-Filtering must happen at **every** layer or disabled users leak through:
+Scheduled one-off alerts keep working, now stored in the database so every lead sees the same queue.
 
-1. **Database (source of truth)** — a SQL helper `is_profile_active(uuid)` (SECURITY DEFINER, honors `disabled_until` auto-expiry). Every RLS SELECT policy on user-facing tables (profiles, tasks, projects, polls, marketplace_materials, grouping_notes, leaderboards' underlying tables, etc.) adds an `AND is_profile_active(user_id)` clause where appropriate, so even a crafted client query cannot see them.
-2. **List queries** — hooks that fetch team rosters, assignees, mention pickers, staffing candidates, poll recipients, notification recipients all filter `is_disabled = false` (client-side belt-and-braces).
-3. **ID Cards** — `KryptonIdCard` returns null for disabled users when rendered by anyone other than TC/VC in the management panel.
-4. **Aggregates** — leaderboards, XP ranks, PS ranks, activity ranks, skill maps exclude disabled users so ranks don't have "ghost" entries.
-5. **Auth gate** — `useAuth` checks the flag on session load. Hidden mode → signs the user out and shows suspension screen. Read-only mode → sets a global `readOnly` flag that guards every mutation hook and disables/hides action buttons.
-6. **Edge functions** — `send-notification-email`, `send-push`, `poll-notify`, `approve-registration`, project-lead assignment, etc. skip recipients whose profile is disabled.
+## Actionable notifications become editable
 
-## Management UI
+Today an actionable notification only offers `[Completed]` / `[Not Yet]`. It will gain an inline
+**Update my details** panel so a member can fix their own numbers straight from the notification —
+no going to the site → Targets tab → member row:
 
-In **User Management** (opened from the top-right menu for TC/VC):
+- AP achieved (if the member is allowed), PS done today, survey done, meeting attended.
+- Submits in one tap, updates the same records the monitoring tab reads, marks the notification resolved.
+- Works from the Notifications page, the My Space notifications panel, and the deep link a push opens.
 
-- Each user row gets a status pill: `Active` / `Hidden` / `Read-Only` (with countdown chip if `disabled_until` is set).
-- New **Disable** action opens a dialog: mode radio (Hidden / Read-Only), reason textarea (required, shown to the user), optional "auto-restore on" date picker.
-- **Enable** action re-activates instantly.
-- New **Disabled Users** tab lists all currently suspended profiles with mode, reason, days remaining, and quick actions (Change Mode, Extend, Re-enable).
-- **History** subtab shows the full `profile_status_history` audit trail.
+## Access
 
-TC/VC themselves cannot be disabled (guardrail in the SQL function). VC cannot disable TC. Only TC can disable another VC.
+Members get the **full read-only view**: all tabs, all members, KPIs, drawer — but every editor,
+bulk action, alert sender and rule control is hidden/disabled for them. Their own row and their own
+actionable-notification updates remain editable.
 
-## User-Facing Suspension Screen
+## Instant UI/UX
 
-When a Hidden user tries to sign in, or a Read-Only user opens the app, they see a full-page card:
+- **Optimistic everything**: AP edits, PS/meeting/survey toggles, bulk actions, target changes and rule
+  toggles all repaint immediately and roll back with a toast if the server rejects them.
+- `placeholderData` so filter/tab switches never flash a skeleton; cached data renders first paint.
+- Realtime subscriptions extended to the new tables (targets, survey, meeting, alerts) so one lead's
+  edit appears on every other screen without a refresh.
+- Debounced search, memoized rows, virtualized member list when the roster is large.
+- Skeletons only on genuine first load.
 
-- "Your profile is currently suspended"
-- Mode (Hidden / Read-Only)
-- Reason (from `disabled_reason`)
-- Auto-restore date if set
-- Contact TC/VC (email link)
-- For Read-Only: a "Continue in view-only mode" button that enters the app with mutations disabled
+## Technical notes
 
-## Auto-Restore
+Database migration (one call, before any code):
 
-A lightweight scheduled edge function (or on-load check in `useAuth`) flips `is_disabled` back to `false` when `disabled_until < now()`. Cheap: driven by a single index on `disabled_until`.
+- `monitoring_targets` — global AP / PS / survey / meeting targets, single active row.
+- `individual_monitoring_targets` — per-user overrides, unique on `user_id`.
+- `daily_survey_responses` — `user_id`, `survey_date`, `response_count`, answers JSON, unique on
+  (`user_id`, `survey_date`).
+- `monitoring_meeting_records` — `user_id`, `meeting_date`, `status`, unique on (`user_id`, `meeting_date`).
+- `scheduled_monitoring_alerts` — title, message, `scheduled_at`, `target_filter`, `target_user_ids`,
+  status, `created_by`.
+- `monitoring_alert_rules` — criterion, `run_at_time`, repeat mode, title, message, enabled, `last_run_at`.
+- `monitoring_audit_log` — actor, target user, field, old/new value, timestamp (powers the History tab).
 
-## Technical Details
+Access rules: all authenticated users can read; only leadership (captain / vice captain / strategist /
+team manager) can write. Each table gets grants to `authenticated` and `service_role`, RLS enabled,
+and `updated_at` triggers.
 
-**Migration**
+Code:
 
-- ALTER `profiles` add the 5 new columns + index on `(is_disabled, disabled_until)`.
-- CREATE TABLE `profile_status_history` with GRANTs + RLS (TC/VC read; service_role write).
-- CREATE FUNCTION `public.is_profile_active(_user_id uuid) RETURNS boolean` — returns true when `is_disabled = false` OR `disabled_until < now()`.
-- CREATE FUNCTION `public.toggle_profile_status(...)` SECURITY DEFINER — validates caller is TC/VC, blocks self-disable and VC→TC disable, writes profile + history row atomically.
-- Update SELECT RLS policies on: `profiles`, `tasks`, `project_members`, `poll_votes`, `grouping_notes`, `marketplace_materials`, `user_points`, `activity_points`, `skill_xp_log`, `ps_daily_entries` to include the active check where the target user is being surfaced to others.
-
-**Frontend**
-
-- New `useDisabledProfile()` hook + `ReadOnlyContext` provider wrapping the app. Every mutation hook checks `if (readOnly) throw`.
-- New `SuspensionScreen.tsx` shown by `useAuth` when the loaded profile is disabled.
-- New `DisableUserDialog.tsx` (mode + reason + until date).
-- New `DisabledUsersTab.tsx` inside `UserListPanel`.
-- Filter helper `filterActiveProfiles()` applied inside every roster/leaderboard/assignee hook.
-- `KryptonIdCard` early-return null when `profile.is_disabled` and viewer is not TC/VC.
-
-**Edge functions**
-
-- Add `is_profile_active` check before adding a recipient in `send-notification-email`, `send-push`, `poll-notify`.
-- New `auto-restore-profiles` cron edge function (daily) OR inline check in `useAuth` on session refresh — the latter avoids a scheduled function.
-
-**Files touched** (approx.):
-
-- Migration (1 new)
-- `src/hooks/useAuth.tsx`, `src/hooks/useProjects.tsx`, `src/hooks/usePolls.tsx`, `src/hooks/useUserPoints.tsx`, `src/hooks/useActivityPoints.tsx`, `src/hooks/useMemberSkills.tsx`, and the other roster hooks — add active-profile filter
-- `src/components/admin/UserListPanel.tsx` — add Disable action, Disabled tab, History tab
-- `src/components/admin/DisableUserDialog.tsx` (new)
-- `src/components/auth/SuspensionScreen.tsx` (new)
-- `src/components/team/KryptonIdCard.tsx` — hide for disabled
-- `src/context/ReadOnlyContext.tsx` (new) + wrap in `src/App.tsx`
-- `src/pages/Team.tsx`, `src/components/grouping/LeaderboardPanel.tsx`, staffing/mention pickers — apply filter
-- `supabase/functions/send-notification-email/index.ts`, `send-push/index.ts`, `poll-notify/index.ts` — recipient filter
-
-## Rollout Order
-
-1. Migration (schema + function + RLS updates).
-2. Toggle UI + suspension screen (feature works end-to-end for Hidden mode).
-3. Read-Only mode (ReadOnlyContext + mutation guards).
-4. Auto-restore + audit history tab.
-5. Edge function recipient filtering.  
-  
-Also, Remove GP Redeem Feature
+- `useCentralizedMonitoring.ts` — drop `as any` casts and the `isMissingTableError` localStorage
+  fallbacks, add optimistic `onMutate`/rollback to every mutation, add audit writes, extend realtime.
+- New `useMonitoringAlertRules.ts` for rule CRUD and rule evaluation in the dispatch worker.
+- `CentralizedMonitoring.tsx` split into `MonitoringHeader`, `MonitoringKpiBar`, and per-tab panels
+  (`OverviewTab`, `MembersTab`, `AlertsTab`, `SurveyTab`, `HistoryTab`) — the current 1079-line page
+  becomes a thin shell.
+- New `MonitoringMemberDrawer.tsx`, `AlertRulesPanel.tsx`, `MonitoringHistoryPanel.tsx`.
+- `NotificationActionPanel.tsx` — the inline self-update panel, reused by the notifications page and
+  the My Space panel.
+- Verification: typecheck plus a browser pass driving each tab, an inline edit, a drawer edit, a rule
+  create and an actionable-notification update, confirming no console or network errors.
