@@ -113,8 +113,8 @@ export function ScheduleSurveyAlertModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px] backdrop-blur-xl bg-card/95 border border-purple-500/30 max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent hideCloseButton={true} className="sm:max-w-[500px] p-0 flex flex-col max-h-[90vh] backdrop-blur-xl bg-card/95 border border-purple-500/30">
+        <DialogHeader className="p-4 border-b shrink-0">
           <DialogTitle className="flex items-center gap-2 text-xl font-extrabold text-foreground">
             <Clock className="w-5 h-5 text-purple-500" />
             Schedule Daily Survey Alert
@@ -124,7 +124,8 @@ export function ScheduleSurveyAlertModal({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 py-2">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <ScrollArea className="flex-1 p-4 space-y-4">
           {/* Target Audience */}
           <div className="space-y-2 p-3 rounded-xl border bg-muted/20">
             <div className="flex items-center justify-between">
@@ -288,7 +289,9 @@ export function ScheduleSurveyAlertModal({
             <span>24-Hour Expiry Active: Notifications disappear automatically after 1 day.</span>
           </div>
 
-          <DialogFooter className="pt-2 flex items-center justify-between">
+          </ScrollArea>
+
+          <DialogFooter className="p-4 border-t bg-muted/30 flex items-center justify-between gap-2 shrink-0 pb-[calc(1rem+env(safe-area-inset-bottom))]">
             <Badge variant="secondary" className="gap-1 font-mono text-xs">
               <Users className="w-3 h-3" /> {recipientCount} Recipient(s)
             </Badge>

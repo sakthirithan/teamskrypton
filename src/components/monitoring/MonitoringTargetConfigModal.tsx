@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Target, Coins, ClipboardList, CalendarCheck, FileCheck, User, Sparkles, Check } from 'lucide-react';
 import { MonitoringTargets, MemberMonitoringStatus } from '@/hooks/useCentralizedMonitoring';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface TargetConfigModalProps {
   isOpen: boolean;
@@ -122,8 +123,8 @@ export function MonitoringTargetConfigModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[520px] backdrop-blur-xl bg-card/90 border border-primary/20">
-        <DialogHeader>
+      <DialogContent hideCloseButton={true} className="sm:max-w-[520px] p-0 flex flex-col max-h-[90vh] backdrop-blur-xl bg-card/90 border border-primary/20">
+        <DialogHeader className="p-4 border-b shrink-0">
           <DialogTitle className="flex items-center gap-2 text-xl font-extrabold text-foreground">
             <Target className="w-5 h-5 text-primary" />
             Configure Target Columns
@@ -133,7 +134,8 @@ export function MonitoringTargetConfigModal({
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
+        <ScrollArea className="flex-1 p-4 min-h-0">
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full space-y-4">
           <TabsList className="grid w-full grid-cols-2 mb-4 bg-muted/60">
             <TabsTrigger value="global" className="gap-2 font-bold text-xs">
               <Target className="w-3.5 h-3.5" /> Global Defaults
@@ -289,7 +291,8 @@ export function MonitoringTargetConfigModal({
             </form>
           </TabsContent>
         </Tabs>
-      </DialogContent>
-    </Dialog>
+      </ScrollArea>
+    </DialogContent>
+  </Dialog>
   );
 }

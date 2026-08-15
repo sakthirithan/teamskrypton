@@ -66,7 +66,7 @@ export function ApEditModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[420px] backdrop-blur-xl bg-card/95 border border-amber-500/30">
+      <DialogContent hideCloseButton={true} className="sm:max-w-[420px] backdrop-blur-xl bg-card/95 border border-amber-500/30">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl font-extrabold text-foreground">
             <Coins className="w-5 h-5 text-amber-500" />
@@ -135,7 +135,7 @@ export function ApEditModal({
             </p>
           )}
 
-          <DialogFooter className="pt-2 flex items-center justify-end gap-2">
+          <DialogFooter className="pt-2 flex items-center justify-end gap-2 pb-[calc(1rem+env(safe-area-inset-bottom))]">
             <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
               <X className="w-4 h-4 mr-1" /> Cancel
             </Button>

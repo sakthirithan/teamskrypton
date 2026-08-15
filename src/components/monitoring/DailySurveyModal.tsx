@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { FileCheck, Sparkles } from 'lucide-react';
 
 interface DailySurveyModalProps {
@@ -65,8 +66,8 @@ export function DailySurveyModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[480px]">
-        <DialogHeader>
+      <DialogContent hideCloseButton={true} className="sm:max-w-[480px] p-0 flex flex-col max-h-[90vh] bg-card">
+        <DialogHeader className="p-4 border-b shrink-0">
           <DialogTitle className="flex items-center gap-2 text-xl font-bold">
             <FileCheck className="w-5 h-5 text-purple-600 dark:text-purple-400" />
             Take Daily Survey
@@ -76,86 +77,88 @@ export function DailySurveyModal({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 py-2 text-xs">
-          {/* Question 1: Minimum PS */}
-          <div className="p-3 rounded-xl border bg-blue-500/5 border-blue-500/20 space-y-2">
-            <Label className="text-xs font-bold text-foreground block">
-              1. Minimum PS Requirement Status
-            </Label>
-            <RadioGroup
-              value={psStatus}
-              onValueChange={(val) => setPsStatus(val as 'completed' | 'pending')}
-              className="flex gap-4 pt-1"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="completed" id="ps-completed" />
-                <Label htmlFor="ps-completed" className="cursor-pointer font-bold text-emerald-500">
-                  [ Completed ]
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="pending" id="ps-pending" />
-                <Label htmlFor="ps-pending" className="cursor-pointer font-semibold text-muted-foreground">
-                  [ Not Yet ]
-                </Label>
-              </div>
-            </RadioGroup>
-          </div>
-
-          {/* Question 2: Surveys submitted this week / count */}
-          <div className="p-3 rounded-xl border bg-purple-500/5 border-purple-500/20 space-y-2">
-            <Label className="text-xs font-bold text-foreground block">
-              2. How many surveys have you submitted today/this week?
-            </Label>
-            <div className="flex items-center gap-2 pt-1">
-              <Input
-                type="number"
-                min="0"
-                value={submittedCount}
-                onChange={(e) => setSubmittedCount(e.target.value)}
-                className="h-8 w-24 font-mono font-bold text-xs"
-              />
-              <span className="text-xs font-bold font-mono text-purple-400">
-                / {surveyTarget} (Target)
-              </span>
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <ScrollArea className="flex-1 p-4 space-y-4 text-xs">
+            {/* Question 1: Minimum PS */}
+            <div className="p-3 rounded-xl border bg-blue-500/5 border-blue-500/20 space-y-2">
+              <Label className="text-xs font-bold text-foreground block">
+                1. Minimum PS Requirement Status
+              </Label>
+              <RadioGroup
+                value={psStatus}
+                onValueChange={(val) => setPsStatus(val as 'completed' | 'pending')}
+                className="flex gap-4 pt-1"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="completed" id="ps-completed" />
+                  <Label htmlFor="ps-completed" className="cursor-pointer font-bold text-emerald-500">
+                    [ Completed ]
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="pending" id="ps-pending" />
+                  <Label htmlFor="ps-pending" className="cursor-pointer font-semibold text-muted-foreground">
+                    [ Not Yet ]
+                  </Label>
+                </div>
+              </RadioGroup>
             </div>
-            <p className="text-[10px] text-muted-foreground">
-              Enter your exact count of submitted survey responses.
-            </p>
-          </div>
 
-          {/* Question 3: Targets completed */}
-          <div className="space-y-2">
-            <Label className="text-xs font-semibold">3. Did you complete your planned daily targets today?</Label>
-            <RadioGroup value={q1} onValueChange={setQ1} className="flex gap-4 pt-1">
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="yes" id="q1-yes" />
-                <Label htmlFor="q1-yes" className="cursor-pointer text-xs">Yes, 100%</Label>
+            {/* Question 2: Surveys submitted this week / count */}
+            <div className="p-3 rounded-xl border bg-purple-500/5 border-purple-500/20 space-y-2">
+              <Label className="text-xs font-bold text-foreground block">
+                2. How many surveys have you submitted today/this week?
+              </Label>
+              <div className="flex items-center gap-2 pt-1">
+                <Input
+                  type="number"
+                  min="0"
+                  value={submittedCount}
+                  onChange={(e) => setSubmittedCount(e.target.value)}
+                  className="h-8 w-24 font-mono font-bold text-xs"
+                />
+                <span className="text-xs font-bold font-mono text-purple-400">
+                  / {surveyTarget} (Target)
+                </span>
               </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="partial" id="q1-partial" />
-                <Label htmlFor="q1-partial" className="cursor-pointer text-xs">Partially (&gt;50%)</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="no" id="q1-no" />
-                <Label htmlFor="q1-no" className="cursor-pointer text-xs">Not Yet</Label>
-              </div>
-            </RadioGroup>
-          </div>
+              <p className="text-[10px] text-muted-foreground">
+                Enter your exact count of submitted survey responses.
+              </p>
+            </div>
 
-          {/* Question 4: Notes */}
-          <div className="space-y-2">
-            <Label className="text-xs font-semibold">4. Key Learnings &amp; Blockers (Optional)</Label>
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Briefly describe what you learned or any support needed..."
-              rows={2}
-              className="text-xs"
-            />
-          </div>
+            {/* Question 3: Targets completed */}
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold">3. Did you complete your planned daily targets today?</Label>
+              <RadioGroup value={q1} onValueChange={setQ1} className="flex gap-4 pt-1">
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="yes" id="q1-yes" />
+                  <Label htmlFor="q1-yes" className="cursor-pointer text-xs">Yes, 100%</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="partial" id="q1-partial" />
+                  <Label htmlFor="q1-partial" className="cursor-pointer text-xs">Partially (&gt;50%)</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="no" id="q1-no" />
+                  <Label htmlFor="q1-no" className="cursor-pointer text-xs">Not Yet</Label>
+                </div>
+              </RadioGroup>
+            </div>
 
-          <DialogFooter className="pt-2">
+            {/* Question 4: Notes */}
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold">4. Key Learnings &amp; Blockers (Optional)</Label>
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Briefly describe what you learned or any support needed..."
+                rows={2}
+                className="text-xs"
+              />
+            </div>
+          </ScrollArea>
+
+          <DialogFooter className="p-4 border-t bg-muted/30 flex items-center justify-between gap-2 shrink-0 pb-[calc(1rem+env(safe-area-inset-bottom))]">
             <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </Button>

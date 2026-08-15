@@ -129,7 +129,7 @@ export function MonitoringMemberDrawer({
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col h-full bg-card">
+      <SheetContent side="right" hideCloseButton={true} className="w-full sm:max-w-md p-0 flex flex-col h-full bg-card">
         {/* Header */}
         <SheetHeader className="p-4 border-b bg-muted/30 shrink-0">
           <div className="flex items-center justify-between gap-3">
@@ -345,29 +345,37 @@ export function MonitoringMemberDrawer({
           </div>
         </ScrollArea>
 
-        {/* Footer Quick Actions */}
-        {isLeadership && (
-          <div className="p-4 border-t bg-muted/20 flex items-center gap-2 shrink-0">
-            <Button
-              className="flex-1 h-9 text-xs gap-1.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold"
-              onClick={() => {
-                onClose();
-                onOpenAlertModal(member.userId);
-              }}
-            >
-              <Bell className="w-3.5 h-3.5" /> Send Alert
-            </Button>
-            <Button
-              variant="outline"
-              className="flex-1 h-9 text-xs gap-1.5 border-purple-500/30 text-purple-400 hover:bg-purple-500/10 font-bold"
-              onClick={async () => {
-                await onSendSurveyPrompt(member.userId);
-              }}
-            >
-              <Send className="w-3.5 h-3.5" /> Request Survey
-            </Button>
-          </div>
-        )}
+        {/* Fixed Bottom Action Bar */}
+        <div className="p-4 border-t bg-muted/30 flex items-center justify-between gap-2 shrink-0 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+          <Button variant="outline" size="sm" onClick={onClose} className="h-9 px-4 text-xs font-bold">
+            Cancel
+          </Button>
+
+          {isLeadership && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 text-xs gap-1.5 border-purple-500/30 text-purple-400 hover:bg-purple-500/10 font-bold"
+                onClick={async () => {
+                  await onSendSurveyPrompt(member.userId);
+                }}
+              >
+                <Send className="w-3.5 h-3.5" /> Request Survey
+              </Button>
+              <Button
+                size="sm"
+                className="h-9 text-xs gap-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold"
+                onClick={() => {
+                  onClose();
+                  onOpenAlertModal(member.userId);
+                }}
+              >
+                <Bell className="w-3.5 h-3.5" /> Send Alert
+              </Button>
+            </div>
+          )}
+        </div>
       </SheetContent>
     </Sheet>
   );

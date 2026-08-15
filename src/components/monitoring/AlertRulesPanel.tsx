@@ -350,13 +350,15 @@ export function AlertRulesPanel({
 
       {/* Create / Edit Rule Dialog */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-        <DialogContent className="max-w-md p-4 sm:p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent hideCloseButton={true} className="max-w-md p-0 flex flex-col max-h-[90vh] bg-card">
+          <DialogHeader className="p-4 border-b shrink-0">
             <DialogTitle className="text-base font-bold flex items-center gap-2">
               <Clock className="w-4 h-4 text-primary" />
               {editingRule ? 'Edit Automation Rule' : 'New Automation Rule'}
             </DialogTitle>
           </DialogHeader>
+
+          <ScrollArea className="flex-1 p-4 space-y-4">
 
           <div className="space-y-3 text-xs">
             <div>
@@ -512,7 +514,9 @@ export function AlertRulesPanel({
             </div>
           </div>
 
-          <DialogFooter className="pt-2">
+          </ScrollArea>
+
+          <DialogFooter className="p-4 border-t bg-muted/30 flex items-center justify-between gap-2 shrink-0 pb-[calc(1rem+env(safe-area-inset-bottom))]">
             <Button variant="outline" size="sm" onClick={() => setIsCreateModalOpen(false)}>
               Cancel
             </Button>

@@ -96,7 +96,7 @@ export function LeadAlertModal({
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col h-full bg-card shadow-2xl">
+      <SheetContent side="right" hideCloseButton={true} className="w-full sm:max-w-md p-0 flex flex-col h-full bg-card shadow-2xl">
         {/* Header */}
         <SheetHeader className="p-4 border-b bg-muted/30 shrink-0">
           <div className="flex items-center justify-between">
@@ -236,7 +236,7 @@ export function LeadAlertModal({
         </ScrollArea>
 
         {/* Footer Actions */}
-        <div className="p-4 border-t bg-muted/20 flex items-center justify-between gap-2 shrink-0">
+        <div className="p-4 border-t bg-muted/20 flex items-center justify-between gap-2 shrink-0 pb-[calc(1rem+env(safe-area-inset-bottom))]">
           <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={isSending} className="h-8 text-xs">
             Cancel
           </Button>
