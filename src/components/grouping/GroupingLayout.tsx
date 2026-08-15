@@ -3,7 +3,7 @@ import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { GroupingSidebar } from './GroupingSidebar';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppMode } from '@/hooks/useAppMode';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -38,6 +38,7 @@ export function GroupingLayout({ children, title }: GroupingLayoutProps) {
   const { profile, role, signOut, isCaptainOrVice } = useAuth();
   const { clearMode, setMode } = useAppMode();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const isTL = role === 'team_captain';
 

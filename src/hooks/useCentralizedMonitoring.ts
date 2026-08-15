@@ -98,7 +98,7 @@ function buildCriterion(achieved: number, target: number, textFmt?: (a: number, 
 }
 
 function recomputeOverall(m: MemberMonitoringStatus): MemberMonitoringStatus {
-  return { ...m, overallMet: m.ap.isMet && m.ps.isMet && m.groupMeeting.isMet && m.dailySurvey.isMet };
+  return { ...m, overallMet: m.ap.isMet && m.ps.isMet && m.dailySurvey.isMet };
 }
 
 export function useCentralizedMonitoring() {
@@ -281,7 +281,7 @@ export function useCentralizedMonitoring() {
           groupMeeting,
           dailySurvey,
           hasPenalty: false,
-          overallMet: ap.isMet && ps.isMet && groupMeeting.isMet && dailySurvey.isMet,
+          overallMet: ap.isMet && ps.isMet && dailySurvey.isMet,
           lastUpdated: apData.lastUpdated || p.updated_at,
           customTargets: indivTarget,
         };
@@ -423,17 +423,32 @@ export function useCentralizedMonitoring() {
     const due = alertsList.filter((a) => a.status === 'scheduled' && new Date(a.scheduled_at) <= new Date());
     let didWork = false;
 
+    const formatPersonalizedBody = (recipientId: string, customNote?: string) => {
+      const m = members.find((mem) => mem.userId === recipientId);
+      const apVal = m ? `${m.ap.achieved} / ${m.ap.target}` : '0 / 0';
+      const psVal = m?.ps.isMet ? 'Completed' : 'Not Yet';
+      const surveyVal = m ? `${m.dailySurvey.achieved} / ${m.dailySurvey.target}` : '0 / 0';
+
+      let cleanNote = (customNote || '').replace(/^\[Target:[^\]]+\]\n?/, '').trim();
+      if (cleanNote) cleanNote = `${cleanNote}\n\n`;
+
+      return `${cleanNote}Current Live Monitoring Status:\n\nAP: ${apVal}\nMinimum PS: ${psVal}\nDaily Survey: ${surveyVal}\n\nUpdate your record by submitting survey.`;
+    };
+
     for (const alert of due) {
       const targetUserIds = resolveAudience(alert.target_filter, alert.target_user_ids);
       try {
-        await dispatchNotifications({
-          userIds: targetUserIds,
-          title: alert.title,
-          message: alert.message,
-          type: 'daily_survey_alert',
-          path: '/grouping/monitoring?open=survey',
-          metadata: { scheduled_alert_id: alert.id, self_update: true },
-        });
+        for (const recipientId of targetUserIds) {
+          const body = formatPersonalizedBody(recipientId, alert.message);
+          await dispatchNotifications({
+            userIds: [recipientId],
+            title: alert.title,
+            message: body,
+            type: 'daily_survey_alert',
+            path: '/grouping/monitoring?open=survey',
+            metadata: { scheduled_alert_id: alert.id, self_update: true },
+          });
+        }
         await supabase.from('scheduled_monitoring_alerts').update({ status: 'sent' }).eq('id', alert.id);
         didWork = true;
       } catch (err: any) {
@@ -445,35 +460,65 @@ export function useCentralizedMonitoring() {
     const { data: rules } = await supabase.from('monitoring_alert_rules').select('*').eq('is_enabled', true);
     const now = new Date();
     const todayStr = today();
-    const dow = now.getDay();
+    const dow = now.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
 
     for (const rule of rules || []) {
+      if (!rule.is_enabled) continue;
+
+      // Resolve active weekday schedule
+      let ruleDays: number[] = (rule as any).selected_days || [];
+      if (!ruleDays || ruleDays.length === 0) {
+        if (rule.message && rule.message.includes('Days:')) {
+          const match = rule.message.match(/Days:([0-9,]+)/);
+          if (match) ruleDays = match[1].split(',').map(Number);
+        }
+      }
+      if (!ruleDays || ruleDays.length === 0) {
+        ruleDays = rule.repeat_mode === 'weekdays' ? [1, 2, 3, 4, 5] : [0, 1, 2, 3, 4, 5, 6];
+      }
+
+      // Skip if current weekday is not in configured active days
+      if (!ruleDays.includes(dow)) continue;
+
       const [hh, mm] = (rule.run_at_time || '18:00').split(':').map((n: string) => parseInt(n, 10));
       const runAt = new Date();
       runAt.setHours(hh || 0, mm || 0, 0, 0);
       if (now < runAt) continue;
-      if (rule.repeat_mode === 'weekdays' && (dow === 0 || dow === 6)) continue;
       if (rule.last_run_at) {
         const last = new Date(rule.last_run_at);
         if (rule.repeat_mode === 'once') continue;
         if (last.toISOString().split('T')[0] === todayStr) continue;
       }
 
-      const targetUserIds = resolveAudience(rule.criterion);
+      const targetUserIds = resolveAudience(rule.criterion, (rule as any).target_user_ids);
       try {
-        await dispatchNotifications({
-          userIds: targetUserIds,
-          title: rule.title,
-          message: rule.message,
-          type: 'monitoring_reminder',
-          path: '/grouping/monitoring?open=survey',
-          metadata: { rule_id: rule.id, self_update: true },
-        });
+        let sentCount = 0;
+        for (const recipientId of targetUserIds) {
+          const m = members.find((mem) => mem.userId === recipientId);
+          // Suppress if member has already met the rule criterion
+          if (rule.criterion === 'missing_survey' && m?.dailySurvey.isMet) continue;
+          if (rule.criterion === 'missing_ap' && m?.ap.isMet) continue;
+          if (rule.criterion === 'missing_ps' && m?.ps.isMet) continue;
+          if ((rule.criterion === 'any' || rule.criterion === 'missing_all') && m?.overallMet) continue;
+
+          const body = formatPersonalizedBody(recipientId, rule.message);
+
+          await dispatchNotifications({
+            userIds: [recipientId],
+            title: rule.title, // Configured Automation Title
+            message: body,
+            type: 'monitoring_reminder',
+            path: '/grouping/monitoring?open=survey',
+            metadata: { rule_id: rule.id, self_update: true },
+          });
+          sentCount++;
+        }
+
         await supabase
           .from('monitoring_alert_rules')
           .update({
             last_run_at: now.toISOString(),
-            last_run_count: targetUserIds.length,
+            last_run_count: sentCount,
             is_enabled: rule.repeat_mode === 'once' ? false : rule.is_enabled,
           })
           .eq('id', rule.id);
@@ -507,6 +552,7 @@ export function useCentralizedMonitoring() {
   useRealtimeSubscription({ channelName: 'monitoring-ps-v7', table: 'ps_daily_entries', onPayload: handleIncrementalRealtimeUpdate });
   useRealtimeSubscription({ channelName: 'monitoring-survey-v7', table: 'daily_survey_responses', onPayload: handleIncrementalRealtimeUpdate });
   useRealtimeSubscription({ channelName: 'monitoring-meeting-v7', table: 'monitoring_meeting_records', onPayload: handleIncrementalRealtimeUpdate });
+  useRealtimeSubscription({ channelName: 'monitoring-ind-targets-v7', table: 'individual_monitoring_targets', onPayload: handleIncrementalRealtimeUpdate });
   useRealtimeSubscription({
     channelName: 'monitoring-targets-v7',
     table: 'monitoring_targets',
@@ -516,6 +562,16 @@ export function useCentralizedMonitoring() {
     channelName: 'monitoring-sched-v7',
     table: 'scheduled_monitoring_alerts',
     onPayload: () => queryClient.invalidateQueries({ queryKey: ['scheduled-monitoring-alerts'] }),
+  });
+  useRealtimeSubscription({
+    channelName: 'monitoring-rules-v7',
+    table: 'monitoring_alert_rules',
+    onPayload: () => queryClient.invalidateQueries({ queryKey: ['monitoring-alert-rules'] }),
+  });
+  useRealtimeSubscription({
+    channelName: 'monitoring-audit-v7',
+    table: 'monitoring_audit_log',
+    onPayload: () => queryClient.invalidateQueries({ queryKey: ['monitoring-audit-log'] }),
   });
 
   /* ------------------------------------------------------------ target writes */
@@ -845,18 +901,49 @@ export function useCentralizedMonitoring() {
   });
 
   const submitDailySurvey = useMutation({
-    mutationFn: async (answers: Record<string, any>) => {
+    mutationFn: async (vars: {
+      psStatus?: 'completed' | 'pending';
+      surveyCount?: number;
+      answers?: Record<string, any>;
+    }) => {
       if (!user) throw new Error('Not authenticated');
       const me = members.find((m) => m.userId === user.id);
-      const next = Math.min(me?.dailySurvey.target ?? 4, (me?.dailySurvey.achieved ?? 0) + 1);
-      await upsertSurveyCount(user.id, next, 'self_survey_form', answers);
+
+      if (vars.psStatus !== undefined) {
+        await applyPsStatus(user.id, vars.psStatus, 1);
+      }
+
+      const count = vars.surveyCount !== undefined
+        ? vars.surveyCount
+        : Math.min(me?.dailySurvey.target ?? 4, (me?.dailySurvey.achieved ?? 0) + 1);
+
+      await upsertSurveyCount(user.id, count, 'self_survey_form', vars.answers);
+
+      await writeAudit([
+        {
+          target_user_id: user.id,
+          field: 'take_survey_submission',
+          new_value: JSON.stringify({ psStatus: vars.psStatus, surveyCount: count }),
+          note: 'Submitted via Take Survey form',
+        },
+      ]);
     },
-    onMutate: async () => {
+    onMutate: async (vars) => {
       if (!user) return {};
       await queryClient.cancelQueries({ queryKey: ['centralized-monitoring-data'] });
       const previous = patchMember(user.id, (m) => ({
         ...m,
-        dailySurvey: buildCriterion(Math.min(m.dailySurvey.target, m.dailySurvey.achieved + 1), m.dailySurvey.target),
+        ps: vars.psStatus !== undefined
+          ? buildCriterion(vars.psStatus === 'completed' ? m.ps.target : 0, m.ps.target, (a, t, met) =>
+              t === 1 ? (met ? 'Completed' : 'Pending') : `${a} / ${t}`
+            )
+          : m.ps,
+        dailySurvey: buildCriterion(
+          vars.surveyCount !== undefined
+            ? vars.surveyCount
+            : Math.min(m.dailySurvey.target, m.dailySurvey.achieved + 1),
+          m.dailySurvey.target
+        ),
       }));
       return { previous };
     },
@@ -866,7 +953,9 @@ export function useCentralizedMonitoring() {
     },
     onSuccess: () => {
       invalidateBoard();
-      toast({ title: 'Daily survey recorded' });
+      queryClient.invalidateQueries({ queryKey: ['ps-daily-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['monitoring-audit-log'] });
+      toast({ title: 'Daily survey & PS status recorded' });
     },
   });
 
@@ -1111,13 +1200,13 @@ export function useCentralizedMonitoring() {
       const member = members.find((m) => m.userId === recipientId);
 
       const apStatus = member ? `${member.ap.achieved} / ${member.ap.target}` : '0 / 0';
-      const psStatus = member?.ps.isMet ? 'Completed' : 'Not Completed';
+      const psStatus = member?.ps.isMet ? 'Completed' : 'Not Yet';
       const surveyStatus = member ? `${member.dailySurvey.achieved} / ${member.dailySurvey.target}` : '0 / 0';
 
       await dispatchNotifications({
         userIds: [recipientId],
-        title: '📋 Daily Survey Requirement Status',
-        message: `Your current status:\n• Your current AP: ${apStatus}\n• Minimum PS: ${psStatus}\n• Daily survey: ${surveyStatus}`,
+        title: 'Complete your daily targets, then take the Daily Survey',
+        message: `Member: ${member?.fullName || 'User'}\nActivity Points: ${apStatus}\nMinimum PS: ${psStatus}\nDaily Survey: ${surveyStatus}\n\nPlease complete your remaining requirements.`,
         type: 'daily_survey_alert',
         path: '/grouping/monitoring?open=survey',
         metadata: { ap_status: apStatus, ps_status: psStatus, survey_status: surveyStatus, self_update: true },
@@ -1153,22 +1242,29 @@ export function useCentralizedMonitoring() {
 
       const rows = recipients.map((uid) => {
         const member = members.find((m) => m.userId === uid)!;
-        const missing: string[] = [];
-        if (!member.ap.isMet) missing.push(`AP (needs ${member.ap.remaining})`);
-        if (!member.ps.isMet) missing.push(`PS (needs ${member.ps.remaining} entry)`);
-        if (!member.dailySurvey.isMet) missing.push(`Daily Survey (needs ${member.dailySurvey.remaining})`);
-        if (!member.groupMeeting.isMet) missing.push(`Group Meeting (needs ${member.groupMeeting.remaining})`);
+        const statusSummary = `Member: ${member.fullName}\nActivity Points: ${member.ap.achieved} / ${member.ap.target}\nMinimum PS: ${member.ps.isMet ? 'Completed' : 'Not Yet'}\nDaily Survey: ${member.dailySurvey.achieved} / ${member.dailySurvey.target}`;
 
-        const detail = missing.length > 0 ? `Missing: ${missing.join(', ')}.` : 'Requirements pending.';
+        const fullMsg = vars.messagePrefix
+          ? `${vars.messagePrefix}\n\n${statusSummary}`
+          : `Monitoring Update\n\n${statusSummary}\n\nPlease update your requirements using Take Survey.`;
+
         return {
           sender_id: user!.id,
           recipient_id: uid,
           title: vars.title,
-          message: vars.messagePrefix ? `${vars.messagePrefix} ${detail}` : detail,
+          message: fullMsg,
           type: vars.alertType,
           is_read: false,
           expires_at: expiresAtIso,
-          metadata: { actionable: true, self_update: true, path: resolvedPath, missing_details: missing, expiry_hours: expHours },
+          metadata: {
+            actionable: true,
+            self_update: true,
+            path: resolvedPath,
+            ap_status: `${member.ap.achieved} / ${member.ap.target}`,
+            ps_status: member.ps.isMet ? 'Completed' : 'Not Yet',
+            survey_status: `${member.dailySurvey.achieved} / ${member.dailySurvey.target}`,
+            expiry_hours: expHours,
+          },
         };
       });
 

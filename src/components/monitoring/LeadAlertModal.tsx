@@ -1,12 +1,12 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { useState, useEffect } from 'react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Bell, Send, Users, Sparkles, Clock } from 'lucide-react';
+import { Bell, Send, Users, Sparkles, Clock, Coins, ClipboardList, FileCheck } from 'lucide-react';
 import { MemberMonitoringStatus } from '@/hooks/useCentralizedMonitoring';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -26,16 +26,31 @@ interface LeadAlertModalProps {
   }) => Promise<void>;
 }
 
-export function LeadAlertModal({ isOpen, onClose, members, initialSelectedMemberId, onSendAlert }: LeadAlertModalProps) {
+export function LeadAlertModal({
+  isOpen,
+  onClose,
+  members,
+  initialSelectedMemberId,
+  onSendAlert,
+}: LeadAlertModalProps) {
   const [filterTarget, setFilterTarget] = useState<string>(initialSelectedMemberId ? 'selected' : 'missing');
-  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>(
-    initialSelectedMemberId ? [initialSelectedMemberId] : []
-  );
-  const [title, setTitle] = useState('⚠️ Requirement Action Needed');
-  const [messagePrefix, setMessagePrefix] = useState('Please achieve your daily targets.');
-  const [isDailySurveyAlert, setIsDailySurveyAlert] = useState(false);
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
+  const [title, setTitle] = useState('Complete your daily targets, then take the Daily Survey');
+  const [messagePrefix, setMessagePrefix] = useState('Please achieve your daily targets and submit your survey.');
   const [expiryHours, setExpiryHours] = useState<number>(24);
   const [isSending, setIsSending] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      if (initialSelectedMemberId) {
+        setFilterTarget('selected');
+        setSelectedMemberIds([initialSelectedMemberId]);
+      } else {
+        setFilterTarget('missing');
+        setSelectedMemberIds([]);
+      }
+    }
+  }, [isOpen, initialSelectedMemberId]);
 
   // Compute recipient list based on filter
   const getRecipientIds = (): string[] => {
@@ -48,6 +63,11 @@ export function LeadAlertModal({ isOpen, onClose, members, initialSelectedMember
     return [];
   };
 
+  const recipientIds = getRecipientIds();
+  const recipientCount = recipientIds.length;
+
+  const targetMember = recipientCount === 1 ? members.find((m) => m.userId === recipientIds[0]) : null;
+
   const handleToggleMember = (userId: string) => {
     setSelectedMemberIds((prev) =>
       prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
@@ -56,7 +76,6 @@ export function LeadAlertModal({ isOpen, onClose, members, initialSelectedMember
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const recipientIds = getRecipientIds();
     if (recipientIds.length === 0) return;
 
     setIsSending(true);
@@ -65,8 +84,8 @@ export function LeadAlertModal({ isOpen, onClose, members, initialSelectedMember
         recipientIds,
         title,
         messagePrefix,
-        alertType: isDailySurveyAlert ? 'daily_survey_alert' : 'general_requirement_alert',
-        isDailySurveyAlert,
+        alertType: 'daily_survey_alert',
+        isDailySurveyAlert: true,
         expiryHours,
       });
       onClose();
@@ -75,167 +94,163 @@ export function LeadAlertModal({ isOpen, onClose, members, initialSelectedMember
     }
   };
 
-  const recipientCount = getRecipientIds().length;
-
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[540px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl font-bold">
-            <Bell className="w-5 h-5 text-amber-500" />
-            Send Personalized Lead Requirement Alert
-          </DialogTitle>
-          <DialogDescription>
-            Alerts automatically attach exact missing numbers for each specific member (e.g. Needs 1200 AP, Needs 2 Survey responses).
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-4 py-2">
-          {/* Target Filter Selection */}
-          <div className="space-y-2">
-            <Label className="text-sm font-semibold">Target Audience</Label>
-            <Select value={filterTarget} onValueChange={setFilterTarget}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select target group" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="missing">All Missing Members ({members.filter((m) => !m.overallMet).length})</SelectItem>
-                <SelectItem value="survey_missing">Daily Survey Missing ({members.filter((m) => !m.dailySurvey.isMet).length})</SelectItem>
-                <SelectItem value="ps_missing">PS Missing ({members.filter((m) => !m.ps.isMet).length})</SelectItem>
-                <SelectItem value="ap_missing">AP Missing ({members.filter((m) => !m.ap.isMet).length})</SelectItem>
-                <SelectItem value="all">All Members ({members.length})</SelectItem>
-                <SelectItem value="selected">Custom Select Members ({selectedMemberIds.length})</SelectItem>
-              </SelectContent>
-            </Select>
+    <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col h-full bg-card shadow-2xl">
+        {/* Header */}
+        <SheetHeader className="p-4 border-b bg-muted/30 shrink-0">
+          <div className="flex items-center justify-between">
+            <SheetTitle className="text-base font-extrabold flex items-center gap-2">
+              <Bell className="w-4 h-4 text-amber-500" /> Send Lead Alert
+            </SheetTitle>
+            <Badge variant="secondary" className="font-bold text-xs gap-1">
+              <Users className="w-3.5 h-3.5" />
+              {targetMember ? targetMember.fullName : `${recipientCount} Member(s)`}
+            </Badge>
           </div>
+        </SheetHeader>
 
-          {/* Custom Member Selection List */}
-          {filterTarget === 'selected' && (
-            <div className="space-y-2 border rounded-lg p-3 bg-muted/30">
-              <Label className="text-xs font-semibold text-muted-foreground">Select Individual Members:</Label>
-              <ScrollArea className="h-[140px] pr-2">
-                <div className="space-y-2">
-                  {members.map((m) => (
-                    <div key={m.userId} className="flex items-center justify-between p-1.5 rounded hover:bg-muted/50 text-sm">
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          id={`member-${m.userId}`}
-                          checked={selectedMemberIds.includes(m.userId)}
-                          onCheckedChange={() => handleToggleMember(m.userId)}
-                        />
-                        <label htmlFor={`member-${m.userId}`} className="cursor-pointer font-medium">
-                          {m.fullName}
-                        </label>
-                      </div>
-                      <Badge variant={m.overallMet ? 'outline' : 'destructive'} className="text-[10px]">
-                        {m.overallMet ? 'Met' : 'Missing'}
-                      </Badge>
-                    </div>
-                  ))}
+        {/* Scrollable Form Body */}
+        <ScrollArea className="flex-1 p-4 space-y-4">
+          <form id="lead-alert-form" onSubmit={handleSubmit} className="space-y-4 text-xs">
+            {/* Live Monitoring Preview for single member */}
+            {targetMember && (
+              <div className="p-3 rounded-xl border bg-muted/40 space-y-1.5 text-[11px]">
+                <p className="font-extrabold text-foreground text-xs">Current Live Monitoring Status:</p>
+                <div className="grid grid-cols-3 gap-1.5 pt-1">
+                  <div className="p-1.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-500 font-bold">
+                    <span className="flex items-center gap-1 text-[10px]"><Coins className="w-3 h-3" /> AP</span>
+                    <p className="font-mono text-xs text-foreground mt-0.5">{targetMember.ap.achieved} / {targetMember.ap.target}</p>
+                  </div>
+                  <div className="p-1.5 rounded bg-blue-500/10 border border-blue-500/20 text-blue-500 font-bold">
+                    <span className="flex items-center gap-1 text-[10px]"><ClipboardList className="w-3 h-3" /> PS</span>
+                    <p className="text-xs text-foreground mt-0.5">{targetMember.ps.isMet ? 'Completed' : 'Not Yet'}</p>
+                  </div>
+                  <div className="p-1.5 rounded bg-purple-500/10 border border-purple-500/20 text-purple-400 font-bold">
+                    <span className="flex items-center gap-1 text-[10px]"><FileCheck className="w-3 h-3" /> Survey</span>
+                    <p className="font-mono text-xs text-foreground mt-0.5">{targetMember.dailySurvey.achieved} / {targetMember.dailySurvey.target}</p>
+                  </div>
                 </div>
-              </ScrollArea>
+              </div>
+            )}
+
+            {/* Target Filter Selection */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold">Target Audience</Label>
+              <Select value={filterTarget} onValueChange={setFilterTarget}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Select target group" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="missing">All Missing Members ({members.filter((m) => !m.overallMet).length})</SelectItem>
+                  <SelectItem value="survey_missing">Daily Survey Missing ({members.filter((m) => !m.dailySurvey.isMet).length})</SelectItem>
+                  <SelectItem value="ps_missing">PS Missing ({members.filter((m) => !m.ps.isMet).length})</SelectItem>
+                  <SelectItem value="ap_missing">AP Missing ({members.filter((m) => !m.ap.isMet).length})</SelectItem>
+                  <SelectItem value="all">All Members ({members.length})</SelectItem>
+                  <SelectItem value="selected">Custom Select Members ({selectedMemberIds.length})</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          )}
 
-          {/* Title Input */}
-          <div className="space-y-2">
-            <Label className="text-sm font-semibold">Alert Title</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} required />
-          </div>
+            {/* Custom Member Selection List */}
+            {filterTarget === 'selected' && (
+              <div className="space-y-2 border rounded-xl p-2.5 bg-muted/20">
+                <Label className="text-xs font-bold text-muted-foreground">Select Individual Members:</Label>
+                <ScrollArea className="h-36 pr-1">
+                  <div className="space-y-1">
+                    {members.map((m) => (
+                      <div
+                        key={m.userId}
+                        onClick={() => handleToggleMember(m.userId)}
+                        className="flex items-center justify-between p-1.5 rounded hover:bg-muted/50 text-xs cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2 pointer-events-none">
+                          <Checkbox checked={selectedMemberIds.includes(m.userId)} tabIndex={-1} />
+                          <span className="font-semibold">{m.fullName}</span>
+                        </div>
+                        <Badge variant={m.overallMet ? 'outline' : 'destructive'} className="text-[9px]">
+                          {m.overallMet ? 'Met' : 'Missing'}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+            )}
 
-          {/* Message Prefix */}
-          <div className="space-y-2">
-            <Label className="text-sm font-semibold">Message Note (Prefix)</Label>
-            <Textarea
-              value={messagePrefix}
-              onChange={(e) => setMessagePrefix(e.target.value)}
-              rows={2}
-              placeholder="e.g. Please submit your updates before deadline."
-              required
-            />
-          </div>
-
-          {/* Notification Expiry Duration Controls (24 Hours vs 48 Hours) */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-bold uppercase tracking-wider flex items-center gap-1 text-foreground">
-              <Clock className="w-3.5 h-3.5 text-amber-500" /> Disappearance Period
-            </Label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setExpiryHours(24)}
-                className={`py-2 px-3 rounded-lg border text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                  expiryHours === 24
-                    ? 'bg-amber-500/20 border-amber-500 text-amber-400 shadow-xs'
-                    : 'bg-card border-border hover:bg-muted/50 text-muted-foreground'
-                }`}
-              >
-                <span>24 Hours</span>
-                {expiryHours === 24 && <Badge variant="secondary" className="text-[9px] px-1 py-0 bg-amber-500/30 text-amber-300">Default</Badge>}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setExpiryHours(48)}
-                className={`py-2 px-3 rounded-lg border text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                  expiryHours === 48
-                    ? 'bg-amber-500/20 border-amber-500 text-amber-400 shadow-xs'
-                    : 'bg-card border-border hover:bg-muted/50 text-muted-foreground'
-                }`}
-              >
-                <span>48 Hours</span>
-              </button>
+            {/* Title Input */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold">Alert Title</Label>
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} required className="h-8 text-xs" />
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              Notification automatically disappears after {expiryHours} hours from creation.
-            </p>
-          </div>
 
-          {/* Dynamic Missing Breakdown Notice */}
-          <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 space-y-1">
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
-              <Sparkles className="w-3.5 h-3.5" />
-              Dynamic User-Specific Missing Numbers Notice
+            {/* Message Note */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold">Message Note / Note</Label>
+              <Textarea
+                value={messagePrefix}
+                onChange={(e) => setMessagePrefix(e.target.value)}
+                rows={2}
+                placeholder="e.g. Please submit your updates before 6 PM."
+                required
+                className="text-xs"
+              />
             </div>
-            <p className="text-[11px] text-muted-foreground leading-normal">
-              Each recipient will automatically receive their custom notification detailing their exact missing values (e.g. Needs 1200 AP, Needs 1 PS entry).
-            </p>
-          </div>
 
-          {/* Followup Options */}
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900">
-            <Checkbox
-              id="survey-followup"
-              checked={isDailySurveyAlert}
-              onCheckedChange={(checked) => setIsDailySurveyAlert(!!checked)}
-            />
-            <div className="space-y-0.5 text-xs">
-              <label htmlFor="survey-followup" className="font-semibold text-amber-900 dark:text-amber-300 cursor-pointer">
-                Daily Survey Alert (Actionable Follow-Up)
-              </label>
-              <p className="text-muted-foreground">
-                If checked, sends push alert with [Completed] / [Not Yet] actionable buttons. Each [Completed] click = +1 Survey Response.
+            {/* Disappearance Duration */}
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 text-muted-foreground">
+                <Clock className="w-3 h-3 text-amber-500" /> Expiry Duration
+              </Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setExpiryHours(24)}
+                  className={`py-1.5 px-2 rounded-lg border text-xs font-bold transition-all ${
+                    expiryHours === 24 ? 'bg-amber-500/20 border-amber-500 text-amber-400' : 'bg-card border-border text-muted-foreground'
+                  }`}
+                >
+                  24 Hours (Default)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setExpiryHours(48)}
+                  className={`py-1.5 px-2 rounded-lg border text-xs font-bold transition-all ${
+                    expiryHours === 48 ? 'bg-amber-500/20 border-amber-500 text-amber-400' : 'bg-card border-border text-muted-foreground'
+                  }`}
+                >
+                  48 Hours
+                </button>
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-purple-500/5 border border-purple-500/20 space-y-1">
+              <div className="flex items-center gap-1.5 text-[11px] font-bold text-purple-400">
+                <Sparkles className="w-3.5 h-3.5" /> Personalized Live Data Resolution
+              </div>
+              <p className="text-[10px] text-muted-foreground leading-relaxed">
+                Each recipient will receive an alert automatically populated with their own live AP, Minimum PS, and Daily Survey numbers.
               </p>
             </div>
-          </div>
+          </form>
+        </ScrollArea>
 
-          <DialogFooter className="pt-2 flex items-center justify-between sm:justify-between">
-            <Badge variant="secondary" className="gap-1 text-xs">
-              <Users className="w-3 h-3" />
-              {recipientCount} Recipient(s)
-            </Badge>
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={onClose} disabled={isSending}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSending || recipientCount === 0} className="gap-2 bg-amber-600 hover:bg-amber-700 text-white font-bold">
-                <Send className="w-4 h-4" />
-                {isSending ? 'Sending...' : 'Send Alert'}
-              </Button>
-            </div>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        {/* Footer Actions */}
+        <div className="p-4 border-t bg-muted/20 flex items-center justify-between gap-2 shrink-0">
+          <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={isSending} className="h-8 text-xs">
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form="lead-alert-form"
+            disabled={isSending || recipientCount === 0}
+            className="h-8 text-xs font-bold bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white gap-1.5"
+          >
+            <Send className="w-3.5 h-3.5" />
+            {isSending ? 'Sending...' : `Send Alert (${recipientCount})`}
+          </Button>
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }

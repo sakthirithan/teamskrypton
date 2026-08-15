@@ -5,20 +5,13 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { TwoStatusButtons } from '@/components/monitoring/TwoStatusButtons';
 import { MemberMonitoringStatus } from '@/hooks/useCentralizedMonitoring';
+import { MemberAlertPopover } from '@/components/monitoring/MemberAlertPopover';
 import {
   Coins,
   ClipboardList,
-  CalendarCheck,
   FileCheck,
-  CheckCircle2,
-  XCircle,
-  Bell,
   Edit2,
-  Check,
-  Loader2,
-  Sparkles,
 } from 'lucide-react';
 
 interface MonitoringMemberCardProps {
@@ -27,10 +20,15 @@ interface MonitoringMemberCardProps {
   isSelected: boolean;
   onToggleSelect: (userId: string) => void;
   onUpdateAp: (params: { userId: string; points: number }) => Promise<void>;
-  onSetPsStatus: (params: { userId: string; newStatus: 'completed' | 'pending'; count?: number }) => Promise<void>;
-  onSetMeetingStatus: (params: { userId: string; status: 'completed' | 'pending' }) => Promise<void>;
-  onSetSurveyCount: (params: { userId: string; count: number }) => Promise<void>;
-  onOpenAlertModal: (userId: string) => void;
+  onSetPsStatus?: (params: { userId: string; newStatus: 'completed' | 'pending'; count?: number }) => Promise<void>;
+  onSetSurveyCount?: (params: { userId: string; count: number }) => Promise<void>;
+  onSendAlert: (params: {
+    recipientIds: string[];
+    title: string;
+    messagePrefix?: string;
+    alertType: string;
+  }) => Promise<void>;
+  onOpenDrawer?: (member: MemberMonitoringStatus) => void;
 }
 
 export function MonitoringMemberCard({
@@ -40,21 +38,15 @@ export function MonitoringMemberCard({
   onToggleSelect,
   onUpdateAp,
   onSetPsStatus,
-  onSetMeetingStatus,
   onSetSurveyCount,
-  onOpenAlertModal,
+  onSendAlert,
+  onOpenDrawer,
 }: MonitoringMemberCardProps) {
   const [isEditingAp, setIsEditingAp] = useState(false);
   const [apInput, setApInput] = useState(member.ap.achieved.toString());
   const [isUpdating, setIsUpdating] = useState(false);
 
   const roleLabel = member.role.replace('_', ' ');
-
-  const handleApBoxClick = () => {
-    if (!isLeadership || isUpdating) return;
-    setApInput(member.ap.achieved.toString());
-    setIsEditingAp(true);
-  };
 
   const handleSaveAp = async () => {
     if (isUpdating) return;
@@ -79,25 +71,15 @@ export function MonitoringMemberCard({
     }
   };
 
-  const handleQuickAddAp = async (delta: number) => {
-    if (isUpdating) return;
-    const newTotal = member.ap.achieved + delta;
-    setIsUpdating(true);
-    try {
-      await onUpdateAp({ userId: member.userId, points: newTotal });
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
   return (
     <Card
-      className={`relative overflow-hidden transition-all duration-200 border backdrop-blur-xl shadow-sm ${
+      onClick={() => onOpenDrawer && onOpenDrawer(member)}
+      className={`relative overflow-hidden transition-all duration-200 border bg-card/95 backdrop-blur-xl shadow-xs cursor-pointer ${
         isSelected
           ? 'bg-primary/10 border-primary ring-1 ring-primary/40'
           : member.overallMet
-          ? 'bg-card/90 border-emerald-500/30 hover:border-emerald-500/50'
-          : 'bg-card/90 border-amber-500/30 hover:border-amber-500/50'
+          ? 'border-emerald-500/30 hover:border-emerald-500/50'
+          : 'border-amber-500/30 hover:border-amber-500/50'
       }`}
     >
       {/* Top Header */}
@@ -105,11 +87,13 @@ export function MonitoringMemberCard({
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2.5 min-w-0">
             {isLeadership && (
-              <Checkbox
-                checked={isSelected}
-                onCheckedChange={() => onToggleSelect(member.userId)}
-                className="h-4 w-4 border-primary shrink-0"
-              />
+              <div onClick={(e) => e.stopPropagation()}>
+                <Checkbox
+                  checked={isSelected}
+                  onCheckedChange={() => onToggleSelect(member.userId)}
+                  className="h-4 w-4 border-primary shrink-0"
+                />
+              </div>
             )}
 
             <Avatar className="h-9 w-9 border border-primary/20 shrink-0">
@@ -118,9 +102,12 @@ export function MonitoringMemberCard({
                 {member.fullName.slice(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
+
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <h4 className="font-bold text-xs leading-none text-foreground tracking-tight truncate">{member.fullName}</h4>
+                <h4 className="font-bold text-xs leading-none text-foreground tracking-tight truncate">
+                  {member.fullName}
+                </h4>
                 <Badge variant="outline" className="text-[9px] capitalize font-semibold bg-muted/40 border-primary/20 px-1 py-0">
                   {roleLabel}
                 </Badge>
@@ -129,200 +116,134 @@ export function MonitoringMemberCard({
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
             <Badge
               variant={member.overallMet ? 'default' : 'destructive'}
               className={`text-[10px] px-2 py-0.5 font-bold shadow-xs ${
-                member.overallMet 
-                  ? 'bg-emerald-600 text-white' 
-                  : 'bg-amber-600 text-white'
+                member.overallMet ? 'bg-emerald-600 text-white' : 'bg-amber-600 text-white'
               }`}
             >
-              {member.overallMet ? 'Met' : 'Missing'}
+              {member.overallMet ? '✓ Met' : '! Missing'}
             </Badge>
 
             {isLeadership && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-amber-500 hover:text-amber-400 hover:bg-amber-500/10 rounded-full"
-                title="Send Alert"
-                onClick={() => onOpenAlertModal(member.userId)}
-              >
-                <Bell className="w-3.5 h-3.5" />
-              </Button>
+              <MemberAlertPopover member={member} isLeadership={isLeadership} onSendAlert={onSendAlert} />
             )}
           </div>
         </div>
       </CardHeader>
 
-      <CardContent className="p-3 space-y-3 text-xs">
-        {/* Progress Bar */}
-        <div className="space-y-1">
-          <div className="flex justify-between text-[10px] font-semibold text-muted-foreground">
-            <span>AP Target Progress</span>
-            <span className="text-foreground font-bold">{member.ap.percentage}%</span>
-          </div>
-          <div className="h-1.5 w-full bg-muted/60 rounded-full overflow-hidden p-0.5 border border-border/40">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ${
-                member.ap.isMet ? 'bg-gradient-to-r from-emerald-500 to-teal-400' : 'bg-gradient-to-r from-amber-500 to-orange-400'
-              }`}
-              style={{ width: `${member.ap.percentage}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Responsive Grid Layout: AP | PS | Daily Survey (Next to PS!) | Group Meeting */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-          {/* 1. AP Box */}
-          <div
-            className={`p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-1.5 transition-all ${
-              isLeadership ? 'cursor-pointer hover:border-amber-500/50 hover:bg-amber-500/15' : ''
-            }`}
-            onClick={handleApBoxClick}
-            title={isLeadership ? 'Click to edit AP directly inline' : undefined}
-          >
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1 font-bold text-amber-600 dark:text-amber-400 text-[11px]">
-                <Coins className="w-3.5 h-3.5" /> AP
-              </span>
-              {isUpdating ? (
-                <Loader2 className="w-3 h-3 text-amber-400 animate-spin" />
-              ) : member.ap.isMet ? (
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-              ) : (
-                <XCircle className="w-3.5 h-3.5 text-amber-500" />
-              )}
+      <CardContent className="p-3 space-y-2.5 text-xs">
+        {/* 3 Grid Columns: AP | PS | Daily Survey */}
+        <div className="grid grid-cols-3 gap-2">
+          {/* AP Column */}
+          <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-1">
+            <div className="flex items-center justify-between text-[10px] font-bold text-amber-500">
+              <span className="flex items-center gap-1"><Coins className="w-3 h-3" /> AP</span>
             </div>
-
             {isLeadership && isEditingAp ? (
-              <div className="flex items-center gap-1 pt-0.5" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                 <Input
                   type="number"
                   min="0"
                   value={apInput}
                   onChange={(e) => setApInput(e.target.value)}
-                  onFocus={(e) => e.target.select()}
-                  onClick={(e) => (e.target as HTMLInputElement).select()}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') handleSaveAp();
                     if (e.key === 'Escape') setIsEditingAp(false);
                   }}
-                  onBlur={() => handleSaveAp()}
-                  disabled={isUpdating}
-                  className="h-7 text-xs font-extrabold font-mono bg-background/90 border-amber-500 focus:ring-1 focus:ring-amber-500 px-1.5"
-                  placeholder="AP..."
+                  onBlur={handleSaveAp}
+                  className="h-6 text-xs font-mono font-bold px-1"
                   autoFocus
                 />
-                {isUpdating ? (
-                  <Loader2 className="w-3.5 h-3.5 text-amber-500 animate-spin shrink-0" />
-                ) : (
-                  <Button size="icon" className="h-7 w-7 bg-amber-600 hover:bg-amber-700 shrink-0" onClick={() => handleSaveAp()}>
-                    <Check className="w-3 h-3" />
-                  </Button>
-                )}
               </div>
             ) : (
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <p className="font-extrabold text-xs text-foreground font-mono">{member.ap.achieved.toLocaleString()} / {member.ap.target.toLocaleString()}</p>
-                  {isLeadership && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-5 w-5 text-muted-foreground hover:text-amber-400"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleApBoxClick();
-                      }}
-                    >
-                      <Edit2 className="w-3 h-3" />
-                    </Button>
-                  )}
-                </div>
-
-                {/* Quick Add AP Buttons */}
-                {isLeadership && (
-                  <div className="flex items-center gap-1 pt-1 border-t border-amber-500/20" onClick={(e) => e.stopPropagation()}>
-                    <Button size="sm" variant="outline" className="h-4 px-1 text-[9px] font-bold border-amber-400/40 text-amber-600 dark:text-amber-400" onClick={() => handleQuickAddAp(50)}>
-                      +50
-                    </Button>
-                    <Button size="sm" variant="outline" className="h-4 px-1 text-[9px] font-bold border-amber-400/40 text-amber-600 dark:text-amber-400" onClick={() => handleQuickAddAp(100)}>
-                      +100
-                    </Button>
-                    <Button size="sm" variant="outline" className="h-4 px-1 text-[9px] font-bold border-amber-400/40 text-amber-600 dark:text-amber-400" onClick={() => handleQuickAddAp(500)}>
-                      +500
-                    </Button>
-                  </div>
-                )}
+              <div
+                onClick={(e) => {
+                  if (isLeadership) {
+                    e.stopPropagation();
+                    setIsEditingAp(true);
+                  }
+                }}
+                className={`flex items-center justify-between ${isLeadership ? 'cursor-pointer hover:bg-amber-500/20 rounded px-1' : ''}`}
+              >
+                <span className="font-extrabold text-xs font-mono text-foreground">
+                  {member.ap.achieved.toLocaleString()}
+                </span>
+                {isLeadership && <Edit2 className="w-3 h-3 text-amber-500 opacity-60" />}
               </div>
             )}
+            <p className="text-[9px] text-muted-foreground font-mono">/ {member.ap.target}</p>
           </div>
 
-          {/* 2. PS Entry Box */}
-          <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1 font-bold text-blue-600 dark:text-blue-400 text-[11px]">
-                <ClipboardList className="w-3.5 h-3.5" /> PS Entry
-              </span>
-              {member.ps.isMet ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <XCircle className="w-3.5 h-3.5 text-amber-500" />}
-            </div>
-
-            <div className="space-y-1">
-              <p className="font-extrabold text-xs text-foreground font-mono">{member.ps.displayText}</p>
-              <TwoStatusButtons
-                isCompleted={member.ps.isMet}
-                isLeadership={isLeadership}
-                onSetCompleted={() => onSetPsStatus({ userId: member.userId, newStatus: 'completed', count: member.ps.target })}
-                onSetPending={() => onSetPsStatus({ userId: member.userId, newStatus: 'pending' })}
-              />
-            </div>
-          </div>
-
-          {/* 3. Daily Survey Box (MOVED NEXT TO PS ENTRY!) */}
-          <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1 font-bold text-purple-600 dark:text-purple-400 text-[11px]">
-                <FileCheck className="w-3.5 h-3.5" /> Daily Survey
-              </span>
-              {member.dailySurvey.isMet ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <XCircle className="w-3.5 h-3.5 text-amber-500" />}
-            </div>
-
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-[10px] font-mono">
-                <span className="font-extrabold text-xs text-foreground">{member.dailySurvey.displayText}</span>
-                <span className={member.dailySurvey.isMet ? 'text-emerald-400 font-bold' : 'text-purple-400 font-bold'}>
-                  {member.dailySurvey.percentage}%
-                </span>
-              </div>
-              <TwoStatusButtons
-                isCompleted={member.dailySurvey.isMet}
-                isLeadership={isLeadership}
-                onSetCompleted={() => onSetSurveyCount({ userId: member.userId, count: member.dailySurvey.target })}
-                onSetPending={() => onSetSurveyCount({ userId: member.userId, count: 0 })}
-                completedLabel="✓ Done (4)"
-                pendingLabel="↻ Pend (0)"
-              />
+          {/* PS Column */}
+          <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20 space-y-1">
+            <span className="flex items-center gap-1 font-bold text-blue-500 text-[10px]">
+              <ClipboardList className="w-3 h-3" /> PS
+            </span>
+            <div className="pt-0.5" onClick={(e) => e.stopPropagation()}>
+              <Badge
+                variant="outline"
+                onClick={async () => {
+                  if (isLeadership && onSetPsStatus) {
+                    await onSetPsStatus({
+                      userId: member.userId,
+                      newStatus: member.ps.isMet ? 'pending' : 'completed',
+                      count: member.ps.target,
+                    });
+                  }
+                }}
+                className={`text-[9px] font-bold px-1.5 py-0 ${isLeadership ? 'cursor-pointer hover:opacity-80' : ''} ${
+                  member.ps.isMet ? 'bg-emerald-500/20 border-emerald-500 text-emerald-500' : 'bg-amber-500/20 border-amber-500 text-amber-500'
+                }`}
+              >
+                {member.ps.isMet ? '✓ Completed' : 'Not Yet'}
+              </Badge>
             </div>
           </div>
 
-          {/* 4. Group Meeting Box */}
-          <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400 text-[11px]">
-                <CalendarCheck className="w-3.5 h-3.5" /> Group Meeting
-              </span>
-              {member.groupMeeting.isMet ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <XCircle className="w-3.5 h-3.5 text-amber-500" />}
+          {/* Daily Survey Count Column with Stepper Controls [-] [+] */}
+          <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 space-y-1">
+            <span className="flex items-center gap-1 font-bold text-purple-400 text-[10px]">
+              <FileCheck className="w-3 h-3" /> Survey
+            </span>
+            <div className="flex items-center gap-1 font-mono font-extrabold text-xs" onClick={(e) => e.stopPropagation()}>
+              {isLeadership && onSetSurveyCount && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-4 w-4 text-[10px] font-bold border-purple-500/40 text-purple-400 hover:bg-purple-500/10 shrink-0"
+                  onClick={async () => {
+                    await onSetSurveyCount({
+                      userId: member.userId,
+                      count: Math.max(0, member.dailySurvey.achieved - 1),
+                    });
+                  }}
+                >
+                  −
+                </Button>
+              )}
+              <span className="text-foreground">{member.dailySurvey.achieved} / {member.dailySurvey.target}</span>
+              {isLeadership && onSetSurveyCount && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-4 w-4 text-[10px] font-bold border-purple-500/40 text-purple-400 hover:bg-purple-500/10 shrink-0"
+                  onClick={async () => {
+                    await onSetSurveyCount({
+                      userId: member.userId,
+                      count: member.dailySurvey.achieved + 1,
+                    });
+                  }}
+                >
+                  +
+                </Button>
+              )}
             </div>
-
-            <div className="space-y-1">
-              <p className="font-extrabold text-xs text-foreground font-mono">{member.groupMeeting.displayText}</p>
-              <TwoStatusButtons
-                isCompleted={member.groupMeeting.isMet}
-                isLeadership={isLeadership}
-                onSetCompleted={() => onSetMeetingStatus({ userId: member.userId, status: 'completed' })}
-                onSetPending={() => onSetMeetingStatus({ userId: member.userId, status: 'pending' })}
+            <div className="h-1 w-full bg-muted/60 rounded-full overflow-hidden">
+              <div
+                className={`h-full ${member.dailySurvey.isMet ? 'bg-emerald-400' : 'bg-purple-400'}`}
+                style={{ width: `${Math.min(100, member.dailySurvey.percentage)}%` }}
               />
             </div>
           </div>

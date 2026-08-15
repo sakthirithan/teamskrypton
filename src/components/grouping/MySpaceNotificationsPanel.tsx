@@ -9,6 +9,7 @@ import { useCentralizedMonitoring } from '@/hooks/useCentralizedMonitoring';
 import { resolveDeepLink } from '@/lib/deeplink';
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
+import { NotificationActionPanel } from '@/components/notifications/NotificationActionPanel';
 
 export function MySpaceNotificationsPanel() {
   const navigate = useNavigate();
@@ -110,49 +111,14 @@ export function MySpaceNotificationsPanel() {
                         <LinkifyText text={n.message} className="text-xs text-muted-foreground mt-1 leading-normal whitespace-pre-line" />
                       ) : null}
 
-                      {/* Actionable Buttons */}
+                      {/* Actionable Notification Panel */}
                       {isActionable && (
-                        <div className="flex items-center gap-2 flex-wrap mt-2.5 pt-2 border-t border-border/40">
-                          <Button
-                            size="sm"
-                            className="h-7 px-3 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleActionableResponse.mutate({ alertId: n.id, action: 'completed' });
-                            }}
-                            disabled={handleActionableResponse.isPending}
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            [Completed] (+1 Survey Response)
-                          </Button>
-
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 px-2.5 text-xs gap-1 text-purple-400 border-purple-500/30 hover:bg-purple-500/10 font-bold"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const safePath = resolveDeepLink(targetPath);
-                              navigate(safePath);
-                            }}
-                          >
-                            <ExternalLink className="w-3 h-3" />
-                            Open Page
-                          </Button>
-
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 px-2 text-xs text-muted-foreground hover:bg-muted font-medium"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleActionableResponse.mutate({ alertId: n.id, action: 'not_yet' });
-                            }}
-                            disabled={handleActionableResponse.isPending}
-                          >
-                            <XCircle className="w-3.5 h-3.5" />
-                            [Not Yet]
-                          </Button>
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <NotificationActionPanel
+                            notificationId={n.id}
+                            metadata={meta}
+                            onSuccess={() => markAsRead.mutate(n.id)}
+                          />
                         </div>
                       )}
                     </div>

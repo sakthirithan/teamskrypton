@@ -1400,8 +1400,11 @@ export type Database = {
           last_run_count: number
           message: string
           name: string
+          recipient_type: string
           repeat_mode: string
           run_at_time: string
+          selected_days: number[]
+          target_user_ids: string[]
           title: string
           updated_at: string
         }
@@ -1415,8 +1418,11 @@ export type Database = {
           last_run_count?: number
           message: string
           name: string
+          recipient_type?: string
           repeat_mode?: string
           run_at_time?: string
+          selected_days?: number[]
+          target_user_ids?: string[]
           title: string
           updated_at?: string
         }
@@ -1430,8 +1436,11 @@ export type Database = {
           last_run_count?: number
           message?: string
           name?: string
+          recipient_type?: string
           repeat_mode?: string
           run_at_time?: string
+          selected_days?: number[]
+          target_user_ids?: string[]
           title?: string
           updated_at?: string
         }
